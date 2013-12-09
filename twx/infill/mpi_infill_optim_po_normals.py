@@ -9,15 +9,15 @@ of years of data artificially set to missing. Infilled values are then compared 
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_ncdb,STN_ID,LON,LAT
-from infill.obs_por import load_por_csv,POR_DTYPE
-from utils.input_raster import input_raster
-from utils.status_check import status_check
+from twx.db.station_data import station_data_ncdb,STN_ID,LON,LAT
+from twx.infill.obs_por import load_por_csv,POR_DTYPE
+from twx.utils.input_raster import input_raster
+from twx.utils.status_check import status_check
 from netCDF4 import Dataset
 import netCDF4
 import datetime
-from infill.infill_normals import build_mth_masks,MTH_BUFFER,infill_po
-from infill.infill_daily import calc_forecast_scores,calc_hss
+from twx.infill.infill_normals import build_mth_masks,MTH_BUFFER,infill_po
+from twx.infill.infill_daily import calc_forecast_scores,calc_hss
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2

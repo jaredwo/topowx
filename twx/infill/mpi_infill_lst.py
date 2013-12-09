@@ -6,15 +6,15 @@ A MPI driver for interpolating tair to a specified grid using interp.interp_tair
 
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_infill,DTYPE_STN_BASIC
-from utils.status_check import status_check
+from twx.db.station_data import station_data_infill,DTYPE_STN_BASIC
+from twx.utils.status_check import status_check
 from netCDF4 import Dataset,num2date
 import os
 import numpy as np
-from modis.ModisLst import ImputeLST,ImputeLstNorm,LstData,MYD11A2_MTH_DAYS8
-import utils.util_dates as utld
-from utils.util_dates import MONTH
-from db.ushcn import TairAggregate
+from twx.modis.ModisLst import ImputeLST,ImputeLstNorm,LstData,MYD11A2_MTH_DAYS8
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import MONTH
+from twx.db.ushcn import TairAggregate
 from pyhdf.SD import SD, SDC
 
 TAG_DOWORK = 1

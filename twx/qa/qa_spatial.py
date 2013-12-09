@@ -7,7 +7,7 @@ import numpy as np
 import qa_temp
 import qa_prcp
 from qa_temp import stns_in_radius_mask,MIN_NGHS
-from db.station_data import STN_ID
+from twx.db.station_data import STN_ID
 
 def run_qa_spatial(stn, stn_da, tmin, tmax, prcp, days):
     

@@ -2,10 +2,10 @@
 Classes and functions for performing prcp interpolation
 '''
 import numpy as np
-from db.station_data import LON,LAT,ELEV,YMD,PRCP,station_data_infill,STN_ID
+from twx.db.station_data import LON,LAT,ELEV,YMD,PRCP,station_data_infill,STN_ID
 import matplotlib.mlab as mlab
-from interp.clibs import clib_wxTopo
-from interp.station_select import station_select
+from twx.interp.clibs import clib_wxTopo
+from twx.interp.station_select import station_select
 import scipy.stats as stats
 
 #rpy2

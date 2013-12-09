@@ -3,8 +3,8 @@ Created on Nov 26, 2012
 
 @author: jared.oyler
 '''
-from utils.input_raster import input_raster
-import utils.util_geo as utlg
+from twx.utils.input_raster import input_raster
+import twx.utils.util_geo as utlg
 import numpy as np
 
 class TopoDisectDEM(input_raster):

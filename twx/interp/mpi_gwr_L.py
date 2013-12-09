@@ -3,7 +3,7 @@ A MPI driver for calculating the geographically weighted regression L matrix as 
 
 Leung, Y., Mei, C.-L., & Zhang, W.-X. (2000). 
 Statistical tests for spatial nonstationarity based on the geographically weighted regression model. 
-Environment and Planning A, 32(1), 9–32. doi:10.1068/a3162
+Environment and Planning A, 32(1)
 
 This is used for estimating prediction confidence intervals.
 
@@ -13,9 +13,9 @@ This is used for estimating prediction confidence intervals.
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_infill,STN_ID,LON,LAT,ELEV
-from interp.station_select import station_select
-from utils.status_check import status_check
+from twx.db.station_data import station_data_infill,STN_ID,LON,LAT,ELEV
+from twx.interp.station_select import station_select
+from twx.utils.status_check import status_check
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2

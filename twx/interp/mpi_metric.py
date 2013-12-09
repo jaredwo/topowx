@@ -7,15 +7,15 @@ An MPI driver for calculating various metrics from tiled output
 import numpy as np
 from mpi4py import MPI
 import sys
-from utils.status_check import status_check
+from twx.utils.status_check import status_check
 from netCDF4 import Dataset,num2date
 import netCDF4
 from collections import deque
-import interp.tiling as ti
-import utils.util_dates as utld
-from utils.util_dates import MONTH,YEAR
-from utils.degree_days import gdd_wheat,dd_cooling,dd_heating,gdd_wheat_basic
-from interp_constants import *
+import twx.interp.tiling as ti
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import MONTH,YEAR
+from twx.utils.degree_days import gdd_wheat,dd_cooling,dd_heating,gdd_wheat_basic
+from twx.interp_constants import *
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 1000

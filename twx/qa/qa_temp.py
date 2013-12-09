@@ -7,12 +7,12 @@ Journal of Applied Meteorology and Climatology 49:1615-1633.
 @author: jared.oyler
 '''
 
-import utils.util_dates as utld
+import twx.utils.util_dates as utld
 import numpy as np
 from datetime import datetime
 import calendar as cal
-import utils.util_geo as utlg
-from db.station_data import LON, LAT, STN_ID, YEAR, DATE, MONTH, TMIN, TMAX, YMD, DAY, YDAY,\
+import twx.utils.util_geo as utlg
+from twx.db.station_data import LON, LAT, STN_ID, YEAR, DATE, MONTH, TMIN, TMAX, YMD, DAY, YDAY,\
     station_data_ncdb
 from datetime import timedelta
 from scipy import stats

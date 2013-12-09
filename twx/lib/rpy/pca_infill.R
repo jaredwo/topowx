@@ -18,7 +18,7 @@ options(warn=-1)
 MAX_R2CUM<-0.99#0.995
 CENTER<-FALSE
 SCALE<-'none'  #'none'
-VERBOSE<-TRUE
+VERBOSE<-FALSE
 
 kEstimate_po <- function(Matrix, method="ppca", evalPcs=1:3, segs=3, nruncv=5,
 		em="q2", allVariables=FALSE,po_crit=0.5,

@@ -7,10 +7,10 @@ import numpy as np
 from netCDF4 import Dataset
 import netCDF4
 import matplotlib.pyplot as plt
-from db.station_data import station_data_infill,OPTIM_NNGH,OPTIM_NNGH_ANOM,NEON,MASK,BAD,LON,LAT,ELEV,TDI,NEON,MEAN_OBS,LST
-import interp.interp_tair as it
-from interp.interp_tair import LST_TMIN,LST_TMAX
-import db.ushcn as ushcn
+from twx.db.station_data import station_data_infill,OPTIM_NNGH,OPTIM_NNGH_ANOM,NEON,MASK,BAD,LON,LAT,ELEV,TDI,NEON,MEAN_OBS,LST
+import twx.interp.interp_tair as it
+from twx.interp.interp_tair import LST_TMIN,LST_TMAX
+import twx.db.ushcn as ushcn
 
 
 def set_optim_nnghs(fpathSerialDb,varTair,optimStats,optimVar=OPTIM_NNGH,longname=None):

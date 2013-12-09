@@ -9,17 +9,17 @@ of years of data artificially set to missing. Infilled values are then compared 
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_ncdb
-from utils.status_check import status_check
+from twx.db.station_data import station_data_ncdb
+from twx.utils.status_check import status_check
 from netCDF4 import Dataset
 import netCDF4
-from utils.util_dates import YEAR,MONTH
-from infill.infill_daily import calc_forecast_scores,infill_prcp,source_r
-from infill.infill_normals import build_mth_masks,MTH_BUFFER,infill_prcp_norm
+from twx.utils.util_dates import YEAR,MONTH
+from twx.infill.infill_daily import calc_forecast_scores,infill_prcp,source_r
+from twx.infill.infill_normals import build_mth_masks,MTH_BUFFER,infill_prcp_norm
 import matplotlib.pyplot as plt
 import scipy.stats as ss
 from random_xval_stations import build_xval_masks,get_random_xval_stns
-from db.all_create_db import dbDataset
+from twx.db.all_create_db import dbDataset
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2

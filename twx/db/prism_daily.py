@@ -3,16 +3,16 @@ Created on Oct 28, 2013
 
 @author: jared.oyler
 '''
-from utils.input_raster import RasterDataset
+from twx.utils.input_raster import RasterDataset
 from netCDF4 import Dataset
-import utils.util_dates as utld
+import twx.utils.util_dates as utld
 from datetime import datetime
-from utils.util_dates import YEAR, MONTH, DATE, YMD
+from twx.utils.util_dates import YEAR, MONTH, DATE, YMD
 from netcdftime import date2num
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from utils.status_check import status_check
+from twx.utils.status_check import status_check
 
 SCALE_FACTOR = np.float32(0.01)
 CCE_BBOX = (-117.0,-109.0,45.0,50.0)

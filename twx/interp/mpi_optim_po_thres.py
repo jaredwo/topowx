@@ -6,15 +6,15 @@ A MPI driver for calculating monthly optimized prcp. occurrence thresholds for i
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_infill,STN_ID,LON,LAT
-from interp.station_select import station_select
-from utils.status_check import status_check
-import utils.util_geo as utlg
-from utils.ncdf_raster import ncdf_raster
+from twx.db.station_data import station_data_infill,STN_ID,LON,LAT
+from twx.interp.station_select import station_select
+from twx.utils.status_check import status_check
+import twx.utils.util_geo as utlg
+from twx.utils.ncdf_raster import ncdf_raster
 from netCDF4 import Dataset
 import netCDF4
 import datetime
-import interp.interp_prcp as ip
+import twx.interp.interp_prcp as ip
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2

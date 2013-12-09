@@ -7,16 +7,16 @@ repository (http://www.bioconductor.org/packages/release/bioc/html/pcaMethods.ht
 '''
 import matplotlib.pyplot as plt
 import numpy as np
-from db.station_data import STN_ID, LON, LAT,MONTH,UTC_OFFSET
-import utils.util_geo as utlg
+from twx.db.station_data import STN_ID, LON, LAT,MONTH,UTC_OFFSET
+import twx.utils.util_geo as utlg
 import sys
-import utils.util_misc as utlm
+import twx.utils.util_misc as utlm
 sys.stdout = utlm.Unbuffered(sys.stdout)
-from utils.util_dates import YEAR
-from infill.infill_normals import infill_prcp_norm
+from twx.utils.util_dates import YEAR
+from twx.infill.infill_normals import infill_prcp_norm
 import netCDF4
 import scipy.stats as ss
-import interp.clibs as clibs
+import twx.interp.clibs as clibs
 #rpy2
 import rpy2
 import rpy2.robjects as robjects
@@ -1740,7 +1740,7 @@ def infill_prcp(stn_id, stn_da, ds_norms, days, mth_masks, mthbuf_masks, nnghs,p
     @param stn_id: the stn_id of the target
     @param stn_da: a station_data_ncdb object
     @param ds_norms: a netCDF4 dataset object for the daily prcp normals dataset produced by obs_infill_normal
-    @param days: a days object from utils.util_dates.get_days_metadata representing the time series to infill/expand
+    @param days: a days object from twx.utils.util_dates.get_days_metadata representing the time series to infill/expand
     @param mth_masks: a mask of months (from build_mth_masks) over the time series of interest
     @param mthbuf_masks: a mask of months with a buffer (from build_mth_masks) over the time series of interest
     @param nnghs: the number of neighbor stations to use for infilling

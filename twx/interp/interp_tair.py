@@ -2,23 +2,23 @@
 Classes and functions for performing Tair interpolation
 '''
 import numpy as np
-from db.station_data import LON,LAT,ELEV,TDI,LST,MEAN_OBS,NEON,OPTIM_NNGH,\
+from twx.db.station_data import LON,LAT,ELEV,TDI,LST,MEAN_OBS,NEON,OPTIM_NNGH,\
     VARIO_NUG, VARIO_PSILL, VARIO_RNG, OPTIM_NNGH_ANOM, BAD, MASK, station_data_infill,STN_ID,MONTH,get_norm_varname,\
     get_optim_varname, get_krigparam_varname, get_lst_varname,\
     get_optim_anom_varname, DTYPE_NORMS, DTYPE_OPTIM, DTYPE_LST,DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO_OPTIMNNGHANOM,DTYPE_ANOM_OPTIM,YEAR
-from interp.clibs import clib_wxTopo
+from twx.interp.clibs import clib_wxTopo
 import scipy.stats as stats
-from utils.util_ncdf import GeoNc
+from twx.utils.util_ncdf import GeoNc
 from netCDF4 import Dataset
-from interp.station_select import station_select
+from twx.interp.station_select import station_select
 from matplotlib.mlab import griddata 
 import matplotlib.pyplot as plt
-import utils.util_dates as utld
+import twx.utils.util_dates as utld
 #rpy2
 import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects.numpy2ri import numpy2ri
-from db.ushcn import TairAggregate
+from twx.db.ushcn import TairAggregate
 robjects.conversion.py2ri = numpy2ri
 r = robjects.r
 import rpy2.rinterface as ri

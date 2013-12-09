@@ -8,11 +8,11 @@ from netCDF4 import Dataset,date2num
 import os
 import datetime
 from datetime import date
-from utils.util_dates import YMD,DATE
+from twx.utils.util_dates import YMD,DATE
 import netCDF4
-from utils.util_ncdf import to_geotiff,to_geotiffa
-from db.all_create_db import dbDataset
-from interp_constants import *
+from twx.utils.util_ncdf import to_geotiff,to_geotiffa
+from twx.db.all_create_db import dbDataset
+from twx.interp_constants import *
 import matplotlib.pyplot as plt
 
 #long name, units, standard name, missing value,cell method

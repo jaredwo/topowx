@@ -6,9 +6,9 @@ Created on Nov 9, 2012
 import os
 import numpy as np
 from netCDF4 import Dataset,num2date,date2num
-import utils.util_dates as utld
-from utils.util_dates import YEAR
-from db.ushcn import TairAggregate
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import YEAR
+from twx.db.ushcn import TairAggregate
 import matplotlib.pyplot as plt
 import osgeo.gdal as gdal
 import osgeo.gdalconst as gdalconst

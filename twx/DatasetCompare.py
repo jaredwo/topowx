@@ -7,21 +7,21 @@ Created on Aug 14, 2013
 import os
 import numpy as np
 from netCDF4 import Dataset,num2date,date2num
-import utils.util_dates as utld
-from utils.util_dates import YEAR, DATE, MONTH, DAY
-from db.ushcn import TairAggregate
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import YEAR, DATE, MONTH, DAY
+from twx.db.ushcn import TairAggregate
 import matplotlib.pyplot as plt
 import osgeo.gdal as gdal
 import osgeo.gdalconst as gdalconst
 import osgeo.osr as osr
 from scipy import stats
-from utils.status_check import status_check
+from twx.utils.status_check import status_check
 from modis.clip_raster import resample_to_grd1,mask_to_rastmask
 from datetime import datetime
-from db.station_data import BAD,LON,LAT,ELEV,BAD,LST,TDI,MASK,NEON,OPTIM_NNGH,VARIO_RNG,VARIO_NUG,VARIO_PSILL,OPTIM_NNGH_ANOM,station_data_ncdb,DTYPE_STN_BASIC,YMD,STN_ID
-from utils.input_raster import RasterDataset
-from utils.util_ncdf import NcdfRaster
-import interp.interp_tair as it
+from twx.db.station_data import BAD,LON,LAT,ELEV,BAD,LST,TDI,MASK,NEON,OPTIM_NNGH,VARIO_RNG,VARIO_NUG,VARIO_PSILL,OPTIM_NNGH_ANOM,station_data_ncdb,DTYPE_STN_BASIC,YMD,STN_ID
+from twx.utils.input_raster import RasterDataset
+from twx.utils.util_ncdf import NcdfRaster
+import twx.interp.interp_tair as it
 
 PROJ_GEO_WGS84 = 4326
 

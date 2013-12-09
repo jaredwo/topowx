@@ -8,7 +8,7 @@ from netCDF4 import Dataset,num2date
 import numpy as np
 from modis.clip_raster import mask_to_shp, crop_nodata
 from osgeo import gdal
-import utils.util_dates as utld
+import twx.utils.util_dates as utld
 
 def nc_to_tiff():
     dsPath = '/stage/climate/topowx_tile_output/h05v02/h05v02_tmin.nc'

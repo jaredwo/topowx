@@ -11,9 +11,9 @@ from netCDF4 import Dataset
 import netCDF4
 import sys,os
 from datetime import datetime,date
-import utils.util_dates as utld
-from utils.util_dates import YDAY,YEAR
-from utils.input_raster import input_raster, RasterDataset
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import YDAY,YEAR
+from twx.utils.input_raster import input_raster, RasterDataset
 TDAYCOEF = 0.45
 
 '''

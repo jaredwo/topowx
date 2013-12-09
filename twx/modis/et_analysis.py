@@ -16,7 +16,7 @@ from mpl_toolkits.basemap import Basemap
 import numpy as np
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
-from utils.util_ncdf import ncdf_raster
+from twx.utils.util_ncdf import ncdf_raster
 import sys
 import matplotlib.cm as cm  
 import matplotlib

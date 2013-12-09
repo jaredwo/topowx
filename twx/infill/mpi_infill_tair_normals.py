@@ -8,14 +8,14 @@ using the methods of obs_infill_normal.
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_ncdb,STN_ID,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX
-from infill.obs_por import load_por_csv,build_valid_por_masks
-from utils.status_check import status_check
+from twx.db.station_data import station_data_ncdb,STN_ID,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX
+from twx.infill.obs_por import load_por_csv,build_valid_por_masks
+from twx.utils.status_check import status_check
 import netCDF4
-from infill.infill_normals import impute_tair_norm
-from infill.infill_daily import source_r
-from db.reanalysis import NNRNghData
-from interp.clibs import clib_wxTopo
+from twx.infill.infill_normals import impute_tair_norm
+from twx.infill.infill_daily import source_r
+from twx.db.reanalysis import NNRNghData
+from twx.interp.clibs import clib_wxTopo
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2

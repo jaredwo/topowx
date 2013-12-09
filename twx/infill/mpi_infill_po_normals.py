@@ -8,13 +8,13 @@ using the methods of obs_infill_normal.
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_ncdb,STN_ID,YEAR,DATE,STN_NAME,ELEV,LON,LAT,STATE
-from infill.obs_por import load_por_csv,build_valid_por_masks
-from utils.status_check import status_check
+from twx.db.station_data import station_data_ncdb,STN_ID,YEAR,DATE,STN_NAME,ELEV,LON,LAT,STATE
+from twx.infill.obs_por import load_por_csv,build_valid_por_masks
+from twx.utils.status_check import status_check
 from netCDF4 import Dataset,date2num
 import netCDF4
 import datetime
-from infill.infill_normals import infill_po,build_mth_masks,MTH_BUFFER
+from twx.infill.infill_normals import infill_po,build_mth_masks,MTH_BUFFER
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2

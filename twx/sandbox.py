@@ -5,72 +5,72 @@
 import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects.numpy2ri import numpy2ri
-from infill.infill_post_process import RM_STN_FLAG, RM_STN_DUP
+from twx.infill.infill_post_process import RM_STN_FLAG, RM_STN_DUP
 from test.test_robotparser import bad
 robjects.conversion.py2ri = numpy2ri
 r = robjects.r
 
 from copy import copy
-from db.snotel_clean import parse_hist_stns,filterToLowResSnotel
-from utils.input_raster import input_raster,RasterDataset
-import utils.util_dates as utld
-from utils.util_dates import YMD
+from twx.db.snotel_clean import parse_hist_stns,filterToLowResSnotel
+from twx.utils.input_raster import input_raster,RasterDataset
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import YMD
 import netCDF4
 from netCDF4 import Dataset
 import numpy as np
 from datetime import datetime
 from datetime import date
 from netCDF4 import date2num,num2date
-from db.station_data import STN_ID,STATE,LON,TDI,LST,NEON,LAT,ELEV,STN_NAME,TMIN,TMAX,PRCP,TMIN_FLAG,TMAX_FLAG,PRCP_FLAG,MONTH,station_data_ncdb,station_data_infill,YEAR,SWE,get_neon_rgns,station_data_combine,MEAN_OBS,DTYPE_STN_DFLT,DTYPE_STN_MEAN_LST_TDI,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX,DTYPE_STN_BASIC,VCF,OPTIM_NNGH,\
+from twx.db.station_data import STN_ID,STATE,LON,TDI,LST,NEON,LAT,ELEV,STN_NAME,TMIN,TMAX,PRCP,TMIN_FLAG,TMAX_FLAG,PRCP_FLAG,MONTH,station_data_ncdb,station_data_infill,YEAR,SWE,get_neon_rgns,station_data_combine,MEAN_OBS,DTYPE_STN_DFLT,DTYPE_STN_MEAN_LST_TDI,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX,DTYPE_STN_BASIC,VCF,OPTIM_NNGH,\
     MASK,BAD, OPTIM_NNGH_ANOM, get_lst_varname
 import sys
 import matplotlib.pyplot as plt
-from db.all_create_db import create_db_ncdf, MISSING,copy_db_ncdf_nometa
-from db.all_create_db import insert_glac,insert_data_ncdf,insert_usfs
+from twx.db.all_create_db import create_db_ncdf, MISSING,copy_db_ncdf_nometa
+from twx.db.all_create_db import insert_glac,insert_data_ncdf,insert_usfs
 import sqlite3 as sql
-from utils.status_check import status_check
-from utils.util_ncdf import ncdf_raster,to_geotiff,to_ncdf,expand_grid
+from twx.utils.status_check import status_check
+from twx.utils.util_ncdf import ncdf_raster,to_geotiff,to_ncdf,expand_grid
 from qa.qa_location import load_locs_fixed
-import utils.util_geo as utlg
-from infill.infill_daily import gwrpca_matrix,source_r,pca_matrix,calc_hss,calc_forecast_scores,pca_matrix_prcp,infill_prcp,PO_THRESHS,prcp_infill_results,build_yr_mth_masks,tmin_tmax_fixer,ioapca_matrix,nnrpca_matrix,ImputeMatrixPCA,MIN_NNR_VAR
+import twx.utils.util_geo as utlg
+from twx.infill.infill_daily import gwrpca_matrix,source_r,pca_matrix,calc_hss,calc_forecast_scores,pca_matrix_prcp,infill_prcp,PO_THRESHS,prcp_infill_results,build_yr_mth_masks,tmin_tmax_fixer,ioapca_matrix,nnrpca_matrix,ImputeMatrixPCA,MIN_NNR_VAR
 from qa.qa_location import get_elev_usgs
 
-from infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,infill_prcp_norm,ImputeMatrix,impute_tair_norm
-from infill.obs_por import load_por_csv,POR_DTYPE,build_valid_por_masks
-from interp.station_select import station_select
-from interp.interp_tair import KrigTair, LST_TMAX, LST_TMIN, StationDataWrkChk
-from interp.clibs import clib_wxTopo
-from utils.status_check import timer
-import interp.interp_prcp as ip
-import interp.interp_tair as it
-import utils.ncdf_raster as nr
+from twx.infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,infill_prcp_norm,ImputeMatrix,impute_tair_norm
+from twx.infill.obs_por import load_por_csv,POR_DTYPE,build_valid_por_masks
+from twx.interp.station_select import station_select
+from twx.interp.interp_tair import KrigTair, LST_TMAX, LST_TMIN, StationDataWrkChk
+from twx.interp.clibs import clib_wxTopo
+from twx.utils.status_check import timer
+import twx.interp.interp_prcp as ip
+import twx.interp.interp_tair as it
+import twx.utils.ncdf_raster as nr
 import os
 import osgeo.gdalconst as gdalconst
 import osgeo.gdal as gdal
 import scipy.stats as stats
 import infill.obs_por as obs_por
 from qa.qa_spatial import run_qa_spatial
-import utils.decimaldegrees as dd
-from qa.qa_location import get_elev_geonames,get_elev_usgs
+import twx.utils.decimaldegrees as dd
+from twx.qa.qa_location import get_elev_geonames,get_elev_usgs
 import ogr
 import infill.random_xval_stations as xval
-from db.reanalysis import NNRds,NNRNghData
-import interp.tiling as ti
-from interp.interp_constants import RM_STN_IDS_TAIR,AREA_MONTANA_BUFFER
-from infill.infill_post_process import output_no_tdi_stns
+from twx.db.reanalysis import NNRds,NNRNghData
+import twx.interp.tiling as ti
+from twx.interp.interp_constants import RM_STN_IDS_TAIR,AREA_MONTANA_BUFFER
+from twx.infill.infill_post_process import output_no_tdi_stns
 #import osgeo.osr as osr
 #from modis.montana_ndvi import modis_sin_rast
 import time
-from interp.station_select import station_select_neon
+from twx.interp.station_select import station_select_neon
 
-from db import station_data, ushcn
-from utils.output_raster import output_raster
+from twx.db import station_data, ushcn
+from twx.utils.output_raster import output_raster
 from qa import qa_temp
 from qa.qa_temp import run_qa_spatial_only
-from interp.topo_disect import TopoDisectDEM
-from interp.station_select import NEON_AREAS
+from twx.interp.topo_disect import TopoDisectDEM
+from twx.interp.station_select import NEON_AREAS
 from mpl_toolkits.basemap import Basemap
-import interp.tiling as tl
+import twx.interp.tiling as tl
 import qa.qa_change_point as qa_cp
 import matplotlib.cm as cm
 import matplotlib
@@ -78,8 +78,8 @@ from qa.qa_location import get_elev
 from modis.montana_ndvi import EOSGridSD,KtoC
 from modis.montana_ndvi import modis_sin_rast
 from osgeo import osr
-from infill.infill_post_process import runs_of_ones_array
-from utils.util_ncdf import toGTiff,GeoNc
+from twx.infill.infill_post_process import runs_of_ones_array
+from twx.utils.util_ncdf import toGTiff,GeoNc
 import cProfile
 
 

@@ -8,7 +8,7 @@ import osgeo.gdal as gdal
 import osgeo.osr as osr
 import numpy as np
 from netCDF4 import Dataset
-from utils.input_raster import input_raster
+from twx.utils.input_raster import input_raster
 import sys
 import netCDF4
 import matplotlib.pyplot as plt

@@ -14,22 +14,22 @@ import matplotlib.pyplot as plt
 
 import osgeo.gdalconst as gdalconst
 from downmodis import downModis
-from utils.input_raster import RasterDataset
+from twx.utils.input_raster import RasterDataset
 import scipy.spatial.distance as scpydist
 import osgeo.ogr as ogr
 import sys
 from netCDF4 import Dataset,date2num,num2date
 import netCDF4
 import datetime
-from utils.status_check import status_check
-from db.station_data import station_data_ncdb, station_data_infill,BAD,STN_ID,YEAR,LON,LAT,\
+from twx.utils.status_check import status_check
+from twx.db.station_data import station_data_ncdb, station_data_infill,BAD,STN_ID,YEAR,LON,LAT,\
     DTYPE_STN_BASIC,DATE,MONTH
-from db.all_create_db import dbDataset
-import utils.util_dates as utld
-from db.ushcn import TairAggregate
-import utils.util_geo as utlg
+from twx.db.all_create_db import dbDataset
+import twx.utils.util_dates as utld
+from twx.db.ushcn import TairAggregate
+import twx.utils.util_geo as utlg
 from scipy import stats
-from utils.status_check import status_check
+from twx.utils.status_check import status_check
 import cProfile
 from matplotlib.mlab import griddata 
 #from modis.montana_ndvi import EOSGridSD

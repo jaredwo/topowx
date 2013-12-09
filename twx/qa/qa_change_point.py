@@ -4,9 +4,9 @@ Created on Feb 20, 2013
 @author: jared.oyler
 '''
 import numpy as np
-import utils.util_geo as utlg
-from db.station_data import station_data_ncdb, STN_ID, LON, LAT,UTC_OFFSET,YMD,YEAR
-from utils.util_dates import MONTH, MTH_SRT_END_DATES, DAY
+import twx.utils.util_geo as utlg
+from twx.db.station_data import station_data_ncdb, STN_ID, LON, LAT,UTC_OFFSET,YMD,YEAR
+from twx.utils.util_dates import MONTH, MTH_SRT_END_DATES, DAY
 from datetime import timedelta
 from scipy import stats
 import matplotlib.pyplot as plt

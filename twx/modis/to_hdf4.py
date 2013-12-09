@@ -6,8 +6,8 @@ Created on Feb 7, 2012
 from pyhdf.SD import SD, SDC
 from to_ncdf import modis_et_dataset
 import numpy as np
-import utils.util_dates as utld
-from utils.util_dates import YEAR
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import YEAR
 from datetime import datetime
 import netCDF4
 from et.to_ncdf import SCALE_FACTOR

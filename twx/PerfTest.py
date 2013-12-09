@@ -3,7 +3,7 @@ Created on Aug 19, 2013
 
 @author: jared.oyler
 '''
-import interp.interp_tair as it
+import twx.interp.interp_tair as it
 import cProfile
 import matplotlib.pyplot as plt
 import numpy as np

@@ -4,13 +4,11 @@ Created on Jun 21, 2013
 @author: jared.oyler
 '''
 import numpy as np
-from db.station_data import STN_ID,STATE,STN_NAME,LON,LAT,ELEV,DTYPE_STN_BASIC,YEAR,MONTH,DATE,YDAY,build_stn_struct
-import utils.util_dates as utld
+from twx.db.station_data import STN_ID,STATE,STN_NAME,LON,LAT,ELEV,DTYPE_STN_BASIC,YEAR,MONTH,DATE,YDAY,build_stn_struct
+import twx.utils.util_dates as utld
 from netCDF4 import Dataset, date2num, num2date
-from utils.status_check import status_check
+from twx.utils.status_check import status_check
 import netCDF4
-from idlelib.PyShell import ModifiedColorDelegator
-
 
 class StationDataUSHCN(object):
     

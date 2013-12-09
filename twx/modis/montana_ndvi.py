@@ -11,7 +11,7 @@ import osgeo.osr as osr
 import osgeo.gdal as gdal
 import osgeo.gdalconst as gdalconst
 from downmodis import downModis
-from utils.input_raster import input_raster
+from twx.utils.input_raster import input_raster
 import scipy.spatial.distance as scpydist
 import osgeo.ogr as ogr
 import sys

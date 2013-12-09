@@ -3,9 +3,9 @@ Created on Jul 5, 2011
 
 @author: jared.oyler
 '''
-from utils.input_raster import input_raster
+from twx.utils.input_raster import input_raster
 import numpy as np
-import utils.util_geo as utlg
+import twx.utils.util_geo as utlg
 
 class smoother():
     

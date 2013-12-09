@@ -8,12 +8,12 @@ from mpi4py import MPI
 import qa_prcp
 import qa_temp
 import numpy as np
-from db.station_data import station_data_ncdb, STN_ID, TMIN, TMAX, PRCP, YMD, TMIN_FLAG, TMAX_FLAG, PRCP_FLAG,STATE
+from twx.db.station_data import station_data_ncdb, STN_ID, TMIN, TMAX, PRCP, YMD, TMIN_FLAG, TMAX_FLAG, PRCP_FLAG,STATE
 from netCDF4 import Dataset, date2num
-import utils.util_dates as utld
-from utils.util_misc import Unbuffered
+import twx.utils.util_dates as utld
+from twx.utils.util_misc import Unbuffered
 import sys
-from utils.status_check import status_check
+from twx.utils.status_check import status_check
 from qa_spatial import run_qa_spatial
 
 TAG_DOWORK = 1

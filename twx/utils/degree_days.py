@@ -5,8 +5,8 @@ Functions for calculating degree day metrics
 '''
 import numpy as np
 from netCDF4 import Dataset
-import utils.util_dates as utld
-from utils.util_dates import YEAR
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import YEAR
 from netCDF4 import num2date
 import matplotlib.pyplot as plt
 

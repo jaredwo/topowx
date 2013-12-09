@@ -5,9 +5,9 @@ Utility functions for selecting a random subset of stations for cross-validation
 '''
 import numpy as np
 from obs_por import load_por_csv,POR_DTYPE,build_valid_por_masks
-from utils.ncdf_raster import ncdf_raster
-from db.station_data import LON,LAT,STN_ID
-from db.station_data import station_data_ncdb
+from twx.utils.ncdf_raster import ncdf_raster
+from twx.db.station_data import LON,LAT,STN_ID
+from twx.db.station_data import station_data_ncdb
 
 def get_random_xval_stns(stn_da,min_por_pct,nstns_per_rgn,path_por,path_neon,path_ghcn_stn_ls,exclude_stns=np.array([])):
     '''

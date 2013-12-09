@@ -5,14 +5,14 @@ Comprehensive Automated Quality Assurance of Daily Surface Observations.
 Journal of Applied Meteorology and Climatology 49:1615-1633.
 '''
 
-import utils.util_dates as utld
+import twx.utils.util_dates as utld
 import numpy as np
 from datetime import datetime
-import utils.util_geo as utlg
-from db.station_data import LON,LAT,STN_ID,PRCP,YEAR,DATE,MONTH,YDAY
+import twx.utils.util_geo as utlg
+from twx.db.station_data import LON,LAT,STN_ID,PRCP,YEAR,DATE,MONTH,YDAY
 from scipy import stats
 import math
-from qa.qa_temp import stns_in_radius_mask
+from twx.qa.qa_temp import stns_in_radius_mask
 
 QA_OK=1
 QA_MISSING=2

@@ -7,11 +7,11 @@ Driver for running quality assurance procedures in multiprocessing mode.
 import qa_prcp
 import qa_temp
 import numpy as np
-from db.station_data import station_data_ncdb, STN_ID, STATE, TMIN, TMAX, STN_NAME, LON, LAT, ELEV, PRCP, YMD, TMIN_FLAG, TMAX_FLAG, PRCP_FLAG
-from utils.multiprocess import multiprocess_config, multiprocess, worker
+from twx.db.station_data import station_data_ncdb, STN_ID, STATE, TMIN, TMAX, STN_NAME, LON, LAT, ELEV, PRCP, YMD, TMIN_FLAG, TMAX_FLAG, PRCP_FLAG
+from twx.utils.multiprocess import multiprocess_config, multiprocess, worker
 from netCDF4 import Dataset, date2num
-import utils.util_dates as utld
-from utils.util_misc import Unbuffered
+import twx.utils.util_dates as utld
+from twx.utils.util_misc import Unbuffered
 import sys
 
 sys.stdout=Unbuffered(sys.stdout)

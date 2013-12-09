@@ -7,15 +7,15 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_infill,STN_ID,MEAN_OBS,NEON,DTYPE_STN_MEAN_LST_TDI,MASK,BAD
-from interp.station_select import station_select
-from utils.status_check import status_check
-from interp.interp_tair import GwrPcaTairStatic
+from twx.db.station_data import station_data_infill,STN_ID,MEAN_OBS,NEON,DTYPE_STN_MEAN_LST_TDI,MASK,BAD
+from twx.interp.station_select import station_select
+from twx.utils.status_check import status_check
+from twx.interp.interp_tair import GwrPcaTairStatic
 import netCDF4
-from db.all_create_db import dbDataset
+from twx.db.all_create_db import dbDataset
 from scipy import stats
 from netCDF4 import Dataset
-from interp.optimize import OptimTairAnom, setOptimTairAnomParams
+from twx.interp.optimize import OptimTairAnom, setOptimTairAnomParams
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2

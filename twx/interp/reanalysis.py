@@ -8,8 +8,8 @@ from netCDF4 import Dataset
 import netCDF4
 import numpy as np
 import matplotlib.pyplot as plt
-import utils.util_dates as utld
-from utils.util_dates import YMD,DATE
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import YMD,DATE
 from datetime import datetime
 
 #min lon, max lon, min lat, max lat

@@ -7,10 +7,10 @@ Created on Feb 3, 2012
 from pyhdf.SD import SD, SDC
 import numpy as np
 from to_ncdf import modis_et_dataset
-from utils.util_ncdf import ncdf_raster
+from twx.utils.util_ncdf import ncdf_raster
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
-from utils.status_check import status_check
+from twx.utils.status_check import status_check
 import sys
 
 #NetCDF4 chunk caching settings

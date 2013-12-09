@@ -12,7 +12,7 @@ from PaperResultsMetrics import getCceHillshade,drawCceBnds, CMAP_ESRI_PRCP
 from mpl_toolkits.axes_grid1 import ImageGrid
 from matplotlib.colors import Normalize
 from matplotlib import cm
-from utils.input_raster import RasterDataset
+from twx.utils.input_raster import RasterDataset
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.patches import Polygon
 import brewer2mpl

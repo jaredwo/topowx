@@ -5,15 +5,15 @@ Created on Sep 25, 2013
 '''
 
 import numpy as np
-from db.station_data import station_data_infill,STN_ID,BAD,get_norm_varname,LAT,LON,\
+from twx.db.station_data import station_data_infill,STN_ID,BAD,get_norm_varname,LAT,LON,\
     get_optim_varname, get_optim_anom_varname, get_lst_varname
-from interp.station_select import station_select
-import interp.interp_tair as it
+from twx.interp.station_select import station_select
+import twx.interp.interp_tair as it
 import cProfile
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import netCDF4
-from utils.status_check import status_check
+from twx.utils.status_check import status_check
 import scipy.stats as stats
 
 class OptimTairMean(object):

@@ -25,7 +25,7 @@ prcp for a day is total new prcp for the CURRENT day
 '''
 
 import os
-from utils.status_check import status_check
+from twx.utils.status_check import status_check
 import numpy as np
 import datetime
 from datetime import timedelta

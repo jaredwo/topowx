@@ -6,12 +6,12 @@ Created on Nov 29, 2012
 import numpy as np
 import os
 from osgeo import gdal,gdalconst,osr,ogr
-from utils.input_raster import input_raster,RasterDataset
-from utils.util_ncdf import to_ncdf,expand_grid
-import utils.util_geo as utlg
+from twx.utils.input_raster import input_raster,RasterDataset
+from twx.utils.util_ncdf import to_ncdf,expand_grid
+import twx.utils.util_geo as utlg
 from netCDF4 import Dataset
-from utils.output_raster import output_raster
-from utils.status_check import status_check
+from twx.utils.output_raster import output_raster
+from twx.utils.status_check import status_check
 import matplotlib.pyplot as plt
 import scipy.interpolate as si
 

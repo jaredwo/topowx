@@ -3,13 +3,13 @@ Created on Jul 5, 2011
 
 @author: jared.oyler
 '''
-from utils.input_raster import input_raster
-from utils.output_raster import output_raster
+from twx.utils.input_raster import input_raster
+from twx.utils.output_raster import output_raster
 import numpy as np
-import utils.util_geo as utlg
-import utils.util_misc as utlm
-from utils.status_check import status_check
-from utils.multiprocess import multiprocess,worker,multiprocess_config
+import twx.utils.util_geo as utlg
+import twx.utils.util_misc as utlm
+from twx.utils.status_check import status_check
+from twx.utils.multiprocess import multiprocess,worker,multiprocess_config
 
 class output_handler_smooth():
     

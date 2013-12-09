@@ -7,18 +7,18 @@ into a single database format
 import os
 import numpy as np
 import datetime
-from utils.status_check import status_check
-import utils.util_dates as utld
-from utils.util_dates import DATE,YMD,YEAR,MONTH,DAY
+from twx.utils.status_check import status_check
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import DATE,YMD,YEAR,MONTH,DAY
 from netCDF4 import Dataset
 from netCDF4 import date2num
 import netCDF4
 from netcdftime import num2date
 import sys
-from db.station_data import STN_NAME,ELEV,LAT,LON,STATE, station_data_ncdb
-import db.ushcn as ushcn
+from twx.db.station_data import STN_NAME,ELEV,LAT,LON,STATE, station_data_ncdb
+import twx.db.ushcn as ushcn
 import matplotlib.pyplot as plt
-import infill.obs_por as por
+import twx.infill.obs_por as por
 
 class Unbuffered:
     def __init__(self, stream):

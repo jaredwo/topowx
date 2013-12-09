@@ -3,14 +3,14 @@ Created on Dec 3, 2013
 
 @author: jared.oyler
 '''
-from db.station_data import station_data_ncdb, station_data_infill, STN_ID, STN_NAME, LON, LAT, MONTH, NEON, DATE, YMD, YEAR, TMIN, TMAX, ELEV, TDI
+from twx.db.station_data import station_data_ncdb, station_data_infill, STN_ID, STN_NAME, LON, LAT, MONTH, NEON, DATE, YMD, YEAR, TMIN, TMAX, ELEV, TDI
 import numpy as np
 from multiprocessing import Pool
-import interp.interp_tair as it
-from utils.status_check import status_check
+import twx.interp.interp_tair as it
+from twx.utils.status_check import status_check
 from DatasetCompare import PrismTileRaster
 from scipy import stats
-import utils.util_dates as utld
+import twx.utils.util_dates as utld
 from datetime import datetime
 import sys
 import shapefile

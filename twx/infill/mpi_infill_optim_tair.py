@@ -9,22 +9,22 @@ of years of data artificially set to missing. Infilled values are then compared 
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_ncdb,STN_ID,LON,LAT,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX
+from twx.db.station_data import station_data_ncdb,STN_ID,LON,LAT,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX
 from infill_daily import pca_matrix,source_r,gwrpca_matrix
-from infill.obs_por import load_por_csv,POR_DTYPE,build_valid_por_masks
+from twx.infill.obs_por import load_por_csv,POR_DTYPE,build_valid_por_masks
 
-from utils.ncdf_raster import ncdf_raster
-from utils.status_check import status_check
+from twx.utils.ncdf_raster import ncdf_raster
+from twx.utils.status_check import status_check
 from netCDF4 import Dataset
 import netCDF4
 import datetime
-from infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,impute_tair_norm
-from infill.infill_daily import NODATA_NORMS,ImputeMatrixPCA
-from db.reanalysis import NNRds,NNRNghData
+from twx.infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,impute_tair_norm
+from twx.infill.infill_daily import NODATA_NORMS,ImputeMatrixPCA
+from twx.db.reanalysis import NNRds,NNRNghData
 from scipy import stats
 from httplib import HTTPException
-from interp.clibs import clib_wxTopo
-from infill.random_xval_stations import XvalStnsTairSnotelRaws
+from twx.interp.clibs import clib_wxTopo
+from twx.infill.random_xval_stations import XvalStnsTairSnotelRaws
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2

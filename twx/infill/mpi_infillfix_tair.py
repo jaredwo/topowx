@@ -7,11 +7,11 @@ A MPI driver for trying different nnghs on stations that had an Tair infilling M
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_ncdb
-from utils.status_check import status_check
+from twx.db.station_data import station_data_ncdb
+from twx.utils.status_check import status_check
 from netCDF4 import Dataset
 import netCDF4
-from infill.infill_daily import pca_matrix,tmin_tmax_fixer
+from twx.infill.infill_daily import pca_matrix,tmin_tmax_fixer
 import os
 
 TAG_DOWORK = 1

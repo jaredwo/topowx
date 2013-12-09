@@ -3,18 +3,18 @@ Created on May 15, 2013
 
 @author: jared.oyler
 '''
-from db.station_data import STN_ID,LON,LAT,BAD,station_data_infill,STATE,STN_NAME,ELEV,\
+from twx.db.station_data import STN_ID,LON,LAT,BAD,station_data_infill,STATE,STN_NAME,ELEV,\
     station_data_ncdb,YMD,DATE,DAY,DTYPE_STN_BASIC
 import numpy as np
-from utils.util_dates import YEAR,MONTH
-from utils.status_check import status_check
+from twx.utils.util_dates import YEAR,MONTH
+from twx.utils.status_check import status_check
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import obs_por as por
-import utils.util_dates as utld
+import twx.utils.util_dates as utld
 from datetime import datetime
-import db.all_create_db as createDB
-import db.ushcn as ushcn
+import twx.db.all_create_db as createDB
+import twx.db.ushcn as ushcn
 from netCDF4 import date2num
 import netCDF4
 

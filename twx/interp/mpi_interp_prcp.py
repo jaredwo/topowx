@@ -7,10 +7,10 @@ A MPI driver for interpolating prcp to a specified grid using interp.interp_prcp
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_infill,STN_ID,DATE,LON,LAT,YMD
-import interp.interp_prcp as ip
-from interp.station_select import station_select
-from utils.status_check import status_check
+from twx.db.station_data import station_data_infill,STN_ID,DATE,LON,LAT,YMD
+import twx.interp.interp_prcp as ip
+from twx.interp.station_select import station_select
+from twx.utils.status_check import status_check
 from netCDF4 import Dataset,date2num
 import netCDF4
 import datetime

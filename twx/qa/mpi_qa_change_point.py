@@ -6,13 +6,13 @@ MPI driver for running quality assurance procedures.
 
 from mpi4py import MPI
 import numpy as np
-from db.station_data import station_data_ncdb,STATE
+from twx.db.station_data import station_data_ncdb,STATE
 from netCDF4 import Dataset
-from utils.util_misc import Unbuffered
+from twx.utils.util_misc import Unbuffered
 import sys
-from utils.status_check import status_check
-from infill.obs_por import build_valid_por_masks,load_por_csv
-import qa.qa_change_point as qcp
+from twx.utils.status_check import status_check
+from twx.infill.obs_por import build_valid_por_masks,load_por_csv
+import twx.qa.qa_change_point as qcp
 
 import rpy2.robjects as robjects
 r = robjects.r

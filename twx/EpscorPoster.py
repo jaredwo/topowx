@@ -9,13 +9,13 @@ import matplotlib as mpl
 from netCDF4 import Dataset
 import numpy as np
 from mpl_toolkits.axes_grid1 import ImageGrid
-from db.station_data import station_data_infill,STN_ID,LON,LAT,NEON,YEAR,BAD
+from twx.db.station_data import station_data_infill,STN_ID,LON,LAT,NEON,YEAR,BAD
 import brewer2mpl
-import db.station_data as stnData
+import twx.db.station_data as stnData
 from copy import copy
 from matplotlib.mlab import griddata
-from utils.input_raster import RasterDataset
-import db.ushcn as ushcn
+from twx.utils.input_raster import RasterDataset
+import twx.db.ushcn as ushcn
 from scipy import stats
 from matplotlib.colors import Normalize
 from osgeo import gdal,gdalconst,osr,ogr

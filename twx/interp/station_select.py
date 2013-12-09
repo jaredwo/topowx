@@ -16,9 +16,9 @@ grid-point interpolation and contouring. Cartography and Geographic Information 
 
 @author: jared.oyler
 '''
-from db.station_data import LON,LAT,STN_ID, NEON
+from twx.db.station_data import LON,LAT,STN_ID, NEON
 import numpy as np
-import utils.util_geo as utlg
+import twx.utils.util_geo as utlg
 
 #http://en.wikipedia.org/wiki/Contiguous_United_States
 AREA_CONUS = 8080464.3 #km-2

@@ -7,12 +7,12 @@ is correct, but lon/lat are either imprecise or incorrect.
 
 import urllib, urllib2
 from xml.dom import minidom
-from db.station_data import STN_ID, STATE, LON, LAT, ELEV,station_data_ncdb
+from twx.db.station_data import STN_ID, STATE, LON, LAT, ELEV,station_data_ncdb
 import numpy as np
 import time
-import infill.obs_por as obs_por
+import twx.infill.obs_por as obs_por
 from netCDF4 import Dataset
-from utils.input_raster import input_raster
+from twx.utils.input_raster import input_raster
 
 # DEM service URLs
 URL_USGS_NED = 'http://gisdata.usgs.gov/XMLWebServices/TNM_Elevation_Service.asmx/getElevation'

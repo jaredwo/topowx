@@ -6,12 +6,12 @@ This is mainly used to get a better mean value estimate (i.e.--"normal") over a 
 @author: jared.oyler
 '''
 import numpy as np
-import utils.util_geo as utlg
-from db.station_data import station_data_ncdb, STN_ID, LON, LAT,UTC_OFFSET
-from utils.util_dates import MONTH, MTH_SRT_END_DATES, DAY
+import twx.utils.util_geo as utlg
+from twx.db.station_data import station_data_ncdb, STN_ID, LON, LAT,UTC_OFFSET
+from twx.utils.util_dates import MONTH, MTH_SRT_END_DATES, DAY
 from datetime import timedelta
 from scipy import stats
-import interp.clibs as clibs
+import twx.interp.clibs as clibs
 
 MAX_DISTANCE = 75 #in km
 MAX_NGHS_LOAD = 2000
@@ -425,7 +425,7 @@ class mth_ngh_matrix_prcp(object):
 def build_mth_masks(days, buffer=0):
     '''
     Builds a mask for each month over a time series
-    @param days: a days object from utils.util_dates.get_days_metadata 
+    @param days: a days object from twx.utils.util_dates.get_days_metadata 
     @param buffer: a buffer, in days, to add on to the beginning and end of a month
     @return: a list of 12 month masks
     '''
@@ -1022,7 +1022,7 @@ def infill_tair(stn_id, stn_da, days, tair_var,stns_mask, mth_masks, mthbuf_mask
     similar to Durre et al. 2010 Appendix B.
     @param stn_id: the stn_id of the target
     @param stn_da: a station_data_ncdb object
-    @param days: a days object from utils.util_dates.get_days_metadata representing the time series to infill/expand
+    @param days: a days object from twx.utils.util_dates.get_days_metadata representing the time series to infill/expand
     @param tair_var: the tair variable (tmin, tmax)
     @param mthbuf_mask: a mask of months (from build_mth_masks) over the time series of interest with a user-defined buffer at the end/beginning of each month
     @param mth_mask: a mask of months (from build_mth_masks) over the time series of interest
@@ -1081,7 +1081,7 @@ def infill_prcp_norm(stn_id, stn_da, days,mth_masks, mthbuf_masks, use_prcp_only
     similar to Durre et al. 2010 Appendix B.
     @param stn_id: the stn_id of the target
     @param stn_da: a station_data_ncdb object
-    @param days: a days object from utils.util_dates.get_days_metadata representing the time series to infill/expand
+    @param days: a days object from twx.utils.util_dates.get_days_metadata representing the time series to infill/expand
     @param mthbuf_mask: a mask of months (from build_mth_masks) over the time series of interest with a user-defined buffer at the end/beginning of each month
     @param mth_mask: a mask of months (from build_mth_masks) over the time series of interest
     @param use_prcp_only: only use days when there was actual prcp at the target to build a model with ngh stations (default: False)

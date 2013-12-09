@@ -7,13 +7,13 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_infill,STN_ID,MEAN_OBS,NEON
-from interp.station_select import station_select
-from utils.status_check import status_check
-import interp.interp_tair as it
+from twx.db.station_data import station_data_infill,STN_ID,MEAN_OBS,NEON
+from twx.interp.station_select import station_select
+from twx.utils.status_check import status_check
+import twx.interp.interp_tair as it
 import netCDF4
-from interp_constants import *
-from db.all_create_db import dbDataset
+from twx.interp_constants import *
+from twx.db.all_create_db import dbDataset
 import rpy2.robjects as robjects
 import time
 r = robjects.r

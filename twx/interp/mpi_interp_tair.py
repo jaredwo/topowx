@@ -6,11 +6,11 @@ A MPI driver for interpolating tair to a specified grid using interp.interp_tair
 
 from mpi4py import MPI
 import sys
-from db.station_data import station_data_infill,LON,LAT,NEON,ELEV,TDI,LST,VCF,LC,BAD,\
+from twx.db.station_data import station_data_infill,LON,LAT,NEON,ELEV,TDI,LST,VCF,LC,BAD,\
     MASK, OPTIM_NNGH, OPTIM_NNGH_ANOM
-import interp.interp_tair as it
-from interp.station_select import station_select
-from utils.status_check import status_check
+import twx.interp.interp_tair as it
+from twx.interp.station_select import station_select
+from twx.utils.status_check import status_check
 from netCDF4 import Dataset
 import netCDF4
 from collections import deque

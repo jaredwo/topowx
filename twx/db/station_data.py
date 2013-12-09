@@ -4,11 +4,11 @@ Classes and utilities for accessing weather station data
 @author: jared.oyler
 '''
 import numpy as np
-import utils.util_dates as utld
-from utils.ncdf_raster import ncdf_raster
+import twx.utils.util_dates as utld
+from twx.utils.ncdf_raster import ncdf_raster
 from netCDF4 import Dataset, num2date
 import netCDF4
-import utils.util_geo as utlg
+import twx.utils.util_geo as utlg
 from datetime import datetime
 
 TMIN = "TMIN"

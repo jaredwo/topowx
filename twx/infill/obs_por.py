@@ -3,11 +3,11 @@ Utilities for analyzing and producing data on station period-of-record for TMIN,
 
 @author: jared.oyler
 '''
-from db.station_data import STN_ID,PRCP,TMIN,TMAX,STATE,STN_NAME,LON,LAT,ELEV,MONTH,DAY,YMD,station_data_ncdb
+from twx.db.station_data import STN_ID,PRCP,TMIN,TMAX,STATE,STN_NAME,LON,LAT,ELEV,MONTH,DAY,YMD,station_data_ncdb
 import numpy as np
 from datetime import timedelta,datetime
 import matplotlib.mlab as mlab
-from utils.status_check import status_check
+from twx.utils.status_check import status_check
 
 
 MONTHS = np.arange(1,13)
