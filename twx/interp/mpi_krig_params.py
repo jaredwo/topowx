@@ -27,7 +27,6 @@ RANK_WRITE = 1
 N_NON_WRKRS = 2
 
 P_PATH_DB = 'P_PATH_DB'
-P_PATH_RLIB = 'P_PATH_RLIB'
 P_VARNAME = 'P_VARNAME'
 
 class Unbuffered:
@@ -44,7 +43,7 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    optim = OptimKrigParams(params[P_PATH_DB], params[P_PATH_RLIB], params[P_VARNAME])
+    optim = OptimKrigParams(params[P_PATH_DB], params[P_VARNAME])
                 
     while 1:
     
@@ -180,9 +179,8 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc"   
-    params[P_PATH_RLIB] = '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/interp.R'
-    params[P_VARNAME] = 'tmax'
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc"
+    params[P_VARNAME] = 'tmin'
 
     if rank == RANK_COORD:        
         proc_coord(params, nsize-N_NON_WRKRS)

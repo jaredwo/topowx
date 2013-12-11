@@ -6,6 +6,8 @@ Python interface to the wxTopo C functions
 '''
 from ctypes import *
 import numpy as np
+import os
+import pickle
 
 class prcomp_struct(Structure):
     _fields_ = [("nrows",c_int),
@@ -92,13 +94,20 @@ class RepRegressStruct(Structure):
            ("nYCols",c_int),
            ("nZLen",c_int),
            ("Y",POINTER(c_double)),
+           ("Z",POINTER(c_double)),
            ("z",POINTER(c_double)),
-           ("returnvals",POINTER(c_double))]
+           ("predictVals",POINTER(c_double)),
+           ("fitVals",POINTER(c_double))]
     
 class clib_wxTopo():
     
-    def __init__(self,lib_path):
-        
+    def __init__(self):
+                
+        #get system path to twx
+        twx_path = os.path.split(os.path.split(__file__)[0])[0]
+        #get system path to libtwx_c.so
+        lib_path = os.path.join(twx_path,'lib','libtwx_c.so')
+                
         self.c_lib = CDLL(lib_path)
     
     def pca_gwpca(self,A,wgt):
@@ -162,25 +171,44 @@ class clib_wxTopo():
     
     def repRegress(self,X,Y,x,w):
         
+        #pickle.dump((X,Y,x,w),open('/projects/daymet2/regress_test.pickle','wb'))
+        
         x.shape = (x.shape[0],1)
-        W = np.diag(w)     
-        z = np.dot(np.dot(np.dot(np.transpose(x),np.linalg.inv(np.dot(np.dot(np.transpose(X),W),X))),np.transpose(X)),W).ravel()
+        W = np.diag(w)
+        
+        X_t = np.transpose(X)
+        
+        #m1 = inverse(X_t * W * X)
+        m1 = np.linalg.inv(np.dot(np.dot(X_t,W),X))
+        #m2 = X_t * W
+        m2 = np.dot(X_t,W)
+        #m3 = m1 * m2
+        m3 = np.dot(m1,m2)
+        
+        z = np.dot(np.transpose(x),m3)
+        Z = np.dot(X,m3)
+        
+        #z = np.dot(np.dot(np.dot(np.transpose(x),np.linalg.inv(np.dot(np.dot(np.transpose(X),W),X))),np.transpose(X)),W).ravel()
         
         Y = np.require(Y,dtype=np.float64,requirements=['C','A','W','O'])
+        Z = np.require(Z,dtype=np.float64,requirements=['C','A','W','O'])
         z = np.require(z,dtype=np.float64,requirements=['C','A','W','O'])
         
-        returnvals = np.zeros(Y.shape[0])
+        predictVals = np.zeros(Y.shape[0])
+        fitVals = np.zeros((Y.shape[0],z.size))
         
         aRepRegressStr = RepRegressStruct(Y.shape[0],Y.shape[1],z.size,
                                           Y.ctypes.data_as(POINTER(c_double)),
+                                          Z.ctypes.data_as(POINTER(c_double)),
                                           z.ctypes.data_as(POINTER(c_double)),
-                                          returnvals.ctypes.data_as(POINTER(c_double)))
+                                          predictVals.ctypes.data_as(POINTER(c_double)),
+                                          fitVals.ctypes.data_as(POINTER(c_double)))
         
         self.c_lib.repRegress(byref(aRepRegressStr))
         
         x.shape = (x.shape[0],)
         
-        return returnvals
+        return predictVals,fitVals
         
     
     def prcomp_interp(self,stn_design_mat,wgts,obs,pt_vals,pt_mean=0,pt_std=0,apply_mean=False,apply_std=False):

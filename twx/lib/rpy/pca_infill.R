@@ -1277,6 +1277,7 @@ hasVarChgPt <- function(vals,sig=0.0000000001)
 getVarChgPt <- function(vals,sig=0.0000000001)
 {	
 	aCpts <- cpts(cpt.var(vals,penalty="Asymptotic",pen.value=sig))
+	#aCpts <- cpts(cpt.var(vals))
 	if (VERBOSE) cat("VARIANCE CHANGE POINT AT: ",aCpts,"\n")
 	return(aCpts)
 }

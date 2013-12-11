@@ -12,7 +12,7 @@ import netCDF4
 import twx.utils.util_dates as utld
 import numpy as np
 from twx.utils.status_check import status_check
-from twx.utils.input_raster import input_raster, OutsideExtent
+from twx.utils.input_raster import input_raster, OutsideExtent, RasterDataset
 from twx.modis.montana_ndvi import modis_sin_rast
 import twx.utils.util_geo as utlg
 from twx.infill.infill_daily import ImputeMatrixPCA,source_r
@@ -24,6 +24,7 @@ from twx.interp.clibs import clib_wxTopo
 import twx.db.ushcn as ushcn
 from datetime import datetime
 import twx.utils as utils
+import mpl_toolkits.basemap as bm
 
 #rpy2
 import rpy2
@@ -493,36 +494,36 @@ def build_serial_complete_ds(ds_in,tair_var,out_path):
     ds_out = create_serial_complete_ds(out_path, tair_var, ds_in)
     
     n_stns = len(ds_in.dimensions['stn_id'])
-    #n_days = len(ds_in.dimensions['time'])
-    #all_imp_flags = np.ones(n_days,dtype=np.bool)
-    #all_imp_stns = np.zeros(n_stns,dtype=np.bool)
+    n_days = len(ds_in.dimensions['time'])
+    all_imp_flags = np.ones(n_days,dtype=np.bool)
+    all_imp_stns = np.zeros(n_stns,dtype=np.bool)
     
     stat_chk = status_check(n_stns,100)
     for x in np.arange(n_stns):
         
         imp_mask = ds_in.variables['flag_impute'][:,x].astype(np.bool)
         
-#        imp_runs = runs_of_ones_array(imp_mask)
-#        
-#        if imp_runs.size > 0:
-#            max_imp = np.max(imp_runs)
-#        else:
-#            max_imp = 0
-#        
-#        if max_imp >= USE_ALL_IMP_THRESHOLD:
-#            
-#            #Use all imputed variables for this station to avoid discontinuties between imputed and observed portions of time series
-#            tair_stn = ds_in.variables["".join([tair_var,"_imp"])][:,x]
-#            flag_stn = all_imp_flags
-#            mtair_stn = np.mean(tair_stn,dtype=np.float64)
-#            
-#            all_imp_stns[x] = True
-#        
-#        else:
+        imp_runs = runs_of_ones_array(imp_mask)
+        
+        if imp_runs.size > 0:
+            max_imp = np.max(imp_runs)
+        else:
+            max_imp = 0
+        
+        if max_imp >= USE_ALL_IMP_THRESHOLD:
             
-        tair_stn = ds_in.variables[tair_var][:,x]
-        flag_stn = imp_mask
-        mtair_stn = ds_in.variables["".join([tair_var,"_mean"])][x]
+            #Use all imputed variables for this station to avoid discontinuties between imputed and observed portions of time series
+            tair_stn = ds_in.variables["".join([tair_var,"_imp"])][:,x]
+            flag_stn = all_imp_flags
+            mtair_stn = np.mean(tair_stn,dtype=np.float64)
+            
+            all_imp_stns[x] = True
+        
+        else:
+            
+            tair_stn = ds_in.variables[tair_var][:,x]
+            flag_stn = imp_mask
+            mtair_stn = ds_in.variables["".join([tair_var,"_mean"])][x]
             
         #ctair_stn = tair_stn.astype(np.float64) - mtair_stn
             
@@ -534,23 +535,68 @@ def build_serial_complete_ds(ds_in,tair_var,out_path):
         
         stat_chk.increment()
     
-    #print "% of stns with all imputed values: "+str((np.sum(all_imp_stns)/np.float(all_imp_stns.size))*100.)
+    print "% of stns with all imputed values: "+str((np.sum(all_imp_stns)/np.float(all_imp_stns.size))*100.)
 
-def add_stn_raster_values(ds_path,var_name,name,units,a_rast,handle_ndata=False, skip_stnids=None):
+#def add_stn_raster_values(ds_path,var_name,name,units,a_rast,handle_ndata=False, skip_stnids=None):
+#    
+#    ds = Dataset(ds_path,'r+')
+#    lon = ds.variables['lon'][:]
+#    lat = ds.variables['lat'][:]
+#    stn_id = ds.variables['stn_id'][:].astype("<S16")
+#    a_data = None
+#    
+#    if var_name not in ds.variables.keys():
+#        newvar = ds.createVariable(var_name,'f8',('stn_id',),fill_value=a_rast.ndata)
+#    else:
+#        newvar = ds.variables[var_name]
+#    
+#    #newvar.setncattr('_FillValue',a_rast.ndata)
+#    #newvar._FillValue = a_rast.ndata
+#    newvar.long_name = name
+#    newvar.units = units
+#    newvar.standard_name = name
+#    newvar.missing_value = a_rast.ndata
+#    newvar[:] = a_rast.ndata
+#    ds.sync()
+#    
+#    for x in np.arange(lon.size):
+#        
+#        if skip_stnids is not None:
+#            
+#            if stn_id[x] in skip_stnids:
+#                newvar[x] = a_rast.ndata
+#                continue
+#        try:
+#            a = a_rast.getDataValue(lon[x], lat[x])
+#            newvar[x] = a
+#            if a == a_rast.ndata:
+#                raise Exception('No data raster value')
+#            
+#        except Exception:
+#            print "No data value for stn: "+stn_id[x]
+#            
+#            if handle_ndata:
+#                if a_data == None:
+#                    a_data = a_rast.readEntireRaster()
+#                
+#                x_grid,y_grid = a_rast.getGridCellOffset(lon[x],lat[x])
+#                newvar[x] = find_nn_data(a_data, a_rast, x_grid, y_grid)
+#                print "NN value for "+stn_id[x]+" is "+str(newvar[x])
+#    
+#    ds.sync()
+
+def add_stn_raster_values(ds_path,var_name,name,units,a_rast,handle_ndata=True,nn=False):
     
     ds = Dataset(ds_path,'r+')
     lon = ds.variables['lon'][:]
     lat = ds.variables['lat'][:]
     stn_id = ds.variables['stn_id'][:].astype("<S16")
-    a_data = None
     
     if var_name not in ds.variables.keys():
         newvar = ds.createVariable(var_name,'f8',('stn_id',),fill_value=a_rast.ndata)
     else:
         newvar = ds.variables[var_name]
     
-    #newvar.setncattr('_FillValue',a_rast.ndata)
-    #newvar._FillValue = a_rast.ndata
     newvar.long_name = name
     newvar.units = units
     newvar.standard_name = name
@@ -558,32 +604,43 @@ def add_stn_raster_values(ds_path,var_name,name,units,a_rast,handle_ndata=False,
     newvar[:] = a_rast.ndata
     ds.sync()
     
+    ###################################
+    a = a_rast.readAsArray()
+    aflip = np.flipud(a)
+    aflip = aflip.astype(np.float)
+    a = a.data
+    
+    yGrid,xGrid = a_rast.getCoordGrid1d()
+    yGrid = np.sort(yGrid)
+    
+    interpOrder = 0 if nn else 1
+    
+    rvals = np.zeros(len(newvar[:]))
+    
+    schk = status_check(lon.size, 1000) 
     for x in np.arange(lon.size):
         
-        if skip_stnids is not None:
-            
-            if stn_id[x] in skip_stnids:
-                newvar[x] = a_rast.ndata
-                continue
-        try:
-            a = a_rast.getDataValue(lon[x], lat[x])
-            newvar[x] = a
-            if a == a_rast.ndata:
-                raise Exception('No data raster value')
-            
-        except Exception:
-            print "No data value for stn: "+stn_id[x]
+        rval = bm.interp(aflip, xGrid, yGrid, np.array(lon[x]), np.array(lat[x]), checkbounds=False, masked=True, order=interpOrder)
+        
+        if np.ma.is_masked(rval):
             
             if handle_ndata:
-                if a_data == None:
-                    a_data = a_rast.readEntireRaster()
+            
+                rval = bm.interp(aflip, xGrid, yGrid, np.array(lon[x]), np.array(lat[x]), checkbounds=False, masked=True, order=0)
                 
-                x_grid,y_grid = a_rast.getGridCellOffset(lon[x],lat[x])
-                newvar[x] = find_nn_data(a_data, a_rast, x_grid, y_grid)
-                print "NN value for "+stn_id[x]+" is "+str(newvar[x])
+                if np.ma.is_masked(rval):
+                    row,col = a_rast.getRowCol(lon[x], lat[x])
+                    rval = find_nn_data(a, a_rast, col, row)
+            
+            else:
+                
+                rval = a_rast.ndata
+        
+        rvals[x] = rval
+        schk.increment()
     
+    newvar[:] = rvals
     ds.sync()
-
 
 def find_nn_data(a_data,a_rast,x,y):
                     
@@ -647,8 +704,8 @@ def find_nn_data(a_data,a_rast,x,y):
 
     nn = np.array(nn)
     nn_vals = np.array(nn_vals)
-    lats,lons = a_rast.getLatLon(nn[:,1], nn[:,0], transform=False)
-    pt_lat,pt_lon = a_rast.getLatLon(x, y, transform=False)
+    lats,lons = a_rast.getCoord(nn[:,0], nn[:,1])#getLatLon(nn[:,1], nn[:,0], transform=False)
+    pt_lat,pt_lon = a_rast.getCoord(y,x)
     d = utlg.grt_circle_dist(pt_lon,pt_lat, lons, lats)
     j = np.argsort(d)[0]
     nval = nn_vals[j]
@@ -1080,7 +1137,7 @@ def add_monthly_means(dsPath,varName):
 
 def add_monthly_norms(dsPath,varName,startYr,endYr):
     
-    stnda = station_data_infill(dsPath, varName)
+    stnda = station_data_infill(dsPath, varName,stn_dtype=DTYPE_STN_BASIC)
     tagg = ushcn.TairAggregate(stnda.days)
 
     stns = stnda.stns
@@ -1181,8 +1238,8 @@ if __name__ == '__main__':
 #################################################################################################################
 #CREATE A FINAL SERIALLY COMPLETE TMAX DATASET FROM IMPUTED/INFILLED STATIONS
 #################################################################################################################  
-    ds_tmax = Dataset('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc')
-    build_serial_complete_ds(ds_tmax, 'tmax', '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc')
+#    ds_tmax = Dataset('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc')
+#    build_serial_complete_ds(ds_tmax, 'tmax', '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc')
 #################################################################################################################
 #Perform any one off updates
 #    update_serial_complete_ds('/projects/daymet2/station_data/infill/infill_fnl/infill_tmin.nc',
@@ -1198,8 +1255,8 @@ if __name__ == '__main__':
 #################################################################################################################
 # 2.) STEP 2: Mark any stations that should not be used
 #################################################################################################################
-#    ds_path_tmin = '/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc'
-#    ds_path_tmax = '/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc' 
+#    ds_path_tmin = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc'
+#    ds_path_tmax = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc'
 #    rm_stns = np.loadtxt('/projects/daymet2/station_data/infill/infill_20130725/BadStns.csv',delimiter=",",dtype=np.str,skiprows=1,usecols=(0,))
 #    rm_ids = np.unique(rm_stns)
 #    print rm_stns.size,rm_ids.size
@@ -1215,55 +1272,9 @@ if __name__ == '__main__':
 ################################################################################################################# 
     
 #################################################################################################################
-# 3.) STEP 3: Check for stns that have no data values for some of the predictor grids and move to closest valid pixel
+# 4.) STEP 4: Check for dups and then set the Bad flag on them and other bad stations
 #################################################################################################################
-#    rasts = []
-#    rasts.append(input_raster('/projects/daymet2/climate_office/modis/MCD12Q1.051/MOSAIC_MCD12Q1.Land_Cover_Type_2.null.tif'))
-#    rasts.append(input_raster('/projects/daymet2/dem/interp_grids/tifs/tdi.tif'))
-#    rasts.append(input_raster('/projects/daymet2/dem/interp_grids/tifs/elev.tif'))
-##    rasts.append(input_raster('/projects/daymet2/dem/interp_grids/tifs/lst_tmax.tif'))
-##    rasts.append(input_raster('/projects/daymet2/dem/interp_grids/tifs/lst_tmin.tif'))
-#    rasts.append(input_raster('/projects/daymet2/dem/interp_grids/tifs/mthly_lst/MOSAIC.LST_Day_1km.01.C.tif'))
-#    rasts.append(input_raster('/projects/daymet2/dem/interp_grids/tifs/mthly_lst/MOSAIC.LST_Night_1km.01.C.tif'))
-#  
-#    ndata_vals = []
-#    ndata_vals.append((256,0)) #lc
-#    ndata_vals.append((-999,)) #tdi
-#    ndata_vals.append((-999,)) #elev
-##    ndata_vals.append((np.float32(-3.40282346639e+038),)) #lst_tmin
-##    ndata_vals.append((np.float32(-3.40282346639e+038),)) #lst_tmax
-#    ndata_vals.append((65535,)) #lst_tmax
-#    ndata_vals.append((65535,)) #lst_tmin
-#
-#    ds_path_infill = '/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc'
-#    ds_path_serial = '/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc'
-#
-#    ds = Dataset(ds_path_serial)
-#    stn_ids = ds.variables['stn_id'][:].astype("<S16")
-#    rm_stns = stn_ids[ds.variables['bad'][:]==1]
-#    ds.close()
-#    ds = None
-#    
-#    update_raster_stn_locs(rasts, ndata_vals,ds_path_serial, 'tmax',
-#                           '/projects/daymet2/station_data/infill/infill_20130725/moved_tmax_stns.csv',rm_stns)
-#    
-#    update_raster_stn_locs(rasts, ndata_vals,ds_path_infill, 'tmax',
-#                           '/projects/daymet2/station_data/infill/infill_20130725/moved_tmax_stns.csv',rm_stns)
 
-#Fallback if issues: Reset all stations to original locations  
-#    reset_stn_locs('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc', 
-#                   '/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc')
-#    reset_stn_locs('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc', 
-#                   '/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc')
-#    reset_stn_locs('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc', 
-#                   '/projects/daymet2/station_data/infill/infill_20130725/infill_tmin.nc')
-#    reset_stn_locs('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc', 
-#                   '/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc')
-################################################################################################################# 
-
-#################################################################################################################
-# 4.) STEP 4: Check for dups and then set the Bad flag on them
-#################################################################################################################
 #    output_dup_stns('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc', 'tmax',
 #                    '/projects/daymet2/station_data/infill/infill_20130725/dupstns_tmax.csv')
 #    
@@ -1275,95 +1286,75 @@ if __name__ == '__main__':
 #    dupIdsTmax = np.loadtxt('/projects/daymet2/station_data/infill/infill_20130725/dupstns_tmax.csv',delimiter=",",dtype=np.str,skiprows=1,usecols=(0,))
 #    allIds = np.unique(np.concatenate([rmIds,dupIdsTmin,dupIdsTmax]))
 #    
-#    set_rm_bad_stations(allIds, '/projects/daymet2/station_data/infill/infill_20130725/infill_tmin.nc')
-#    set_rm_bad_stations(allIds, '/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc')
-#    
-#    set_rm_bad_stations(allIds, '/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc')
-#    set_rm_bad_stations(allIds, '/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc')
+##    set_rm_bad_stations(allIds, '/projects/daymet2/station_data/infill/infill_20130725/infill_tmin.nc')
+##    set_rm_bad_stations(allIds, '/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc')
+##    
+#    set_rm_bad_stations(allIds, '/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc')
+#    set_rm_bad_stations(allIds, '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc')
 
 #################################################################################################################
 # 5.) STEP 5: Add auxilary predictor values from rasters
 #################################################################################################################
-#    ds_path_tmin = '/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc'
-#    ds_path_tmax = '/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc'
+#    ds_path_tmin = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc'
+#    ds_path_tmax = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc'
 #
-##TMIN LST
-##    name = 'land surface temperature'
-##    units = "C"
-##    for mth in np.arange(1,13):
-##        var_name = 'lst%02d'%mth
-##        a_rast = input_raster('/projects/daymet2/dem/interp_grids/tifs/mthly_lst/MOSAIC.LST_Night_1km.%02d.C.tif'%mth)
-##        add_stn_raster_values(ds_path_tmin, var_name, name, units, a_rast)
-##
+#TMIN LST
+#    name = 'land surface temperature'
+#    units = "C"
+#    for mth in np.arange(1,13):
+#        var_name = 'lst%02d'%mth
+#        print var_name
+#        a_rast = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/mthly_lst/MOSAIC.LST_Night_1km.%02d.C.tif'%mth)
+#        add_stn_raster_values(ds_path_tmin, var_name, name, units, a_rast)
+
 ###TMAX LST
-##    name = 'land surface temperature'
-##    units = "C"
-##    for mth in np.arange(1,13):
-##        var_name = 'lst%02d'%mth
-##        a_rast = input_raster('/projects/daymet2/dem/interp_grids/tifs/mthly_lst/MOSAIC.LST_Day_1km.%02d.C.tif'%mth)
-##        add_stn_raster_values(ds_path_tmax, var_name, name, units, a_rast)
+#    name = 'land surface temperature'
+#    units = "C"
+#    for mth in np.arange(1,13):
+#        var_name = 'lst%02d'%mth
+#        print var_name
+#        a_rast = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/mthly_lst/MOSAIC.LST_Day_1km.%02d.C.tif'%mth)
+#        add_stn_raster_values(ds_path_tmax, var_name, name, units, a_rast)
 #    
 ##TMIN TDI
 #    var_name = 'tdi'
 #    name = 'topographic dissection index'
 #    units = "[3,6,9,12,15] km radius"
-#    a_rast = input_raster('/projects/daymet2/dem/interp_grids/tifs/tdi.tif')
+#    a_rast = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/tdi.tif')
 #    add_stn_raster_values(ds_path_tmin, var_name, name, units, a_rast)
 #    
 ##TMAX TDI
 #    var_name = 'tdi'
 #    name = 'topographic dissection index'
 #    units = "[3,6,9,12,15] km radius"
-#    a_rast = input_raster('/projects/daymet2/dem/interp_grids/tifs/tdi.tif')
+#    a_rast = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/tdi.tif')
 #    add_stn_raster_values(ds_path_tmax, var_name, name, units, a_rast)
 #
 ##TMAX Interp Mask
 #    var_name = 'mask'
 #    name = 'Interpolation Mask'
 #    units = "0 or 1"
-#    a_rast = input_raster('/projects/daymet2/dem/interp_grids/conus/tifs/mask_all_nd.tif')
+#    a_rast = RasterDataset('/projects/daymet2/dem/interp_grids/conus/tifs/mask_all_nd.tif')
 #    a_rast.ndata = 0
-#    add_stn_raster_values(ds_path_tmax, var_name, name, units, a_rast)
+#    add_stn_raster_values(ds_path_tmax, var_name, name, units, a_rast,handle_ndata=False,nn=True)
 #
 ##TMIN Interp Mask
 #    var_name = 'mask'
 #    name = 'Interpolation Mask'
 #    units = "0 or 1"
-#    a_rast = input_raster('/projects/daymet2/dem/interp_grids/conus/tifs/mask_all_nd.tif')
+#    a_rast = RasterDataset('/projects/daymet2/dem/interp_grids/conus/tifs/mask_all_nd.tif')
 #    a_rast.ndata = 0
-#    add_stn_raster_values(ds_path_tmin, var_name, name, units, a_rast)
+#    add_stn_raster_values(ds_path_tmin, var_name, name, units, a_rast,handle_ndata=False,nn=True)
 ##
 ###U.S. Climate Divisions
 #    var_name = "neon"
 #    name = "U.S. Climate Division"
 #    units = "NA"
-#    a_rast = input_raster('/projects/daymet2/dem/interp_grids/tifs/climdivLccMerge.tif')
-#    
-#    skipids = None
-#    add_stn_raster_values(ds_path_tmin, var_name, name, units, a_rast, handle_ndata=False, skip_stnids=skipids)
-#    add_stn_raster_values(ds_path_tmax, var_name, name, units, a_rast, handle_ndata=False, skip_stnids=skipids)
+#    a_rast = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/climdivLccMerge.tif')
+#    add_stn_raster_values(ds_path_tmin, var_name, name, units, a_rast,handle_ndata=False,nn=True)
+#    add_stn_raster_values(ds_path_tmax, var_name, name, units, a_rast,handle_ndata=False,nn=True)
     
 #################################################################################################################
-
-#################################################################################################################
-# 6.) STEP 6: Optim # of neighbors for Climate Divisions
-#################################################################################################################
-
-#    ds_path_tmin = '/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmin.nc'
-#    ds_path_tmax = '/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc'
-##
-##    optim_nghs_tmin = np.array([92, 111, 29, 32, 147, 20, 111, 147, 47, 111, 134, 147, 147, 147, 52, 147, 147, 147, 35, 26, 101, 76, 57, 111, 47, 84, 101, 147, 101, 39, 57, 52, 43, 147, 39, 147, 35, 52, 147, 39, 20, 20, 147, 35, 122, 101, 147, 22, 76, 24, 147, 147, 147, 147, 147, 22, 147, 76, 147, 47, 32, 84, 35, 57, 24, 92, 52, 84, 20, 147, 43, 147, 63, 47, 43, 147, 47, 147, 147, 29, 134, 39, 147, 20, 43, 147, 92, 24, 32, 122, 101, 20, 29, 147, 122, 147, 84, 29, 47, 147, 29, 147, 147, 122, 122, 69, 84, 147, 111, 20, 101, 147, 43, 147, 26, 147, 122, 35, 76, 39, 63, 26, 84, 147, 52, 57, 147, 26, 76, 147, 69, 76, 32, 147, 24, 24, 22, 147, 92, 147, 47, 76, 92, 147, 101, 147, 84, 63, 147, 20, 69, 134, 57, 147, 20, 147, 147, 147, 147, 84, 39, 147, 147, 147, 63, 69, 52, 76, 147, 52, 147, 147, 52, 147, 43, 147, 147, 24, 84, 147, 111, 122, 43, 92, 147, 76, 20, 57, 20, 147, 22, 147, 39, 122, 84, 101, 63, 52, 20, 47, 147, 147, 47, 134, 147, 147, 39, 47, 101, 147, 122, 101, 147, 76, 35, 147, 92, 29, 147, 147, 52, 147, 20, 147, 76, 101, 24, 147, 35, 147, 26, 20, 20, 84, 101, 134, 147, 111, 147, 35, 147, 63, 35, 47, 134, 147, 24, 47, 147, 147, 69, 101, 147, 147, 147, 39, 76, 147, 147, 52, 147, 147, 76, 147, 147, 26, 20, 101, 32, 43, 147, 20, 147, 76, 147, 22, 134, 47, 147, 147, 134, 134, 147, 69, 69, 134, 63, 101, 32, 147, 147, 69, 101, 57, 20, 147, 69, 69, 26, 69, 35, 147, 52, 29, 147, 111, 57, 22, 147, 22, 20, 111, 147, 57, 92, 134, 32, 20, 63, 147, 147, 134, 43, 147, 147, 147, 122, 57, 63, 92, 147, 147, 22, 122, 147, 20, 43, 43, 84, 39, 147, 147, 147, 22, 29, 111])
-##    set_optim_nnghs(ds_path_tmin,'tmin', optim_nghs_tmin,OPTIM_NNGH,"optimal number of neighbors for interpolation")
-###    
-##    optim_nghs_tmax = np.array([47, 63, 111, 92, 26, 147, 134, 47, 57, 147, 57, 52, 76, 147, 32, 122, 101, 20, 39, 101, 147, 43, 147, 134, 122, 47, 26, 22, 84, 35, 92, 39, 57, 43, 147, 69, 47, 92, 69, 20, 69, 20, 147, 24, 43, 52, 63, 32, 43, 84, 147, 57, 84, 147, 122, 111, 147, 134, 29, 39, 92, 35, 147, 76, 63, 47, 84, 147, 111, 52, 84, 39, 43, 122, 147, 84, 92, 147, 147, 147, 63, 69, 76, 147, 147, 147, 147, 147, 69, 43, 92, 29, 101, 147, 147, 20, 22, 147, 147, 92, 47, 92, 101, 20, 57, 147, 147, 134, 122, 43, 101, 147, 26, 76, 47, 84, 22, 39, 76, 47, 92, 147, 92, 147, 57, 20, 26, 47, 32, 76, 63, 32, 92, 84, 122, 26, 26, 147, 101, 84, 47, 57, 147, 147, 92, 57, 22, 147, 63, 147, 35, 147, 147, 22, 20, 39, 147, 147, 111, 29, 57, 134, 147, 43, 39, 29, 111, 52, 20, 134, 63, 57, 147, 101, 147, 147, 39, 26, 76, 147, 147, 147, 111, 147, 47, 147, 147, 147, 147, 134, 35, 134, 147, 92, 92, 147, 39, 147, 92, 122, 26, 147, 92, 52, 32, 92, 147, 147, 101, 101, 147, 92, 63, 147, 92, 20, 134, 147, 147, 122, 52, 29, 101, 111, 147, 122, 39, 29, 147, 147, 69, 122, 76, 122, 147, 147, 29, 134, 29, 69, 57, 43, 122, 35, 147, 39, 39, 63, 101, 47, 147, 52, 92, 147, 147, 92, 134, 147, 92, 22, 122, 147, 101, 147, 63, 147, 147, 92, 20, 39, 147, 147, 20, 20, 111, 20, 57, 147, 63, 134, 92, 147, 122, 147, 134, 147, 147, 147, 92, 39, 43, 39, 47, 39, 111, 147, 39, 147, 20, 147, 47, 147, 147, 147, 147, 43, 147, 147, 76, 147, 147, 76, 147, 52, 29, 76, 29, 147, 63, 147, 47, 147, 147, 147, 147, 147, 20, 147, 24, 39, 147, 47, 76, 147, 92, 35, 52, 147, 147, 76, 52, 147, 39, 147, 32, 35])
-##    set_optim_nnghs(ds_path_tmax,'tmax', optim_nghs_tmax,OPTIM_NNGH,"optimal number of neighbors for interpolation")
-#    
-#    optim_nghs_tmin = np.array([52, 63, 111, 92, 69, 22, 111, 69, 101, 111, 63, 63, 84, 122, 69, 57, 111, 69, 47, 101, 69, 63, 92, 57, 76, 76, 76, 63, 84, 52, 57, 47, 63, 76, 57, 84, 63, 63, 111, 63, 147, 20, 147, 92, 84, 84, 84, 76, 76, 63, 39, 92, 134, 122, 111, 92, 111, 84, 84, 63, 35, 134, 69, 63, 57, 43, 52, 35, 52, 84, 39, 111, 76, 84, 76, 63, 92, 69, 84, 134, 111, 29, 122, 111, 57, 111, 111, 76, 76, 84, 84, 92, 84, 76, 63, 122, 63, 92, 76, 52, 76, 76, 63, 63, 92, 76, 69, 84, 76, 147, 101, 76, 69, 84, 84, 92, 101, 69, 57, 69, 101, 101, 84, 147, 39, 52, 47, 39, 39, 147, 84, 84, 52, 63, 57, 69, 52, 92, 84, 111, 69, 76, 69, 101, 76, 84, 84, 76, 101, 111, 84, 76, 57, 84, 111, 111, 147, 147, 76, 134, 84, 92, 111, 101, 122, 76, 111, 69, 63, 63, 43, 47, 63, 84, 69, 84, 92, 57, 84, 84, 63, 92, 57, 101, 84, 57, 76, 76, 43, 52, 84, 52, 76, 69, 101, 101, 69, 57, 43, 69, 122, 122, 52, 101, 84, 92, 76, 76, 111, 111, 69, 84, 84, 147, 92, 92, 92, 69, 122, 69, 76, 57, 84, 69, 76, 84, 84, 92, 76, 147, 92, 134, 39, 111, 69, 111, 63, 84, 111, 69, 63, 101, 134, 69, 111, 76, 57, 63, 101, 111, 52, 92, 92, 63, 101, 134, 111, 111, 92, 63, 84, 111, 76, 122, 69, 101, 52, 84, 92, 92, 76, 57, 69, 69, 43, 111, 76, 57, 76, 63, 84, 134, 111, 92, 76, 57, 76, 92, 101, 76, 76, 84, 84, 76, 92, 69, 147, 84, 43, 63, 32, 101, 39, 101, 52, 52, 92, 76, 122, 76, 69, 69, 52, 63, 63, 47, 63, 57, 57, 84, 39, 76, 69, 92, 101, 76, 84, 52, 76, 69, 111, 111, 63, 92, 69, 101, 47, 69, 92, 47, 52, 57, 57, 69, 47, 76])
-#    set_optim_nnghs(ds_path_tmin,'tmin', optim_nghs_tmin,OPTIM_NNGH_ANOM,"optimal number of neighbors for anomaly interpolation")
-#        
-#    optim_nghs_tmax = np.array([39, 47, 147, 111, 134, 39, 111, 43, 92, 101, 84, 76, 92, 52, 84, 76, 122, 29, 35, 134, 69, 92, 122, 111, 63, 101, 43, 69, 92, 35, 43, 39, 63, 63, 69, 122, 92, 69, 134, 84, 101, 24, 92, 84, 63, 84, 92, 76, 63, 76, 43, 57, 92, 122, 69, 92, 101, 101, 101, 63, 63, 84, 84, 52, 47, 47, 101, 57, 92, 92, 24, 92, 84, 76, 24, 76, 111, 92, 147, 147, 147, 52, 147, 147, 29, 147, 147, 92, 69, 76, 92, 134, 122, 69, 84, 122, 111, 76, 92, 52, 76, 111, 92, 76, 69, 76, 92, 84, 84, 147, 147, 76, 69, 147, 147, 47, 147, 84, 43, 32, 92, 57, 92, 92, 43, 39, 52, 122, 35, 22, 63, 84, 69, 84, 69, 101, 29, 101, 57, 101, 84, 76, 92, 111, 52, 84, 63, 69, 111, 92, 147, 76, 43, 69, 92, 111, 43, 147, 84, 147, 69, 111, 134, 92, 101, 122, 63, 57, 57, 63, 63, 69, 84, 76, 111, 122, 92, 47, 101, 76, 63, 111, 111, 101, 57, 57, 63, 76, 43, 47, 147, 63, 92, 57, 147, 92, 63, 63, 69, 147, 134, 147, 52, 147, 92, 52, 101, 63, 111, 122, 92, 111, 134, 147, 147, 147, 57, 52, 84, 69, 57, 101, 101, 63, 122, 84, 122, 69, 47, 147, 134, 63, 22, 134, 147, 63, 57, 122, 84, 47, 111, 47, 111, 84, 111, 47, 35, 43, 76, 32, 63, 92, 39, 69, 147, 147, 122, 20, 76, 63, 63, 122, 84, 111, 47, 76, 63, 76, 76, 134, 134, 84, 39, 57, 63, 43, 92, 111, 63, 147, 84, 122, 147, 101, 63, 43, 63, 92, 101, 84, 101, 111, 57, 57, 111, 52, 84, 92, 63, 57, 32, 84, 43, 47, 92, 39, 92, 84, 147, 122, 63, 24, 63, 57, 47, 47, 52, 57, 76, 76, 26, 69, 43, 111, 147, 84, 84, 69, 111, 63, 147, 111, 101, 101, 69, 122, 52, 84, 63, 57, 63, 101, 147, 47, 63, 92])
-#    set_optim_nnghs(ds_path_tmax,'tmax', optim_nghs_tmax,OPTIM_NNGH_ANOM,"optimal number of neighbors for anomaly interpolation")
-    
 
 #################################################################################################################
 # 7.) STEP 7: Add aggregated values
@@ -1375,5 +1366,5 @@ if __name__ == '__main__':
 #    add_ann_means('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
 #    add_ann_means('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
 
-#    add_monthly_norms('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin', 1981, 2010)
-#    add_monthly_norms('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax', 1981, 2010)
+    add_monthly_norms('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc','tmin', 1981, 2010)
+    add_monthly_norms('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc','tmax', 1981, 2010)

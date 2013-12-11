@@ -10,6 +10,7 @@ from netCDF4 import Dataset, num2date
 import netCDF4
 import twx.utils.util_geo as utlg
 from datetime import datetime
+from copy import copy
 
 TMIN = "TMIN"
 TMAX = "TMAX"
@@ -135,6 +136,16 @@ DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO_OPTIMNNGHANOM.extend(DTYPE_VARIO_RNG)
 DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO_OPTIMNNGHANOM.extend(DTYPE_ANOM_OPTIM)
 
 DTYPE_STN_DFLT = DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO_OPTIMNNGHANOM
+
+
+DTYPE_INTERP = copy(DTYPE_STN_BASIC)
+DTYPE_INTERP.extend([(MASK, np.float64),(BAD, np.float64),(TDI, np.float64),(NEON, np.float64)])
+DTYPE_INTERP.extend(DTYPE_NORMS)
+DTYPE_INTERP.extend(DTYPE_LST)
+
+DTYPE_INTERP_OPTIM = copy(DTYPE_INTERP)
+DTYPE_INTERP_OPTIM.extend(DTYPE_OPTIM)
+
 #DTYPE_STN_MEAN_LST_TDI_VCF_LC = [(STN_ID, "<S16"), (STATE, "<S2"), (STN_NAME, "<S30"), 
 #                          (LON, np.float64), (LAT, np.float64), (ELEV, np.float64),
 #                          (TDI, np.float64),(LST, np.float64),(VCF, np.float64),(LC, np.float64),(NEON, np.float64),(MEAN_OBS, np.float64)]
@@ -712,7 +723,7 @@ class station_data_infill(object):
     A station_data class for accessing stations and observations from a single variable infilled netcdf weather station database.
     '''
     #235280000 bytes
-    def __init__(self, nc_path, var_name,vcc_size=470560000,vcc_nelems=None,vcc_preemption=0,stn_dtype=DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO_OPTIMNNGHANOM):
+    def __init__(self, nc_path, var_name,vcc_size=470560000,vcc_nelems=None,vcc_preemption=0,stn_dtype=DTYPE_INTERP):
         '''
         Constructor
         

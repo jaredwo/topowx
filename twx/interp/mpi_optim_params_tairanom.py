@@ -51,7 +51,7 @@ def proc_work(params,rank):
     
     optim = OptimTairAnom(params[P_PATH_DB], params[P_PATH_CLIB], params[P_VARNAME])
     
-    min_ngh_wins = build_min_ngh_windows(params[P_NGH_RNG][0], params[P_NGH_RNG][1], params[P_NGH_RNG_STEP])
+    min_ngh_wins = params[P_NGH_RNG]
     
     bcast_msg = None
     bcast_msg = MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)    
@@ -69,7 +69,7 @@ def proc_work(params,rank):
             
             try:
                 
-                bias,mae,r2 = optim.runXval(stn_id, min_ngh_wins, params[P_MAX_NNGH_DELTA])
+                bias,mae,r2 = optim.runXval(stn_id, min_ngh_wins)
                                             
             except Exception as e:
             
@@ -110,7 +110,7 @@ def proc_write(params,nwrkers):
     for x in np.arange(stns.size):
         stn_idxs[stns[STN_ID][x]] = x
     
-    min_ngh_wins = build_min_ngh_windows(params[P_NGH_RNG][0], params[P_NGH_RNG][1], params[P_NGH_RNG_STEP])
+    min_ngh_wins = params[P_NGH_RNG]
     ngh_idxs = {}
     for x in np.arange(min_ngh_wins.size):
         ngh_idxs[min_ngh_wins[x]] = x
@@ -247,10 +247,8 @@ if __name__ == '__main__':
     
     params[P_PATH_DB] = "/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc"
     params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/infill_20130725/xval/optimTairAnom/tmax/xval_tmax_anom'   
-    params[P_PATH_CLIB] = '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C'
-    params[P_NGH_RNG] = (100,150)#(20,150)
+    params[P_NGH_RNG] = build_min_ngh_windows(10, 150, 0.10)
     params[P_NGH_RNG_STEP] = .10 #in pct
-    params[P_MAX_NNGH_DELTA] = .20 #in pct
     params[P_VARNAME] = 'tmax'
     
     ds = Dataset(params[P_PATH_DB])

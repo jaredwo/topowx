@@ -6,7 +6,8 @@ Created on Sep 25, 2013
 
 import numpy as np
 from twx.db.station_data import station_data_infill,STN_ID,BAD,get_norm_varname,LAT,LON,\
-    get_optim_varname, get_optim_anom_varname, get_lst_varname
+    get_optim_varname, get_optim_anom_varname, get_lst_varname,DTYPE_STN_BASIC,MASK,TDI,BAD,NEON,DTYPE_NORMS,DTYPE_LST,\
+    DTYPE_INTERP_OPTIM
 from twx.interp.station_select import station_select
 import twx.interp.interp_tair as it
 import cProfile
@@ -15,6 +16,37 @@ from netCDF4 import Dataset
 import netCDF4
 from twx.utils.status_check import status_check
 import scipy.stats as stats
+
+class OptimKrigBwNstns(object):
+    '''
+    classdocs
+    '''
+
+    def __init__(self,pathDb,tairVar):
+                
+        stn_da = station_data_infill(pathDb, tairVar)
+        mask_stns = np.isnan(stn_da.stns[BAD])         
+        stn_slct = station_select(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
+                     
+        self.krig = it.KrigTairAll(stn_slct)
+        self.stn_da = stn_da
+        
+    def runXval(self,stnId,abw_nngh):
+        
+        xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stnId]]
+        
+        self.krig.stn_slct.set_pt(xval_stn[LAT],xval_stn[LON],stns_rm=np.array([xval_stn[STN_ID]])) 
+        
+        err = np.zeros((12,abw_nngh.size))
+        xvalNorms = np.array([xval_stn[get_norm_varname(mth)] for mth in np.arange(1,13)])
+        
+        for bw_nngh,x in zip(abw_nngh,np.arange(abw_nngh.size)):
+            
+            interp_norms = self.krig.krigall(xval_stn, bw_nngh,set_pt=False)
+            err[:,x] = interp_norms-xvalNorms
+                
+        return err
+
 
 class OptimTairMean(object):
     '''
@@ -149,13 +181,12 @@ class OptimKrigParams(object):
     classdocs
     '''
 
-    def __init__(self,pathDb,pathRlib,tairVar):
+    def __init__(self,pathDb,tairVar):
         
-        stn_da = station_data_infill(pathDb, tairVar)
+        stn_da = station_data_infill(pathDb, tairVar,stn_dtype=DTYPE_INTERP_OPTIM)
         mask_stns = np.isnan(stn_da.stns[BAD])
         stn_slct = station_select(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=False) 
-        it.init_interp_R_env(pathRlib)
-        krigparams = it.BuildKrigParams(stn_slct)
+        krigparams = it.BuildKrigParams(stn_slct) 
 
         self.stn_da = stn_da
         self.krigparams = krigparams
@@ -172,9 +203,8 @@ class OptimKrigParams(object):
         for mth in np.arange(1,13):
             
             min_ngh = stn[get_optim_varname(mth)]
-            max_ngh = min_ngh+np.round(min_ngh*0.20) 
             set_pt = True if mth == 1 else False
-            nug,psill,rng = self.krigparams.get_krig_params(stn, min_ngh, max_ngh,mth=mth,set_pt=set_pt)
+            nug,psill,rng = self.krigparams.get_krig_params(stn, min_ngh,mth=mth,set_pt=set_pt)
             nugs[mth-1] = nug
             psills[mth-1] = psill
             rngs[mth-1] = rng
@@ -250,18 +280,18 @@ def ann_mean_stderr(tairMthly,stdErrMthly):
 
 class OptimTairAnom(object):
 
-    def __init__(self,pathDb,pathClib,tairVar):
+    def __init__(self,pathDb,tairVar):
         
         stn_da = station_data_infill(pathDb, tairVar,vcc_size=470560000*2)
         mask_stns = np.isnan(stn_da.stns[BAD]) 
             
-        stn_slct = station_select(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
-        gwr_pca = it.GwrPcaTairStatic(stn_slct,pathClib,stn_da.days,None,None,None)
+        stn_slct = station_select(stn_da, stn_mask=mask_stns,rm_zero_dist_stns=False)
+        gwr_pca = it.GwrPcaTairStatic(stn_slct,stn_da.days,None)
         
         self.stn_da = stn_da
         self.gwr_pca = gwr_pca
         
-    def runXval(self,stn_id,min_ngh_wins,max_nngh_delta):
+    def runXval(self,stn_id,min_ngh_wins):
         
         xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
         xval_obs = self.stn_da.load_obs(xval_stn[STN_ID])
@@ -274,12 +304,11 @@ class OptimTairAnom(object):
         for x in np.arange(min_ngh_wins.size):
             
             min_ngh = min_ngh_wins[x]
-            max_ngh = min_ngh+np.round(min_ngh*max_nngh_delta)
             
-            self.gwr_pca.reset_params(min_ngh, max_ngh, 1.0)
+            self.gwr_pca.reset_params(min_ngh)
             set_pt = True if x == 0 else False
             self.gwr_pca.set_pt = set_pt
-            self.gwr_pca.setup_for_pt(xval_stn, np.array([xval_stn[STN_ID]]))
+            self.gwr_pca.setup_for_pt(xval_stn)#,np.array([xval_stn[STN_ID]]))
         
             biasMths = np.zeros(12)
             maeMths = np.zeros(12)
@@ -401,31 +430,41 @@ def perfXvalTairOverall():
     
 def perfOptimTairAnom():
     
-    optim = OptimTairAnom("/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc", 
-                          '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C', 'tmin')
+    optim = OptimTairAnom("/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc", 'tmin')
     
-    min_ngh_wins = build_min_ngh_windows(100, 150, 0.10)
+    min_ngh_wins = build_min_ngh_windows(10, 150, 0.10)
     
-    def runPerf():
-        optim.runXval('SNOTEL_13C01S',min_ngh_wins,0.20)
+    #biasAll, maeAll, r2All = optim.runXval('SNOTEL_13C01S', min_ngh_wins)
+    biasAll, maeAll, r2All = optim.runXval('GHCN_USC00244558', min_ngh_wins) #Kalispell
+    #biasAll, maeAll, r2All = optim.runXval('GHCN_USC00247448', min_ngh_wins) #Seeley Laek
+    #biasAll, maeAll, r2All = optim.runXval('GHCN_USW00014755', min_ngh_wins)
     
-    global runAPerf
-    runAPerf = runPerf
-    
-    cProfile.run('runAPerf()')
+    print min_ngh_wins
+    maeMth = maeAll[:,7]
+    print maeMth
+    print min_ngh_wins[np.argmin(maeMth)]
+    print np.min(maeMth)
+#    def runPerf():
+#        optim.runXval('SNOTEL_13C01S',min_ngh_wins,0.20)
+#    
+#    global runAPerf
+#    runAPerf = runPerf
+#    
+#    cProfile.run('runAPerf()')
 
 def perfOptimKrigParams():
     
-    optim = OptimKrigParams("/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc",
-                            '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/interp.R', 'tmax')
+    optim = OptimKrigParams("/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc", 'tmin')
     
-    def runPerf():
-        print optim.getKrigParams('SNOTEL_13C01S')
-    
-    global runAPerf
-    runAPerf = runPerf
-    
-    cProfile.run('runAPerf()')
+    nugs, psills, rngs = optim.getKrigParams('SNOTEL_13C01S')
+    print nugs
+#    def runPerf():
+#        print optim.getKrigParams('SNOTEL_13C01S')
+#    
+#    global runAPerf
+#    runAPerf = runPerf
+#    
+#    cProfile.run('runAPerf()')
     
 def perfXvalTairMean():
     
@@ -553,12 +592,34 @@ def perfPtInterpTair():
 #    plt.plot(tmax_norms2-tmax_norms,'o-')
 #    plt.show()
  
+def perftOptimKrigBwStns():
+     
+    optim = OptimKrigBwNstns('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
+    
+    abw_nngh = build_min_ngh_windows(35,150, 0.10)
+    
+    err = optim.runXval('GHCN_USC00244558', abw_nngh)
+    #err = optim.runXval('SNOTEL_13C01S', abw_nngh)
+    
+    mae = np.abs(err)
+    
+    print abw_nngh[np.argmin(mae,1)]
+    print mae[np.arange(12),np.argmin(mae,1)]
+    
+#     optim = OptimTairMean("/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc", 
+#                      '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/interp.R', 'tmax')
+#    
+#    #aStn = optim.stn_da.stns[optim.stn_da.stns[STN_ID]=='SNOTEL_13C01S'][0]
+#    
+#    rngMinNghs = build_min_ngh_windows(100,150, 0.10)
+ 
 if __name__ == '__main__':
 
-    perfPtInterpTair()
+    #perftOptimKrigBwStns()
+    #perfPtInterpTair()
     #analyze_ci()
     #perfXvalTairOverall()
-    #perfOptimTairAnom()
+    perfOptimTairAnom()
     #perfOptimKrigParams()
     #perfOptimTairMean()
     #perfXvalTairMean()
