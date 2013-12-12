@@ -67,8 +67,8 @@ get_vario_params <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,n
 #	print(plot(avar))
 #	Sys.sleep(15)
 	#print(c(min(avar$gamma),sill))
-	avar.model <- tryCatch(my.autofit.gwvario(avar,model=c("Exp"),fix.values = c(min(avar$gamma),NA,sill),fit.method=7)$var_model,error=function(e) e)
-	
+	#avar.model <- tryCatch(my.autofit.gwvario(avar,model=c("Exp"),fix.values = c(min(avar$gamma),NA,sill),fit.method=7)$var_model,error=function(e) e)
+	avar.model <- tryCatch(my.autofit.gwvario(avar,model=c("Exp"),fix.values = c(NA,NA,sill),fit.method=7)$var_model,error=function(e) e)
 	if (is(avar.model,"simpleError"))
 	{
 		avar.model <- vgm(sill,"Nug")
@@ -79,15 +79,15 @@ get_vario_params <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,n
 	stns_ngh$resid <- stns_ngh$tair - gls_df$val.pred
 	sill <- var(stns_ngh$resid)
 	avar.gls <- variogram(resid~1,stns_ngh,cutoff=cutoff,width=5)
-	avar.model.gls <- tryCatch(my.autofit.gwvario(avar.gls,model=c("Exp"),fix.values = c(min(avar.gls$gamma),NA,sill),fit.method=7)$var_model,error=function(e) e)
-	
+	#avar.model.gls <- tryCatch(my.autofit.gwvario(avar.gls,model=c("Exp"),fix.values = c(min(avar.gls$gamma),NA,sill),fit.method=7)$var_model,error=function(e) e)
+	avar.model.gls <- tryCatch(my.autofit.gwvario(avar.gls,model=c("Exp"),fix.values = c(NA,NA,sill),fit.method=7)$var_model,error=function(e) e)
 	if (is(avar.model.gls,"simpleError"))
 	{
 		avar.model.gls <- vgm(sill,"Nug")
 	}
 	
-	#print(plot(avar.gls,model=avar.model.gls))
-	#Sys.sleep(15)
+#	print(plot(avar.gls,model=avar.model.gls))
+#	Sys.sleep(3)
 
 	if (length(avar.model.gls$model) == 1)
 	{
@@ -100,6 +100,20 @@ get_vario_params <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,n
 		#nug,psill,range
 		return(c(avar.model.gls$psill[1],avar.model.gls$psill[2],avar.model.gls$range[2]))
 	}
+}
+
+#Builds variogram params and performs actual kriging all in one step
+krig_all <- function(pt,ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,ngh_dist)
+{
+	vario_params = get_vario_params(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,ngh_dist)
+	nug <- vario_params[1]
+	psill <- vario_params[2]
+	range <- vario_params[3]
+	
+	#rslts = c(tair_mean,tair_var,0)
+	rslts <- krig_meantair(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,pt,nug,psill,range)
+	
+	return(rslts)
 }
 
 krig_meantair <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,pt,nug,psill,range)

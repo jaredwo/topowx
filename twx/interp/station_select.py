@@ -69,6 +69,7 @@ class station_select(object):
         self.mask_rm = None
         self.stn_dists = None
         self.stn_dists_sort = None
+        self.bw_nstns = None
     
     def set_pt(self,lat,lon,stns_rm=None):
         
@@ -91,114 +92,38 @@ class station_select(object):
         self.stn_dists = stn_dists
         self.dist_sort = np.argsort(self.stn_dists)
         self.sort_stn_dists = np.take(self.stn_dists, self.dist_sort)
-        #self.sort_stns = self.stns[self.dist_sort]
+
         self.sort_stns = np.take(self.stns, self.dist_sort)
         mask_rm = np.take(self.mask_rm, self.dist_sort)
-        
-#        self.sort_stn_dists = self.sort_stn_dists[mask_rm]
-#        self.sort_stns = self.sort_stns[mask_rm]
-        
+                
         mask_rm = np.nonzero(mask_rm)[0]
         self.sort_stn_dists = np.take(self.sort_stn_dists, mask_rm)
         self.sort_stns = np.take(self.sort_stns, mask_rm)
                 
-    def set_params(self,min_stns,max_stns,gw_p=1.0,area=AREA_CONUS):
+    def set_params(self,bw_nstns):
         
-        self.avg_stns = np.round(np.float(min_stns+max_stns)/2.0,0)
-        self.min_stns = min_stns
-        self.max_stns = max_stns
-        self.init_radius = np.sqrt(float(self.avg_stns)*(np.float(area)/np.float(self.stns.size))*(1.0/np.pi))
-        self.gw_p = gw_p
-    
-    def set_nngh_stns(self,nstns,load_obs=True,gw_p=1.0):
-#        stn_dists = self.stn_dists[self.dist_sort]
-#        stns = self.stns[self.dist_sort]
-#        mask_rm = self.mask_rm[self.dist_sort]
-    
-        stn_dists = self.sort_stn_dists
-        stns = self.sort_stns
+        self.bw_nstns = bw_nstns
         
-        radius = stn_dists[nstns]
-        ngh_stns = stns[0:nstns]
-        dists = stn_dists[0:nstns]
-        x = nstns + 1
-        while np.any(dists >= radius):
-            radius = stn_dists[x]
-            x+=1
-                    
-        #wgt = np.exp(-dists/radius)
-        #wgt = ((1.0+np.cos(np.pi*(dists/radius)))/2.0)**gw_p
-        dists[dists==0] = 0.01
-        wgt = 1.0/(dists**2)
-        wgt = wgt/np.sum(wgt)
-        
-        #Sort by stn id
-        stnid_sort = np.argsort(ngh_stns[STN_ID])
-        interp_stns = ngh_stns[stnid_sort]
-        wgt = wgt[stnid_sort]
-        dists = dists[stnid_sort]
-        
-        if load_obs:
-            ngh_obs = self.stn_da.load_obs(ngh_stns[STN_ID])
-        else:
-            ngh_obs = None
-            
-        self.ngh_stns = interp_stns
-        self.ngh_obs = ngh_obs
-        self.ngh_dists = dists
-        self.ngh_wgt = wgt
-        
-#        afile = open('/projects/daymet2/docs/final_writeup/cce_stnids.txt',"a")
-#        for stnId in self.ngh_stns[STN_ID]:
-#            afile.write(stnId+"\n")
-    
     def set_ngh_stns(self,load_obs=True, obs_mth=None):
-                
-#        stn_dists = self.stn_dists[self.dist_sort]
-#        stns = self.stns[self.dist_sort]
-#        mask_rm = self.mask_rm[self.dist_sort]
-#    
-#        stn_dists = stn_dists[mask_rm]
-#        stns = stns[mask_rm]
-        
+                        
         stn_dists = self.sort_stn_dists
         stns = self.sort_stns
         
-        dist_mask = np.nonzero(stn_dists < self.init_radius)[0]
-        num_stns = dist_mask.size
+        #get the distance bandwidth using the the bw_nstns + 1
+        dbw = stn_dists[self.bw_nstns]
+        ngh_stns = stns[0:self.bw_nstns]
+        dists = stn_dists[0:self.bw_nstns]
         
-        if num_stns < self.min_stns:
-            
-            radius = stn_dists[self.min_stns]
-            ngh_stns = stns[0:self.min_stns]
-            dists = stn_dists[0:self.min_stns]
-            
-            x = self.min_stns + 1
-            while np.any(dists >= radius):
-                radius = stn_dists[x]
-                x+=1
+        #bisquare weighting, do not normalize for gwr?
+        wgt = np.square(1.0-np.square(dists/dbw))
         
-        elif num_stns > self.max_stns: 
+        #Gaussian
+        #wgt = np.exp(-.5*((dists/dbw)**2))
         
-            radius = stn_dists[self.max_stns]
-            ngh_stns = stns[0:self.max_stns]
-            dists = stn_dists[0:self.max_stns]
-
-            x = self.max_stns + 1
-            while np.any(dists >= radius):
-                radius = stn_dists[x]
-                x+=1
-                
-        else:
-            
-            radius = self.init_radius
-            ngh_stns = np.take(stns, dist_mask)
-            dists = np.take(stn_dists, dist_mask)          
-            
-        #wgt = np.exp(-dists/radius)
-        wgt = ((1.0+np.cos(np.pi*(dists/radius)))/2.0)**self.gw_p
-        wgt = wgt/np.sum(wgt)
-        
+        #wgt = ((1.0+np.cos(np.pi*(dists/dbw)))/2.0)
+        #wgt = 1.0/(dists**2)
+        #wgt = wgt/np.sum(wgt)
+                                    
         #Sort by stn id
         stnid_sort = np.argsort(ngh_stns[STN_ID])
         interp_stns = np.take(ngh_stns,stnid_sort)

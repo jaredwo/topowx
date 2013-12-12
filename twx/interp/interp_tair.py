@@ -22,6 +22,7 @@ from twx.db.ushcn import TairAggregate
 robjects.conversion.py2ri = numpy2ri
 r = robjects.r
 import rpy2.rinterface as ri
+import os
 
 KRIG_TREND_VARS = (LON,LAT,ELEV,LST)
 GWR_TREND_VARS = (LON,LAT,ELEV,TDI,LST)
@@ -29,6 +30,21 @@ LST_TMAX = 'lst_tmax'
 LST_TMIN = 'lst_tmin'
 
 DFLT_INIT_NNGHS = 100
+
+def init_interp_R_env():
+    
+    print "Loading R environment for interp_tair..."
+    
+    #get system path to twx
+    twx_path = os.path.split(os.path.split(__file__)[0])[0]
+    #get system path to interp.R
+    rsrc_path = os.path.join(twx_path,'lib','rpy','interp.R')
+    
+    r.source(rsrc_path)
+    #Set trend formula
+    ri.globalenv['FORMULA'] =  ri.globalenv.get("build_formula")(ri.StrSexpVector(["tair"]),ri.StrSexpVector(KRIG_TREND_VARS))
+
+init_interp_R_env()
 
 class SVD_Exception(Exception):
     pass
@@ -123,10 +139,10 @@ def build_empty_pt():
 
 class GwrPcaTair(object):
 
-    def __init__(self,stn_slct,path_clib,days,set_pt=True):
+    def __init__(self,stn_slct,days,set_pt=True):
         
         self.stn_slct = stn_slct
-        self.aclib = clib_wxTopo(path_clib)        
+        self.aclib = clib_wxTopo()        
         self.set_pt = set_pt
         self.pt = None
         
@@ -243,18 +259,14 @@ class GwrPcaTairDynamic(GwrPcaTair):
         
 class GwrPcaTairStatic(GwrPcaTair):
     
-    def __init__(self,stn_slct,path_clib,days,min_nngh,max_nngh,gw_p,set_pt=True):
+    def __init__(self,stn_slct,days,min_nngh,set_pt=True):
         
-        GwrPcaTair.__init__(self, stn_slct, path_clib,days, set_pt)
-        self.min_nngh = min_nngh
-        self.max_nngh = max_nngh
-        self.gw_p = gw_p        
+        GwrPcaTair.__init__(self, stn_slct,days, set_pt)
+        self.min_nngh = min_nngh      
     
-    def reset_params(self,min_nngh,max_nngh,gw_p):
+    def reset_params(self,min_nngh):
         
         self.min_nngh = min_nngh
-        self.max_nngh = max_nngh
-        self.gw_p = gw_p
         
     def setup_for_pt(self,pt,rm_stnid=None):
                 
@@ -262,7 +274,7 @@ class GwrPcaTairStatic(GwrPcaTair):
             self.stn_slct.set_pt(pt[LAT],pt[LON],stns_rm=rm_stnid)
         self.pt = pt
         
-        self.stn_slct.set_params(self.min_nngh, self.max_nngh,self.gw_p)
+        self.stn_slct.set_params(self.min_nngh)
         self.stn_slct.set_ngh_stns(load_obs=True)
         
     def gwr_pca(self,mth=None):
@@ -273,6 +285,10 @@ class GwrPcaTairStatic(GwrPcaTair):
            
         ngh_obs_cntr = ngh_obs - ngh_stns[get_norm_varname(mth)]
         
+#        dists = np.copy(self.stn_slct.ngh_dists)
+#        dists[dists==0] = 0.01
+#        interp_anom = np.average(ngh_obs_cntr, axis=1, weights=1.0/(dists)**2)
+        
         X = [ngh_stns[avar] for avar in self.mthlyPredictors[mth]]
         X.insert(0,np.ones(ngh_stns.size))
         X = np.column_stack(X)
@@ -280,13 +296,15 @@ class GwrPcaTairStatic(GwrPcaTair):
         x = [self.pt[avar] for avar in self.mthlyPredictors[mth]]
         x.insert(0,1)
         x = np.array(x)
+                
+        interp_anom,fit_anom = self.aclib.repRegress(X, ngh_obs_cntr, x, ngh_wgt)
         
-#        X = np.column_stack((np.ones(ngh_stns.size),ngh_stns[LON],ngh_stns[LAT],ngh_stns[ELEV],ngh_stns[TDI],ngh_stns[LST]))
-#        x = np.array([1.,self.pt[LON],self.pt[LAT],self.pt[ELEV],self.pt[TDI],self.pt[LST]])
-
+        resids = ngh_obs_cntr-fit_anom
+        dists = np.copy(self.stn_slct.ngh_dists)
+        dists[dists==0] = 0.01
+        interp_resids = np.average(resids, axis=1, weights=1.0/(dists**2))    
+        interp_anom = interp_anom+interp_resids
         
-        interp_anom = self.aclib.repRegress(X, ngh_obs_cntr, x, ngh_wgt)
-        #interp_anom = np.average(ngh_obs_cntr,axis=1,weights=ngh_wgt)
         interp_vals = interp_anom + self.pt[get_norm_varname(mth)]
                 
         return interp_vals 
@@ -439,11 +457,6 @@ def get_rgn_nnghs_dict(stns):
         
     return nnghsAll
     
-def init_interp_R_env(path_r_src):
-    r.source(path_r_src)
-    #Set trend formula
-    ri.globalenv['FORMULA'] =  ri.globalenv.get("build_formula")(ri.StrSexpVector(["tair"]),ri.StrSexpVector(KRIG_TREND_VARS))
-
 class BuildKrigParams(object):
     
     def __init__(self,stn_slct):
@@ -451,11 +464,11 @@ class BuildKrigParams(object):
         self.stn_slct = stn_slct
         self.r_kparam_func = ri.globalenv.get('get_vario_params')
         
-    def get_krig_params(self,pt,min_nngh,max_nngh,rm_stnid=None,mth=None,set_pt=True):
+    def get_krig_params(self,pt,min_nngh,rm_stnid=None,mth=None,set_pt=True):
         
         if set_pt:
             self.stn_slct.set_pt(pt[LAT],pt[LON],stns_rm=rm_stnid)   
-        self.stn_slct.set_params(DFLT_INIT_NNGHS,DFLT_INIT_NNGHS)
+        self.stn_slct.set_params(DFLT_INIT_NNGHS)
         self.stn_slct.set_ngh_stns(load_obs=False)
         
         indomain_mask = np.isfinite(self.stn_slct.ngh_stns[get_optim_varname(mth)])
@@ -465,12 +478,11 @@ class BuildKrigParams(object):
         if domain_stns.size == 0:
             raise Exception("Cannot determine the optimal # of neighbors to use!")
         
-        n_wgt = self.stn_slct.ngh_wgt[indomain_mask]/np.sum(self.stn_slct.ngh_wgt[indomain_mask])
+        n_wgt = self.stn_slct.ngh_wgt[indomain_mask]
                     
         min_nngh = np.int(np.round(np.average(domain_stns[get_optim_varname(mth)],weights=n_wgt)))
-        max_nngh = np.int(min_nngh+np.round(min_nngh*0.20))
     
-        self.stn_slct.set_params(min_nngh,max_nngh)
+        self.stn_slct.set_params(min_nngh)
         self.stn_slct.set_ngh_stns(load_obs=False) 
         
         nghs = self.stn_slct.ngh_stns
@@ -489,6 +501,42 @@ class BuildKrigParams(object):
         rng = rslt[2]
                 
         return nug,psill,rng
+
+#Build variogram params and performing moving window kriging all in one step
+class KrigTairAll(object):
+    
+    def __init__(self,stn_slct):
+        
+        self.stn_slct = stn_slct
+        self.r_func = ri.globalenv.get('krig_all')
+        
+    def krigall(self,pt,bw_nngh,rm_stnid=None,set_pt=True):
+        
+        if set_pt:
+            self.stn_slct.set_pt(pt[LAT],pt[LON],stns_rm=rm_stnid)   
+        self.stn_slct.set_params(bw_nngh)
+        self.stn_slct.set_ngh_stns(load_obs=False)
+                
+        nghs = self.stn_slct.ngh_stns
+        ngh_lon = ri.FloatSexpVector(nghs[LON])
+        ngh_lat = ri.FloatSexpVector(nghs[LAT])
+        ngh_elev = ri.FloatSexpVector(nghs[ELEV])
+        ngh_tdi = ri.FloatSexpVector(nghs[TDI])
+        ngh_wgt = ri.FloatSexpVector(self.stn_slct.ngh_wgt)
+        ngh_dists = ri.FloatSexpVector(self.stn_slct.ngh_dists)
+        
+        interp_norms = np.zeros(12)
+        
+        for mth in np.arange(1,13):
+            
+            ngh_lst = ri.FloatSexpVector(nghs[get_lst_varname(mth)])
+            ngh_tair = ri.FloatSexpVector(nghs[get_norm_varname(mth)])
+            pt_svp = ri.FloatSexpVector((pt[LON],pt[LAT],pt[ELEV],pt[TDI],pt[get_lst_varname(mth)]))
+            rslt = self.r_func(pt_svp,ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,ngh_dists)
+            
+            interp_norms[mth-1] = rslt[0]
+                            
+        return interp_norms
 
 class GwrTairMean(object):
     

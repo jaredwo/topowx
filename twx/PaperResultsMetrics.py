@@ -7,7 +7,8 @@ import infill.obs_por as op
 import numpy as np
 from twx.db.station_data import station_data_ncdb, LON, LAT,CLIMDIV, station_data_infill,VARIO_NUG,NEON,BAD,YEAR,\
     STN_ID,DTYPE_STN_BASIC, MASK, DATE, YMD,DTYPE_STN_MEAN_LST_TDI,BAD, MEAN_OBS,get_norm_varname,\
-    ELEV,get_lst_varname, STN_NAME, LST,TDI, MONTH
+    ELEV,get_lst_varname, STN_NAME, LST,TDI, MONTH, DTYPE_INTERP, DTYPE_OPTIM,\
+    get_optim_varname
 import twx.db.station_data as stnData
 import twx.utils.util_geo as utlg
 import matplotlib.pyplot as plt
@@ -6380,10 +6381,68 @@ def cceSpecificStnCompareBarPlot():
     f.set_size_inches(8,4.5)
     #plt.savefig('/projects/daymet2/docs/final_writeup/cce_stn_compare.png',dpi=250)
     plt.show()
- 
+
+def plotOptimNnghsKriging():
+    
+    dtypeStns = copy(DTYPE_INTERP)
+    dtypeStns.extend(DTYPE_OPTIM)
+    db = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin',stn_dtype=dtypeStns)
+    stns = db.stns[np.isnan(db.stns[BAD])]
+    m = Basemap(resolution='i',projection='aea', llcrnrlat=22,urcrnrlat=49,llcrnrlon=-119,urcrnrlon=-64,
+                lat_1=29.5,lat_2=45.5,lon_0=-96.0,lat_0=37.5,area_thresh= 10000)
+    
+    dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
+    lat,lon = dsGrid.getCoordGrid1d()
+    x, y = m(*np.meshgrid(lon,lat))
+    gridMask = dsGrid.gdalDs.ReadAsArray() != 19
+    latS = np.sort(lat) 
+    
+    
+#    clrsRed = brewer2mpl.get_map('Reds', 'Sequential', 6, reverse=False).mpl_colors
+#    clrsBlue = brewer2mpl.get_map('Blues', 'Sequential', 6, reverse=True).mpl_colors
+#    
+#    clrsBlue.append("grey")
+#    clrsBlue.extend(clrsRed)
+#    clrs = clrsBlue
+    
+    #clrs = brewer2mpl.get_map('RdBu', 'Diverging', 11, reverse=True)
+    #clrs = clrs.mpl_colors
+    #clrs[5] = "grey"
+    #levels = [-0.50,-0.40,-0.30,-0.20,-0.10,-0.05,0.05,0.10,0.20,0.30,0.40,0.50]
+               
+    cf = plt.gcf()
+    grid = ImageGrid(cf,111,nrows_ncols=(4,3),cbar_mode="single",cbar_location="right",axes_pad=0.05,cbar_pad=0.05,cbar_size="2%")#,cbar_pad=0.02)#axes_pad=.625
+    
+    for mth in np.arange(1,13):
+        
+        print mth
+        
+        stnsMth = stns[np.isfinite(stns[get_optim_varname(mth)])] 
+    
+        aGrid = griddata(stnsMth[LON],stnsMth[LAT],stnsMth[get_optim_varname(mth)],lon,latS)
+        aGrid = np.flipud(aGrid)
+        aGrid.mask = np.logical_or(gridMask,aGrid.mask)
+    
+        m.ax = grid[mth-1]
+        m.readshapefile('/projects/daymet2/dem/st_bounds/statesp020','statesp020')
+        cf = m.contourf(x, y, aGrid)
+
+        if mth == 1:
+            cbar = plt.colorbar(cf, cax = grid.cbar_axes[0])
+        
+        #grid[0].set_ylabel("USHCN")
+        #grid[0].set_title(str(mth))
+        #cbar = grid.cbar_axes.colorbar(cf)
+        #cbar.set_ticks(levels)
+        #cbar.set_label(r'$^\circ$C decade$^{-1}$')
+        
+    ##############################################################################
+    plt.show()
+
 if __name__ == '__main__':
     
-    plotInterpErrorMapsNcdcNormsTest()
+    plotOptimNnghsKriging()
+    #plotInterpErrorMapsNcdcNormsTest()
     #plotNcdcNormsBiasBars()
     #plotNcdcNormsBiasMaps()
     #plotInterpErrorMaps2()

@@ -48,6 +48,10 @@ class RasterDataset(object):
         self.max_y =  self.geoT[3]
         self.min_y =  self.max_y - (-self.gdalDs.RasterYSize*self.geoT[5])
         
+        self.rows = self.gdalDs.RasterYSize
+        self.cols = self.gdalDs.RasterXSize
+        self.ndata = self.gdalDs.GetRasterBand(1).GetNoDataValue()
+        
     
     def getCoordMeshGrid(self):
         

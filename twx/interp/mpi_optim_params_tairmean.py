@@ -1,5 +1,6 @@
 '''
-A MPI driver for performing "leave one out" cross-validation of tair interpolation in interp_tair
+A MPI driver for performing "leave one out" cross-validation of monthly Tair normals to optimize the
+number of stations to use in each climate division.
 
 @author: jared.oyler
 '''
@@ -7,15 +8,11 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,MEAN_OBS,NEON,DTYPE_STN_MEAN_LST_TDI,MASK,BAD,get_norm_varname,\
-    get_optim_varname
-from twx.interp.station_select import station_select
+from twx.db.station_data import station_data_infill,STN_ID,NEON,MASK,BAD
 from twx.utils.status_check import status_check
-import netCDF4
 from twx.db.all_create_db import dbDataset
-import twx.interp.interp_tair as it
 from netCDF4 import Dataset
-from twx.interp.optimize import OptimTairMean, setOptimTairParams
+from twx.interp.optimize import OptimKrigBwNstns, setOptimTairParams
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -48,34 +45,31 @@ sys.stdout=Unbuffered(sys.stdout)
 def proc_work(params,rank):
     
     status = MPI.Status()
-
-    optim = OptimTairMean(params[P_PATH_DB], params[P_PATH_RLIB], params[P_VARNAME])
+    
+    optim = OptimKrigBwNstns(params[P_PATH_DB], params[P_VARNAME])
     
     bcast_msg = None
     MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)
             
     while 1:
     
-        stn_id,min_ngh,max_ngh = MPI.COMM_WORLD.recv(source=RANK_COORD,tag=MPI.ANY_TAG,status=status)
+        stn_id = MPI.COMM_WORLD.recv(source=RANK_COORD,tag=MPI.ANY_TAG,status=status)
         
         if status.tag == TAG_STOPWORK:
-            MPI.COMM_WORLD.send([None]*4, dest=RANK_WRITE, tag=TAG_STOPWORK)
+            MPI.COMM_WORLD.send([None]*2, dest=RANK_WRITE, tag=TAG_STOPWORK)
             print "".join(["Worker ",str(rank),": Finished"]) 
             return 0
         else:
             
             try:
                 
-                mae,bias = optim.runXval(stn_id, min_ngh, max_ngh)
+                err = optim.runXval(stn_id, params[P_NGH_RNG])
                                             
             except Exception as e:
             
-                print "".join(["ERROR: Worker ",str(rank),": could not xval ",stn_id," with ",str(min_ngh)," nghs...",str(e)])
-                
-                mae = np.ones(12)*netCDF4.default_fillvals['f8']
-                bias = np.ones(12)*netCDF4.default_fillvals['f8']
-            
-            MPI.COMM_WORLD.send((stn_id,min_ngh,mae,bias), dest=RANK_WRITE, tag=TAG_DOWORK)
+                print "".join(["ERROR: Worker ",str(rank),": could not xval ",stn_id,str(e)])
+                            
+            MPI.COMM_WORLD.send((stn_id,err), dest=RANK_WRITE, tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
                 
 def proc_write(params,nwrkers):
@@ -105,26 +99,21 @@ def proc_write(params,nwrkers):
     stn_idxs = {}
     for x in np.arange(stns.size):
         stn_idxs[stns[STN_ID][x]] = x
-    
-    min_ngh_wins = build_min_ngh_windows(params[P_NGH_RNG][0], params[P_NGH_RNG][1], params[P_NGH_RNG_STEP])
-    ngh_idxs = {}
-    for x in np.arange(min_ngh_wins.size):
-        ngh_idxs[min_ngh_wins[x]] = x
             
-    ttl_xvals = ttl_xval_stns * min_ngh_wins.size
+    ttl_xvals = ttl_xval_stns# * min_ngh_wins.size
     
-    stat_chk = status_check(ttl_xvals,250)
+    stat_chk = status_check(ttl_xvals,10)
     
     while 1:
        
-        stn_id,min_ngh,mae,bias = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
+        stn_id,err = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
         if status.tag == TAG_STOPWORK:
             
             nwrkrs_done+=1
             if nwrkrs_done == nwrkers:
                 
                 
-                #######################################################
+                ######################################################
                 print "Writer: Setting the optim # of nghs..."
                 
                 stn_da.ds.close()
@@ -133,20 +122,18 @@ def proc_write(params,nwrkers):
                 
                 setOptimTairParams(params[P_PATH_DB], params[P_PATH_OUT])
             
-                #######################################################
+                ######################################################
                 
                 print "Writer: Finished"
                 return 0
         else:
-            
-            dim1 = ngh_idxs[min_ngh]
-            
+                        
             stn = stns[stn_idxs[stn_id]]
             ds,stnids_neon = neon_ds[stn[NEON]]
             dim2 = np.nonzero(stnids_neon==stn_id)[0][0]
                         
-            ds.variables['mae'][:,dim1,dim2] = mae
-            ds.variables['bias'][:,dim1,dim2] = bias
+            ds.variables['mae'][:,:,dim2] = np.abs(err)
+
             ds.sync()
             
             stat_chk.increment()
@@ -159,35 +146,29 @@ def proc_coord(params,nwrkers):
         
     #Send stn ids to all processes
     MPI.COMM_WORLD.bcast(stns[STN_ID], root=RANK_COORD)
-    
-    min_ngh_wins = build_min_ngh_windows(params[P_NGH_RNG][0], params[P_NGH_RNG][1], params[P_NGH_RNG_STEP])
-    
+        
     print "Coord: Done initialization. Starting to send work."
     
     cnt = 0
     nrec = 0
-    
-    for min_ngh in min_ngh_wins:
-        
-        max_ngh = min_ngh+np.round(min_ngh*params[P_MAX_NNGH_DELTA])        
-        
-        for neon in params[P_NEON_ECORGN]:
-        
-            mask_stns_xval = np.logical_and(stn_da.stns[NEON]==neon,mask_stns)
-            stn_ids_xval = stn_da.stn_ids[mask_stns_xval]
-        
-            for stn_id in stn_ids_xval:
                     
-                if cnt < nwrkers:
-                    dest = cnt+N_NON_WRKRS
-                else:
-                    dest = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
-                    nrec+=1
+    for neon in params[P_NEON_ECORGN]:
     
-                MPI.COMM_WORLD.send((stn_id,min_ngh,max_ngh), dest=dest, tag=TAG_DOWORK)
-                cnt+=1
+        mask_stns_xval = np.logical_and(stn_da.stns[NEON]==neon,mask_stns)
+        stn_ids_xval = stn_da.stn_ids[mask_stns_xval]
     
-        print "".join(["Coord: Finished xval of min_nngh: ",str(min_ngh)])
+        for stn_id in stn_ids_xval:
+                
+            if cnt < nwrkers:
+                dest = cnt+N_NON_WRKRS
+            else:
+                dest = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
+                nrec+=1
+
+            MPI.COMM_WORLD.send(stn_id, dest=dest, tag=TAG_DOWORK)
+            cnt+=1
+    
+        print "".join(["Coord: Finished xval of neon: ",str(neon)])
     
     for w in np.arange(nwrkers):
         MPI.COMM_WORLD.send([None]*3, dest=w+N_NON_WRKRS, tag=TAG_STOPWORK)
@@ -201,23 +182,20 @@ def create_ncdf(params,stn_ids,neon):
         
     ds = dbDataset(fpath,'w')
     ds.db_create_global_attributes("Cross Validation "+params[P_VARNAME])
-    
-    min_ngh_wins = build_min_ngh_windows(params[P_NGH_RNG][0], params[P_NGH_RNG][1], params[P_NGH_RNG_STEP])
-    
-    ds.createDimension('min_nghs',min_ngh_wins.size)
+        
+    ds.createDimension('min_nghs',params[P_NGH_RNG].size)
     ds.db_create_stnid_dimvar(stn_ids)
     
     nghs = ds.createVariable('min_nghs','i4',('min_nghs',),fill_value=False)
     nghs.long_name = "min_nghs"
     nghs.standard_name = "min_nghs"
-    nghs[:] = min_ngh_wins
+    nghs[:] = params[P_NGH_RNG]
     
     ds.createDimension('mth',12)
     mthVar = ds.createVariable('mth','i4',('mth',),fill_value=False)
     mthVar[:] = np.arange(1,13)
     
     ds.db_create_mae_var(('mth','min_nghs','stn_id'))
-    ds.db_create_bias_var(('mth','min_nghs','stn_id'))
                 
     ds.sync()
         
@@ -244,17 +222,15 @@ if __name__ == '__main__':
 
     params = {}
     
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc"
-    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/infill_20130725/xval/optimTairMean/tmin/xval_tmin_mean'   
-    params[P_PATH_RLIB] = '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/interp.R'
-    params[P_NGH_RNG] = (100,150)#(20,150)
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc"
+    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/serial_fnl/xval/optimTairMean/tmax/xval_tmax_mean'   
+    params[P_NGH_RNG] = build_min_ngh_windows(35, 150, 0.10)
     params[P_NGH_RNG_STEP] = .10 #in pct
-    params[P_MAX_NNGH_DELTA] = .20 #in pct
-    params[P_VARNAME] = 'tmin'
+    params[P_VARNAME] = 'tmax'
     
     ds = Dataset(params[P_PATH_DB])
     divs = ds.variables['neon'][:]
-    params[P_NEON_ECORGN] = np.unique(divs.data[np.logical_not(divs.mask)])
+    params[P_NEON_ECORGN] = np.unique(divs.data[np.logical_not(divs.mask)])#np.array([2401])
     ds.close()
     ds = None
     

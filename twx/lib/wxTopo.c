@@ -176,13 +176,19 @@ int repRegress(RepRegressStruct* aRepRegressStr)
 	int ndays = nXRows;
 
 	gsl_matrix_view X = gsl_matrix_view_array(aRepRegressStr->Y,nXRows,nXCols);
+	gsl_matrix_view Z = gsl_matrix_view_array(aRepRegressStr->Z,nZLen,nZLen);
 	gsl_vector_view z = gsl_vector_view_array(aRepRegressStr->z,nZLen);
+	gsl_matrix_view fitVals = gsl_matrix_view_array(aRepRegressStr->fitVals,ndays,nZLen);
 	gsl_vector_view y;
+	gsl_vector_view residRow;
 
 	for (day=0 ; day < ndays ; ++day)
 	{
 		y = gsl_matrix_row(&X.matrix,day);
-		gsl_blas_ddot(&z.vector,&y.vector,&aRepRegressStr->returnvals[day]);
+		residRow = gsl_matrix_row(&fitVals.matrix,day);
+
+		gsl_blas_ddot(&z.vector,&y.vector,&aRepRegressStr->predictVals[day]);
+		gsl_blas_dgemv(CblasNoTrans,1.0,&Z.matrix,&y.vector,0.0,&residRow.vector);
 	}
 
 	return(0);

@@ -157,8 +157,10 @@ typedef struct
 	int nYCols;
 	int nZLen;
 	double *Y;
+	double *Z;
 	double *z;
-	double *returnvals;
+	double *predictVals;
+	double *fitVals;
 
 } RepRegressStruct;
 
