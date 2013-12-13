@@ -7,13 +7,10 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,MEAN_OBS,NEON,DTYPE_STN_MEAN_LST_TDI,MASK,BAD
-from twx.interp.station_select import station_select
+from twx.db.station_data import station_data_infill,STN_ID,NEON,MASK,BAD
 from twx.utils.status_check import status_check
-from twx.interp.interp_tair import GwrPcaTairStatic
 import netCDF4
 from twx.db.all_create_db import dbDataset
-from scipy import stats
 from netCDF4 import Dataset
 from twx.interp.optimize import OptimTairAnom, setOptimTairAnomParams
 
@@ -27,11 +24,9 @@ N_NON_WRKRS = 2
 
 P_PATH_DB = 'P_PATH_DB'
 P_PATH_OUT = 'P_PATH_OUT'
-P_PATH_CLIB = 'P_PATH_CLIB'
 
 P_MAX_NNGH_DELTA = 'P_MAX_NNGH_DELTA'
 P_NGH_RNG = 'P_NGH_RNG'
-P_NGH_RNG_STEP = 'P_NGH_RNG_STEP'
 P_VARNAME = 'P_VARNAME'
 P_NEON_ECORGN = 'P_NEON_ECORGN'
 
@@ -49,7 +44,7 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    optim = OptimTairAnom(params[P_PATH_DB], params[P_PATH_CLIB], params[P_VARNAME])
+    optim = OptimTairAnom(params[P_PATH_DB], params[P_VARNAME])
     
     min_ngh_wins = params[P_NGH_RNG]
     
@@ -157,7 +152,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME],stn_dtype=DTYPE_STN_MEAN_LST_TDI)
+    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
     mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD])) 
     stns = stn_da.stns[mask_stns]
         
@@ -199,7 +194,7 @@ def create_ncdf(params,stn_ids,neon):
     ds = dbDataset(fpath,'w')
     ds.db_create_global_attributes("Cross Validation "+params[P_VARNAME])
     
-    min_ngh_wins = build_min_ngh_windows(params[P_NGH_RNG][0], params[P_NGH_RNG][1], params[P_NGH_RNG_STEP])
+    min_ngh_wins = params[P_NGH_RNG]
     
     ds.createDimension('min_nghs',min_ngh_wins.size)
     ds.db_create_stnid_dimvar(stn_ids)
@@ -245,10 +240,9 @@ if __name__ == '__main__':
 
     params = {}
     
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc"
-    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/infill_20130725/xval/optimTairAnom/tmax/xval_tmax_anom'   
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc"
+    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/serial_fnl/xval/optimTairAnom/tmax/xval_tmax_anom'   
     params[P_NGH_RNG] = build_min_ngh_windows(10, 150, 0.10)
-    params[P_NGH_RNG_STEP] = .10 #in pct
     params[P_VARNAME] = 'tmax'
     
     ds = Dataset(params[P_PATH_DB])

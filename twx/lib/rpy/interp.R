@@ -68,8 +68,13 @@ get_vario_params <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,n
 #	Sys.sleep(15)
 	#print(c(min(avar$gamma),sill))
 	#avar.model <- tryCatch(my.autofit.gwvario(avar,model=c("Exp"),fix.values = c(min(avar$gamma),NA,sill),fit.method=7)$var_model,error=function(e) e)
-	avar.model <- tryCatch(my.autofit.gwvario(avar,model=c("Exp"),fix.values = c(NA,NA,sill),fit.method=7)$var_model,error=function(e) e)
+	avar.model <- tryCatch(my.autofit.gwvario(avar,model=c("Exp"),fix.values = c(NA,NA,NA),fit.method=7)$var_model,error=function(e) e)
+	
 	if (is(avar.model,"simpleError"))
+	{
+		avar.model <- vgm(sill,"Nug")
+	}
+	else if (avar.model$psill[1] == 0 & avar.model$psill[2] == 0)
 	{
 		avar.model <- vgm(sill,"Nug")
 	}
@@ -80,12 +85,17 @@ get_vario_params <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,n
 	sill <- var(stns_ngh$resid)
 	avar.gls <- variogram(resid~1,stns_ngh,cutoff=cutoff,width=5)
 	#avar.model.gls <- tryCatch(my.autofit.gwvario(avar.gls,model=c("Exp"),fix.values = c(min(avar.gls$gamma),NA,sill),fit.method=7)$var_model,error=function(e) e)
-	avar.model.gls <- tryCatch(my.autofit.gwvario(avar.gls,model=c("Exp"),fix.values = c(NA,NA,sill),fit.method=7)$var_model,error=function(e) e)
+	avar.model.gls <- tryCatch(my.autofit.gwvario(avar.gls,model=c("Exp"),fix.values = c(NA,NA,NA),fit.method=7)$var_model,error=function(e) e)
 	if (is(avar.model.gls,"simpleError"))
 	{
 		avar.model.gls <- vgm(sill,"Nug")
 	}
+	else if (avar.model.gls$psill[1] == 0 & avar.model.gls$psill[2] == 0)
+	{
+		avar.model.gls <- vgm(sill,"Nug")
+	}
 	
+#	print(avar.model.gls)
 #	print(plot(avar.gls,model=avar.model.gls))
 #	Sys.sleep(3)
 

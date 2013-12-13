@@ -6,10 +6,8 @@ A MPI driver for interpolating tair to a specified grid using interp.interp_tair
 
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,LON,LAT,NEON,ELEV,TDI,LST,VCF,LC,BAD,\
-    MASK, OPTIM_NNGH, OPTIM_NNGH_ANOM
+from twx.db.station_data import LON,LAT,NEON,ELEV,TDI
 import twx.interp.interp_tair as it
-from twx.interp.station_select import station_select
 from twx.utils.status_check import status_check
 from netCDF4 import Dataset
 import netCDF4
@@ -40,8 +38,6 @@ P_PATH_DB_TMAX = 'P_PATH_DB_TMAX'
 P_PATH_OUT = 'P_PATH_OUT'
 P_PATH_DUPS_TMIN = 'P_PATH_DUPS_TMIN'
 P_PATH_DUPS_TMAX = 'P_PATH_DUPS_TMAX'
-P_PATH_CLIB = 'P_PATH_CLIB'
-P_PATH_RLIB = 'P_PATH_RLIB'
 P_PATH_NEON_PARAMS_TMIN = 'P_PATH_NEON_PARAMS_TMIN'
 P_PATH_RMSTNS_TMIN = "P_PATH_RMSTNS_TMIN"
 P_PATH_RMSTNS_TMAX = "P_PATH_RMSTNS_TMAX"
@@ -73,25 +69,13 @@ class Unbuffered:
         return getattr(self.stream, attr)
 sys.stdout=Unbuffered(sys.stdout)
 
-def get_lcc_nnghs_dict(stns):
-    
-    lccs = np.unique(stns[NEON])
-    
-    nnghs = {}
-    for lcc in lccs:
-        
-        lcc_mask = stns[NEON]==lcc
-        nnghs[lcc] = (stns[OPTIM_NNGH][lcc_mask][0],stns[OPTIM_NNGH_ANOM][lcc_mask][0])
-    
-    return nnghs
-
 def proc_work(params,rank):
 
     status = MPI.Status()
     
     stndaTmin = it.StationDataWrkChk(params[P_PATH_DB_TMIN], 'tmin')
     stndaTmax = it.StationDataWrkChk(params[P_PATH_DB_TMAX], 'tmax')
-    ptInterp = it.PtInterpTair(stndaTmin,stndaTmax, params[P_PATH_RLIB], params[P_PATH_CLIB])    
+    ptInterp = it.PtInterpTair(stndaTmin,stndaTmax)    
     
     days = ptInterp.days   
     ninvalid_warn_cutoff = np.round(days.size*.10) #10% or greater days tmin >= tmax
@@ -335,16 +319,11 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_CLIB] = '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C'
-    params[P_PATH_RLIB] = '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/interp.R'
     
     #CONUS SCALE RUN
     ############################################################################################
-    params[P_PATH_DB_TMIN] = '/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc'
-    params[P_PATH_DB_TMAX] = '/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc'
-    #Non-homogenized serially complete station data
-#    params[P_PATH_DB_TMIN] = '/projects/daymet2/station_data/infill/infill_20130518/serial_tmin.nc'
-#    params[P_PATH_DB_TMAX] = '/projects/daymet2/station_data/infill/infill_20130518/serial_tmax.nc'
+    params[P_PATH_DB_TMIN] = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc'
+    params[P_PATH_DB_TMAX] = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc'
 
     gridPath = '/projects/daymet2/dem/interp_grids/conus/ncdf/'
     params[P_PATH_MASK] = "".join([gridPath,'fnl_mask.nc'])
@@ -354,7 +333,7 @@ if __name__ == '__main__':
     params[P_PATH_LST_TMAX] = ["".join([gridPath,'fnl_lst_tmax%02d.nc'%mth]) for mth in np.arange(1,13)]
     params[P_PATH_NEON] = "".join([gridPath,'fnl_climdiv.nc'])
     
-    params[P_PATH_OUT] = '/stage/climate/topowx_tile_output/'#'/projects/daymet2/interp_output/'#topowx_tile_output/'
+    params[P_PATH_OUT] = '/stage/climate/topowx_tile_output/'
     params[P_TILESIZE_X] = 250
     params[P_TILESIZE_Y] = 250
     params[P_CHCKSIZE_X] = 50

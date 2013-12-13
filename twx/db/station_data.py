@@ -146,6 +146,12 @@ DTYPE_INTERP.extend(DTYPE_LST)
 DTYPE_INTERP_OPTIM = copy(DTYPE_INTERP)
 DTYPE_INTERP_OPTIM.extend(DTYPE_OPTIM)
 
+DTYPE_INTERP_OPTIM_ALL = copy(DTYPE_INTERP_OPTIM)
+DTYPE_INTERP_OPTIM_ALL.extend(DTYPE_ANOM_OPTIM)
+DTYPE_INTERP_OPTIM_ALL.extend(DTYPE_VARIO_NUG)
+DTYPE_INTERP_OPTIM_ALL.extend(DTYPE_VARIO_PSILL)
+DTYPE_INTERP_OPTIM_ALL.extend(DTYPE_VARIO_RNG)
+
 #DTYPE_STN_MEAN_LST_TDI_VCF_LC = [(STN_ID, "<S16"), (STATE, "<S2"), (STN_NAME, "<S30"), 
 #                          (LON, np.float64), (LAT, np.float64), (ELEV, np.float64),
 #                          (TDI, np.float64),(LST, np.float64),(VCF, np.float64),(LC, np.float64),(NEON, np.float64),(MEAN_OBS, np.float64)]

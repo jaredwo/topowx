@@ -10,7 +10,7 @@ from twx.interp.clibs import clib_wxTopo
 import scipy.stats as stats
 from twx.utils.util_ncdf import GeoNc
 from netCDF4 import Dataset
-from twx.interp.station_select import station_select
+from twx.interp.station_select import StationSelect
 from matplotlib.mlab import griddata 
 import matplotlib.pyplot as plt
 import twx.utils.util_dates as utld
@@ -137,14 +137,13 @@ def build_empty_pt():
     
     return a_pt[0]
 
-class GwrPcaTair(object):
-
-    def __init__(self,stn_slct,days,set_pt=True):
+class GwrTairAnom(object):
+    
+    def __init__(self,stn_slct,days):
         
         self.stn_slct = stn_slct
-        self.aclib = clib_wxTopo()        
-        self.set_pt = set_pt
-        self.pt = None
+        self.days = days
+        self.aclib = clib_wxTopo()
         
         mthlyPredictors = {}
         predictors = np.array(GWR_TREND_VARS,dtype="<S16")
@@ -167,117 +166,30 @@ class GwrPcaTair(object):
         mthIdx[None] = np.nonzero(mthMasks[None])[0]
         self.mthMasks = mthMasks
         self.mthIdx = mthIdx
-        
-        
-    def setup_for_pt(self,pt,rm_stnid=None):
-        pass
-        
-    def gwr_pca(self,mth=None):
-        
-        #ngh_obs = self.stn_slct.ngh_obs[self.mthMasks[mth],:]
-        #ngh_obs = np.take(self.stn_slct.ngh_obs, self.mthIdx[mth], 0)
-        ngh_obs = self.stn_slct.ngh_obs
-        ngh_stns = self.stn_slct.ngh_stns
-        ngh_wgt = self.stn_slct.ngh_wgt
-           
-        ngh_obs_cntr = ngh_obs - ngh_stns[get_norm_varname(mth)]
-        
-        X = [ngh_stns[avar] for avar in self.mthlyPredictors[mth]]
-        X.insert(0,np.ones(ngh_stns.size))
-        X = np.column_stack(X)
-        
-        x = [self.pt[avar] for avar in self.mthlyPredictors[mth]]
-        x.insert(0,1)
-        x = np.array(x)
-        
-#        X = np.column_stack((np.ones(ngh_stns.size),ngh_stns[LON],ngh_stns[LAT],ngh_stns[ELEV],ngh_stns[TDI],ngh_stns[LST]))
-#        x = np.array([1.,self.pt[LON],self.pt[LAT],self.pt[ELEV],self.pt[TDI],self.pt[LST]])
-
-        
-        interp_anom = self.aclib.repRegress(X, ngh_obs_cntr, x, ngh_wgt)
-        #interp_anom = np.average(ngh_obs_cntr,axis=1,weights=ngh_wgt)
-        interp_vals = interp_anom + self.pt[get_norm_varname(mth)]
-                
-        return interp_vals
     
-#    def gwr_pca(self):
-#        
-#        ngh_obs = self.stn_slct.ngh_obs
-#        ngh_stns = self.stn_slct.ngh_stns
-#        ngh_wgt = self.stn_slct.ngh_wgt
-#           
-#        ngh_obs_cntr = ngh_obs - ngh_stns[MEAN_OBS]
-#    
-#        pt = np.array([self.pt[LON],self.pt[LAT],self.pt[ELEV],self.pt[TDI],self.pt[LST]])
-#
-#        rslt = r.gwr_anomaly(robjects.FloatVector(ngh_stns[LON]),
-#                                  robjects.FloatVector(ngh_stns[LAT]),
-#                                  robjects.FloatVector(ngh_stns[ELEV]),
-#                                  robjects.FloatVector(ngh_stns[TDI]),
-#                                  robjects.FloatVector(ngh_stns[LST]),
-#                                  robjects.FloatVector(ngh_wgt),
-#                                  robjects.Matrix(ngh_obs_cntr),
-#                                  robjects.FloatVector(pt))
-#        
-#        interp_vals = np.array(rslt).ravel() + self.pt[MEAN_OBS] 
-#                
-#        return interp_vals
-    
-class GwrPcaTairDynamic(GwrPcaTair):
-    
-    def __init__(self,stn_slct,path_clib,days,set_pt=True):
+    def __get_nnghs(self,pt,mth,stns_rm=None):
         
-        GwrPcaTair.__init__(self, stn_slct, path_clib, days, set_pt)
-        self.mth = None        
-            
-    def setup_for_pt(self,pt,rm_stnid=None):
-                
-        if self.set_pt:
-            self.stn_slct.set_pt(pt[LAT],pt[LON],stns_rm=rm_stnid)
-        self.pt = pt
+        self.stn_slct.set_ngh_stns(pt[LAT], pt[LON], DFLT_INIT_NNGHS, load_obs=False, stns_rm=stns_rm)
         
-        min_nngh = pt[get_optim_anom_varname(self.mth)]
-        max_nngh = min_nngh+np.round(min_nngh*0.20) 
-            
-        #self.stn_slct.set_params(DFLT_INIT_NNGHS,DFLT_INIT_NNGHS,1.0)
-        self.stn_slct.set_nngh_stns(DFLT_INIT_NNGHS,load_obs=False)
-        #self.stn_slct.set_ngh_stns(load_obs=False)
-        
-        fin_mask = np.isfinite(self.stn_slct.ngh_stns[get_optim_anom_varname(self.mth)])
+        fin_mask = np.isfinite(self.stn_slct.ngh_stns[get_optim_anom_varname(mth)])
         
         if np.sum(fin_mask) == 0:
             raise Exception("Cannot determine the optimal # of neighbors to use!")
     
         p_stns = self.stn_slct.ngh_stns[fin_mask]
-        p_wgt = self.stn_slct.ngh_wgt[fin_mask]/np.sum(self.stn_slct.ngh_wgt[fin_mask])
+        p_wgt = self.stn_slct.ngh_wgt[fin_mask]
         
-        min_nngh = np.int(np.round(np.average(p_stns[get_optim_anom_varname(self.mth)],weights=p_wgt)))
-        max_nngh = np.int(min_nngh+np.round(min_nngh*0.20))
-        
-        self.stn_slct.set_params(min_nngh, max_nngh,1.0)
-        self.stn_slct.set_ngh_stns(load_obs=True,obs_mth=self.mth)        
-        
-class GwrPcaTairStatic(GwrPcaTair):
+        nnghs = np.int(np.round(np.average(p_stns[get_optim_anom_varname(mth)],weights=p_wgt)))
+
+        return nnghs
     
-    def __init__(self,stn_slct,days,min_nngh,set_pt=True):
+    def gwr_mth(self,pt,mth,nnghs=None,stns_rm=None):
         
-        GwrPcaTair.__init__(self, stn_slct,days, set_pt)
-        self.min_nngh = min_nngh      
-    
-    def reset_params(self,min_nngh):
+        if nnghs == None:
+            #Get the nnghs to use from the optimal values at surrounding stations
+            nnghs = self.__get_nnghs(pt,mth,stns_rm)
         
-        self.min_nngh = min_nngh
-        
-    def setup_for_pt(self,pt,rm_stnid=None):
-                
-        if self.set_pt:
-            self.stn_slct.set_pt(pt[LAT],pt[LON],stns_rm=rm_stnid)
-        self.pt = pt
-        
-        self.stn_slct.set_params(self.min_nngh)
-        self.stn_slct.set_ngh_stns(load_obs=True)
-        
-    def gwr_pca(self,mth=None):
+        self.stn_slct.set_ngh_stns(pt[LAT],pt[LON],nnghs,load_obs=True,stns_rm=stns_rm)
         
         ngh_obs = np.take(self.stn_slct.ngh_obs, self.mthIdx[mth], 0)
         ngh_stns = self.stn_slct.ngh_stns
@@ -285,68 +197,59 @@ class GwrPcaTairStatic(GwrPcaTair):
            
         ngh_obs_cntr = ngh_obs - ngh_stns[get_norm_varname(mth)]
         
-#        dists = np.copy(self.stn_slct.ngh_dists)
-#        dists[dists==0] = 0.01
-#        interp_anom = np.average(ngh_obs_cntr, axis=1, weights=1.0/(dists)**2)
-        
+        #Perform a GWR for each day
         X = [ngh_stns[avar] for avar in self.mthlyPredictors[mth]]
         X.insert(0,np.ones(ngh_stns.size))
         X = np.column_stack(X)
         
-        x = [self.pt[avar] for avar in self.mthlyPredictors[mth]]
+        x = [pt[avar] for avar in self.mthlyPredictors[mth]]
         x.insert(0,1)
         x = np.array(x)
                 
         interp_anom,fit_anom = self.aclib.repRegress(X, ngh_obs_cntr, x, ngh_wgt)
         
+        #Perform IDW of GWR residuals
         resids = ngh_obs_cntr-fit_anom
         dists = np.copy(self.stn_slct.ngh_dists)
         dists[dists==0] = 0.01
         interp_resids = np.average(resids, axis=1, weights=1.0/(dists**2))    
         interp_anom = interp_anom+interp_resids
         
-        interp_vals = interp_anom + self.pt[get_norm_varname(mth)]
+        interp_vals = interp_anom + pt[get_norm_varname(mth)]
                 
         return interp_vals 
-    
+                    
 class InterpTair(object):
     
-    def __init__(self,krig_tair,gwrpca_tair):
+    def __init__(self,krig_tair,gwr_tair):
         
         self.krig_tair = krig_tair
-        self.gwrpca_tair = gwrpca_tair
-        self.mthMasks = gwrpca_tair.mthMasks
-        self.ndays = self.mthMasks[None].size
+        self.gwr_tair = gwr_tair
+        self.mthMasks = gwr_tair.mthMasks
+        self.ndays = gwr_tair.days.size
         
-    def interp(self,pt,rm_stnid=None):
+    def interp(self,pt,stns_rm=None):
         
         tair_daily = np.zeros(self.ndays)
         tair_norms = np.zeros(12)
         tair_se = np.zeros(12)
-        
-        set_pt = True
-        
+                
         for mth in np.arange(1,13):
             
-            set_pt = True if mth == 1 else False
-            tair_mean,tair_var = self.krig_tair.krig(pt,rm_stnid,mth=mth,set_pt=set_pt)
+            tair_mean,tair_var = self.krig_tair.krig(pt,mth,stns_rm=stns_rm)
             std_err,ci = self.krig_tair.std_err_ci(tair_mean,tair_var)
             pt[get_norm_varname(mth)] = tair_mean
             tair_norms[mth-1] = tair_mean
             tair_se[mth-1] = std_err
-            
-            self.gwrpca_tair.mth = mth
-            self.gwrpca_tair.setup_for_pt(pt,rm_stnid)
-            tair_daily[self.mthMasks[mth]] = self.gwrpca_tair.gwr_pca(mth)
+    
+            tair_daily[self.mthMasks[mth]] = self.gwr_tair.gwr_mth(pt,mth,stns_rm=stns_rm)
         
         return tair_daily,tair_norms,tair_se
 
 class PtInterpTair(object):
     
-    #def __init__(self,dspathTmin,dspathTmax,pathRlib,pathClib,auxFpaths=None):
-    def __init__(self,stn_da_tmin,stn_da_tmax,pathRlib,pathClib,auxFpaths=None):    
-        #stn_da_tmin = station_data_infill(dspathTmin, 'tmin',vcc_size=470560000*2)
-        #stn_da_tmax = station_data_infill(dspathTmax, 'tmax',vcc_size=470560000*2)
+    def __init__(self,stn_da_tmin,stn_da_tmax,auxFpaths=None):    
+
         self.days = stn_da_tmin.days
         self.stn_da_tmin = stn_da_tmin
         self.stn_da_tmax = stn_da_tmax
@@ -371,21 +274,20 @@ class PtInterpTair(object):
         mask_stns_tmin = np.isnan(stn_da_tmin.stns[BAD]) 
         mask_stns_tmax = np.isnan(stn_da_tmax.stns[BAD])
         
-        stn_slct_tmin = station_select(stn_da_tmin, mask_stns_tmin)
-        stn_slct_tmax = station_select(stn_da_tmax, mask_stns_tmax)
+        stn_slct_tmin = StationSelect(stn_da_tmin, mask_stns_tmin)
+        stn_slct_tmax = StationSelect(stn_da_tmax, mask_stns_tmax)
         
         domain_stns_tmin = stn_da_tmin.stns[np.logical_and(mask_stns_tmin,np.isfinite(stn_da_tmin.stns[MASK]))]
         domain_stns_tmax = stn_da_tmax.stns[np.logical_and(mask_stns_tmax,np.isfinite(stn_da_tmax.stns[MASK]))]
         self.nnghparams_tmin = get_rgn_nnghs_dict(domain_stns_tmin)
         self.nnghparams_tmax = get_rgn_nnghs_dict(domain_stns_tmax)
         
-        init_interp_R_env(pathRlib)
         krig_tmin = KrigTair(stn_slct_tmin)
         krig_tmax = KrigTair(stn_slct_tmax)
         
-        gwr_tmin = GwrPcaTairDynamic(stn_slct_tmin, pathClib, self.days, set_pt=False)
-        gwr_tmax = GwrPcaTairDynamic(stn_slct_tmax, pathClib, self.days, set_pt=False)
-        
+        gwr_tmin = GwrTairAnom(stn_slct_tmin, self.days)
+        gwr_tmax = GwrTairAnom(stn_slct_tmax, self.days)
+                
         self.interp_tmin = InterpTair(krig_tmin, gwr_tmin)
         self.interp_tmax = InterpTair(krig_tmax, gwr_tmax)
         
@@ -395,7 +297,7 @@ class PtInterpTair(object):
         self.a_pt = build_empty_pt()
         
     
-    def interpLonLatPt(self,lon,lat,fixInvalid=True,chgLatLon=True,rm_stnid=None):
+    def interpLonLatPt(self,lon,lat,fixInvalid=True,chgLatLon=True,stns_rm=None):
         
         self.a_pt[LON] = lon
         self.a_pt[LAT] = lat
@@ -404,23 +306,27 @@ class PtInterpTair(object):
         if self.a_pt[MASK] == 0:
             raise Exception('Point is outside interpolation region')
         
-        return self.interpPt(fixInvalid,rm_stnid)
+        return self.interpPt(fixInvalid,stns_rm)
     
-    def interpPt(self,fixInvalid=True,rm_stnid=None):
+    def interpPt(self,fixInvalid=True,stns_rm=None):
         
+        #Set the monthly lst values and optim nnghs on the point
         for mth in np.arange(1,13):
             
             self.a_pt[get_lst_varname(mth)] = self.a_pt["tmin%02d"%mth]
             self.a_pt[get_optim_varname(mth)],self.a_pt[get_optim_anom_varname(mth)] = self.nnghparams_tmin[self.a_pt[NEON]][mth]
 
-        tmin_dly, tmin_norms, tmin_se = self.interp_tmin.interp(self.a_pt,rm_stnid=rm_stnid)
-
+        #Perform Tmin interpolation
+        tmin_dly, tmin_norms, tmin_se = self.interp_tmin.interp(self.a_pt,rm_stnid=stns_rm)
+        
+        #Set the monthly lst values and optim nnghs on the point
         for mth in np.arange(1,13):
             
             self.a_pt[get_lst_varname(mth)] = self.a_pt["tmax%02d"%mth]
             self.a_pt[get_optim_varname(mth)],self.a_pt[get_optim_anom_varname(mth)] = self.nnghparams_tmax[self.a_pt[NEON]][mth]
-
-        tmax_dly, tmax_norms, tmax_se = self.interp_tmax.interp(self.a_pt,rm_stnid=rm_stnid)
+        
+        #Perform Tmax interpolation
+        tmax_dly, tmax_norms, tmax_se = self.interp_tmax.interp(self.a_pt,rm_stnid=stns_rm)
         
         ninvalid = 0
         
@@ -464,12 +370,11 @@ class BuildKrigParams(object):
         self.stn_slct = stn_slct
         self.r_kparam_func = ri.globalenv.get('get_vario_params')
         
-    def get_krig_params(self,pt,min_nngh,rm_stnid=None,mth=None,set_pt=True):
+    def get_krig_params(self,pt,mth,rm_stnid=None):
         
-        if set_pt:
-            self.stn_slct.set_pt(pt[LAT],pt[LON],stns_rm=rm_stnid)   
-        self.stn_slct.set_params(DFLT_INIT_NNGHS)
-        self.stn_slct.set_ngh_stns(load_obs=False)
+        #First determine the nnghs to use based on smoothed weighted average of 
+        #the optimal nnghs at each station point.
+        self.stn_slct.set_ngh_stns(pt[LAT], pt[LON], DFLT_INIT_NNGHS, load_obs=False)
         
         indomain_mask = np.isfinite(self.stn_slct.ngh_stns[get_optim_varname(mth)])
         
@@ -480,11 +385,11 @@ class BuildKrigParams(object):
         
         n_wgt = self.stn_slct.ngh_wgt[indomain_mask]
                     
-        min_nngh = np.int(np.round(np.average(domain_stns[get_optim_varname(mth)],weights=n_wgt)))
+        nnghs = np.int(np.round(np.average(domain_stns[get_optim_varname(mth)],weights=n_wgt)))
     
-        self.stn_slct.set_params(min_nngh)
-        self.stn_slct.set_ngh_stns(load_obs=False) 
-        
+        #Now use the optimal nnghs to get the krig params for this mth
+        self.stn_slct.set_ngh_stns(pt[LAT], pt[LON], nnghs, load_obs=False)
+     
         nghs = self.stn_slct.ngh_stns
         ngh_lon = ri.FloatSexpVector(nghs[LON])
         ngh_lat = ri.FloatSexpVector(nghs[LAT])
@@ -510,12 +415,9 @@ class KrigTairAll(object):
         self.stn_slct = stn_slct
         self.r_func = ri.globalenv.get('krig_all')
         
-    def krigall(self,pt,bw_nngh,rm_stnid=None,set_pt=True):
+    def krigall(self,pt,nnghs,stns_rm=None):
         
-        if set_pt:
-            self.stn_slct.set_pt(pt[LAT],pt[LON],stns_rm=rm_stnid)   
-        self.stn_slct.set_params(bw_nngh)
-        self.stn_slct.set_ngh_stns(load_obs=False)
+        self.stn_slct.set_ngh_stns(pt[LAT],pt[LON],nnghs,load_obs=False,stns_rm=stns_rm)
                 
         nghs = self.stn_slct.ngh_stns
         ngh_lon = ri.FloatSexpVector(nghs[LON])
@@ -537,41 +439,6 @@ class KrigTairAll(object):
             interp_norms[mth-1] = rslt[0]
                             
         return interp_norms
-
-class GwrTairMean(object):
-    
-    def __init__(self,stn_slct):
-        
-        self.stn_slct = stn_slct
-        self.r_gwr_func = ri.globalenv.get('gwr_meantair')
-        
-    def gwr(self,pt,min_nngh,max_nngh,rm_stnid=None,reset_pt=True,mth=None):
-        
-        if reset_pt:
-            self.stn_slct.set_pt(pt[LAT],pt[LON],stns_rm=rm_stnid)   
-        
-        self.stn_slct.set_params(min_nngh,max_nngh)
-        self.stn_slct.set_ngh_stns(load_obs=False)
-        
-        nghs = self.stn_slct.ngh_stns
-        ngh_lon = ri.FloatSexpVector(nghs[LON])
-        ngh_lat = ri.FloatSexpVector(nghs[LAT])
-        ngh_elev = ri.FloatSexpVector(nghs[ELEV])
-        ngh_tdi = ri.FloatSexpVector(nghs[TDI])
-        ngh_lst = ri.FloatSexpVector(nghs[get_lst_varname(mth)])
-        ngh_tair = ri.FloatSexpVector(nghs[get_norm_varname(mth)])
-        ngh_wgt = ri.FloatSexpVector(self.stn_slct.ngh_wgt)
-        
-        pt_svp = ri.FloatSexpVector((pt[LON],pt[LAT],pt[ELEV],pt[TDI],pt[get_lst_varname(mth)],pt[NEON]))
-        
-        rslt = self.r_gwr_func(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,pt_svp)
-        tair_mean = rslt[0]
-        bad_interp = rslt[1]
-        
-        if bad_interp != 0:
-            print "".join([str(bad_interp)," bad interp: ",str(pt)])
-        
-        return tair_mean
                     
 class KrigTair(object):
     
@@ -583,46 +450,57 @@ class KrigTair(object):
             
     def std_err_ci(self,tair_mean,tair_var):
         
-        std_err = np.sqrt(tair_var)
+        std_err = np.sqrt(tair_var) if tair_var >= 0 else 0
         ci_r = np.abs(std_err*self.ci_critval) 
         
         return std_err,(tair_mean-ci_r,tair_mean+ci_r)
-     
-    def krig(self,pt,rm_stnid=None,smth_nnghs=True, gw_p=1.0,mth=None,set_pt=True):
+    
+    def __get_nnghs(self,pt,mth,stns_rm=None):
         
-        if set_pt:
-            self.stn_slct.set_pt(pt[LAT],pt[LON],stns_rm=rm_stnid)   
+        self.stn_slct.set_ngh_stns(pt[LAT], pt[LON], DFLT_INIT_NNGHS, load_obs=False, stns_rm=stns_rm)
         
-        min_nngh = pt[get_optim_varname(mth)]
-        max_nngh = min_nngh+np.round(min_nngh*0.20) 
+        indomain_mask = np.isfinite(self.stn_slct.ngh_stns[get_optim_varname(mth)])
+        domain_stns = self.stn_slct.ngh_stns[indomain_mask]
         
-        if smth_nnghs:
+        if domain_stns.size == 0:
+            raise Exception("Cannot determine the optimal # of neighbors to use!")
         
-            #self.stn_slct.set_params(DFLT_INIT_NNGHS,DFLT_INIT_NNGHS)
-            self.stn_slct.set_nngh_stns(DFLT_INIT_NNGHS,load_obs=False)
-            
-            indomain_mask = np.isfinite(self.stn_slct.ngh_stns[get_optim_varname(mth)])
-            domain_stns = self.stn_slct.ngh_stns[indomain_mask]
-            
-            if domain_stns.size == 0:
-                raise Exception("Cannot determine the optimal # of neighbors to use!")
-            
-            n_wgt = self.stn_slct.ngh_wgt[indomain_mask]/np.sum(self.stn_slct.ngh_wgt[indomain_mask])
-                        
-            min_nngh = np.int(np.round(np.average(domain_stns[get_optim_varname(mth)],weights=n_wgt)))
-            max_nngh = np.int(min_nngh+np.round(min_nngh*0.20))
+        n_wgt = self.stn_slct.ngh_wgt[indomain_mask]
+                    
+        nnghs = np.int(np.round(np.average(domain_stns[get_optim_varname(mth)],weights=n_wgt)))
         
-        self.stn_slct.set_params(min_nngh,max_nngh,gw_p=gw_p)
-        self.stn_slct.set_ngh_stns(load_obs=False)
+        return nnghs
+    
+    def __get_vario_params(self,pt,mth):
         
         indomain_mask = np.isfinite(self.stn_slct.ngh_stns[get_krigparam_varname(mth, VARIO_NUG)])
         domain_stns = self.stn_slct.ngh_stns[indomain_mask]
-        n_wgt = self.stn_slct.ngh_wgt[indomain_mask]/np.sum(self.stn_slct.ngh_wgt[indomain_mask])
+        
+        if domain_stns.size == 0:
+            raise Exception("Cannot determine variogram params!")
+        
+        n_wgt = self.stn_slct.ngh_wgt[indomain_mask]
         
         nug = np.average(domain_stns[get_krigparam_varname(mth, VARIO_NUG)],weights=n_wgt)
         psill = np.average(domain_stns[get_krigparam_varname(mth, VARIO_PSILL)],weights=n_wgt) 
         vrange = np.average(domain_stns[get_krigparam_varname(mth, VARIO_RNG)],weights=n_wgt)  
                 
+        return nug,psill,vrange
+    
+    def krig(self,pt,mth,nnghs=None,vario_params=None,stns_rm=None):
+        
+        if nnghs is None:
+            #Get the nnghs to use from the optimal values at surrounding stations
+            nnghs = self.__get_nnghs(pt,mth,stns_rm)
+        
+        self.stn_slct.set_ngh_stns(pt[LAT], pt[LON], nnghs, load_obs=False, stns_rm=stns_rm)
+        
+        if vario_params is None:
+            #should variogram params be smoothed with DFLT_INIT_NNGHS or with the optimized nnghs?
+            nug,psill,vrange = self.__get_vario_params(pt, mth)
+        else:
+            nug,psill,vrange = vario_params
+        
         nghs = self.stn_slct.ngh_stns
 
         ngh_lon = ri.FloatSexpVector(nghs[LON])
@@ -631,10 +509,7 @@ class KrigTair(object):
         ngh_tdi = ri.FloatSexpVector(nghs[TDI])
         ngh_lst = ri.FloatSexpVector(nghs[get_lst_varname(mth)])
         ngh_tair = ri.FloatSexpVector(nghs[get_norm_varname(mth)])
-        
-#        plt.plot(nghs[get_lst_varname(mth)],nghs[get_norm_varname(mth)],'.')
-#        plt.show()
-        
+                
         pt_svp = ri.FloatSexpVector((pt[LON],pt[LAT],pt[ELEV],pt[TDI],pt[get_lst_varname(mth)]))
 
         nug = ri.FloatSexpVector([nug])
@@ -643,25 +518,17 @@ class KrigTair(object):
         
         ngh_wgt = ri.FloatSexpVector(self.stn_slct.ngh_wgt)
 
-#        rslt = self.r_krig_func(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,
-#                                pt_svp,nug,psill,vrange)
-      
-        rslt = self.rkrig(ngh_lon, ngh_lat, ngh_elev, ngh_tdi, ngh_lst, ngh_tair, ngh_wgt, pt_svp, nug, psill, vrange)
+        rslt = self.r_krig_func(ngh_lon, ngh_lat, ngh_elev, ngh_tdi, ngh_lst, ngh_tair, ngh_wgt, pt_svp, nug, psill, vrange)
       
         tair_mean = rslt[0]
         tair_var = rslt[1]
         bad_interp = rslt[2]
         
         if bad_interp != 0:
-            print "".join([str(bad_interp)," bad interp: ",str(pt)])
+            print "".join(["ERROR: ",str(bad_interp)," bad interp: ",str(pt)])
         
         return tair_mean,tair_var
     
-    def rkrig(self,ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,pt_svp,nug,psill,vrange):
-        rslt = self.r_krig_func(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,
-                        pt_svp,nug,psill,vrange)
-        return rslt
-
 
 class StationDataWrkChk(station_data_infill):
     '''
@@ -719,8 +586,8 @@ class StationDataWrkChk(station_data_infill):
             return obs
 
 def buildDefaultPtInterp():
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
+    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
+    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
     
     gridPath = '/projects/daymet2/dem/interp_grids/conus/ncdf/'
     auxFpaths = ["".join([gridPath,'fnl_elev.nc']),
@@ -730,7 +597,5 @@ def buildDefaultPtInterp():
     auxFpaths.extend(["".join([gridPath,'fnl_lst_tmin%02d.nc'%mth]) for mth in np.arange(1,13)])
     auxFpaths.extend(["".join([gridPath,'fnl_lst_tmax%02d.nc'%mth]) for mth in np.arange(1,13)])
     
-    ptInterp = PtInterpTair(stndaTmin,stndaTmax,
-                               '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/interp.R', 
-                               '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C',auxFpaths) 
+    ptInterp = PtInterpTair(stndaTmin,stndaTmax,auxFpaths) 
     return ptInterp

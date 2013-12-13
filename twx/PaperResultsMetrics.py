@@ -6386,7 +6386,7 @@ def plotOptimNnghsKriging():
     
     dtypeStns = copy(DTYPE_INTERP)
     dtypeStns.extend(DTYPE_OPTIM)
-    db = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin',stn_dtype=dtypeStns)
+    db = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax',stn_dtype=dtypeStns)
     stns = db.stns[np.isnan(db.stns[BAD])]
     m = Basemap(resolution='i',projection='aea', llcrnrlat=22,urcrnrlat=49,llcrnrlon=-119,urcrnrlon=-64,
                 lat_1=29.5,lat_2=45.5,lon_0=-96.0,lat_0=37.5,area_thresh= 10000)

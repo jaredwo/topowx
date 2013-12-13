@@ -7,11 +7,8 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,MASK, OPTIM_NNGH,BAD,DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH,\
-    get_krigparam_varname, VARIO_NUG, VARIO_PSILL, VARIO_RNG
-from twx.interp.station_select import station_select
+from twx.db.station_data import station_data_infill,STN_ID,MASK,BAD,get_krigparam_varname, VARIO_NUG, VARIO_PSILL, VARIO_RNG
 from twx.utils.status_check import status_check
-import twx.interp.interp_tair as it
 import netCDF4
 from netCDF4 import Dataset
 import rpy2.robjects as robjects
@@ -179,8 +176,8 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc"
-    params[P_VARNAME] = 'tmin'
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc"
+    params[P_VARNAME] = 'tmax'
 
     if rank == RANK_COORD:        
         proc_coord(params, nsize-N_NON_WRKRS)

@@ -7,16 +7,13 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,MEAN_OBS,MASK,BAD
-from twx.interp.station_select import station_select
+from twx.db.station_data import station_data_infill,STN_ID,MASK,BAD
 from twx.utils.status_check import status_check
-import twx.interp.interp_tair as it
 import netCDF4
 from netCDF4 import Dataset
 import rpy2.robjects as robjects
 from twx.interp.optimize import XvalTairOverall
 r = robjects.r
-from scipy import stats
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -29,8 +26,6 @@ N_NON_WRKRS = 2
 P_PATH_DB = 'P_PATH_DB'
 P_PATH_OUT = 'P_PATH_OUT'
 P_PATH_DB_XVAL = 'P_PATH_DB_XVAL'
-P_PATH_RLIB = 'P_PATH_RLIB'
-P_PATH_CLIB = 'P_PATH_CLIB'
 P_PATH_RMSTNS = 'P_PATH_RMSTNS'
 P_PATH_PARAMS_MEAN = 'P_PATH_PARAMS_MEAN'
 
@@ -58,21 +53,21 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    xval = XvalTairOverall(params[P_PATH_DB], params[P_PATH_RLIB], params[P_PATH_CLIB], params[P_VARNAME])
+    xval = XvalTairOverall(params[P_PATH_DB], params[P_VARNAME])
         
     while 1:
     
         stn_id = MPI.COMM_WORLD.recv(source=RANK_COORD,tag=MPI.ANY_TAG,status=status)
         
         if status.tag == TAG_STOPWORK:
-            MPI.COMM_WORLD.send([None]*6, dest=RANK_WRITE, tag=TAG_STOPWORK)
+            MPI.COMM_WORLD.send([None]*7, dest=RANK_WRITE, tag=TAG_STOPWORK)
             print "".join(["Worker ",str(rank),": Finished"]) 
             return 0
         else:
             
             try:
                 
-                biasNorm,maeNorm,maeDly,biasDly,r2Dly = xval.runXval(stn_id)
+                biasNorm,maeNorm,maeDly,biasDly,r2Dly,seNorm = xval.runXval(stn_id)
                                             
             except Exception as e:
             
@@ -84,8 +79,9 @@ def proc_work(params,rank):
                 maeDly = ndata
                 biasDly = ndata
                 r2Dly = ndata
+                seNorm = ndata[0:12]
             
-            MPI.COMM_WORLD.send((stn_id,biasNorm,maeNorm,maeDly,biasDly,r2Dly), dest=RANK_WRITE, tag=TAG_DOWORK)
+            MPI.COMM_WORLD.send((stn_id,biasNorm,maeNorm,maeDly,biasDly,r2Dly,seNorm), dest=RANK_WRITE, tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
                 
 def proc_write(params,nwrkers):
@@ -100,7 +96,11 @@ def proc_write(params,nwrkers):
     stn_da.ds.close()
     stn_da = None
     ds = Dataset(params[P_PATH_DB],'r+')
-    dsvars = ('xvalfnl_bias_norm','xvalfnl_mae_norm','xvalfnl_bias_dly','xvalfnl_mae_dly','xvalfnl_r2_dly')
+    dsvars = ('xvalfnl_bias_norm','xvalfnl_mae_norm','xvalfnl_bias_dly','xvalfnl_mae_dly','xvalfnl_r2_dly','xvalfnl_se_norm')
+    
+    if 'time_mthly_err' not in ds.dimensions.keys():
+        ds.createDimension('time_mthly_err',13)
+        ds.sync()
     
     for avarname in dsvars:
     
@@ -122,7 +122,7 @@ def proc_write(params,nwrkers):
     
     while 1:
        
-        stn_id,biasNorm,maeNorm,maeDly,biasDly,r2Dly = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
+        stn_id,biasNorm,maeNorm,maeDly,biasDly,r2Dly,seNorm = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
         
         if status.tag == TAG_STOPWORK:
             
@@ -138,6 +138,7 @@ def proc_write(params,nwrkers):
             ds.variables['xvalfnl_bias_dly'][:,x] = biasDly
             ds.variables['xvalfnl_mae_dly'][:,x] = maeDly
             ds.variables['xvalfnl_r2_dly'][:,x] = r2Dly
+            ds.variables['xvalfnl_se_norm'][0:12,x] = seNorm
             ds.sync()
             
             stat_chk.increment()
@@ -178,10 +179,8 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc"
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc"
     params[P_VARNAME] = 'tmax'
-    params[P_PATH_RLIB] = '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/interp.R'
-    params[P_PATH_CLIB] = '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C'
         
     if rank == RANK_COORD:        
         proc_coord(params, nsize-N_NON_WRKRS)
