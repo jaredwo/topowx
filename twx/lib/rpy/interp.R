@@ -34,6 +34,7 @@ gwr_anomaly <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_wgt,obs_mat
 	
 	pt_anom <- rep(0,nrow(obs_matrix))
 	pt_r2 <- rep(0,nrow(obs_matrix))
+	fit_anom = matrix(nrow=nrow(obs_matrix),ncol=ncol(obs_matrix))
 	
 	for (x in seq(nrow(obs_matrix)))
 	{
@@ -44,11 +45,24 @@ gwr_anomaly <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_wgt,obs_mat
 		a.lm <- lm(anom~lon+lat+elev+tdi+lst,stns_ngh,weights=ngh_wgt)
 		pt_anom[x] <- predict.lm(a.lm,pt)
 		pt_r2[x] <- summary(a.lm)$r.squared
+		
+		fitvals = predict.lm(a.lm)
+		
+		fit_anom[x,] <- fitvals
+		
+#		if (is.null(fit_anom))
+#			fit_anom = fitvals
+#		else
+#			fit_anom = rbind(fit_anom,fitvals)
 	}
-
+	
+	#fit_anom = as.numeric(fit_anom)
+	
+	#print(fit_anom[1,])
+	
 	print(mean(pt_r2))
 	
-	return(pt_anom)
+	return(list(pt_anom=pt_anom,fit_anom=as.numeric(fit_anom),fit_nrow=nrow(fit_anom),fit_ncol=ncol(fit_anom)))
 }
 
 get_vario_params <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,ngh_dist)
@@ -67,8 +81,8 @@ get_vario_params <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,n
 #	print(plot(avar))
 #	Sys.sleep(15)
 	#print(c(min(avar$gamma),sill))
-	#avar.model <- tryCatch(my.autofit.gwvario(avar,model=c("Exp"),fix.values = c(min(avar$gamma),NA,sill),fit.method=7)$var_model,error=function(e) e)
-	avar.model <- tryCatch(my.autofit.gwvario(avar,model=c("Exp"),fix.values = c(NA,NA,NA),fit.method=7)$var_model,error=function(e) e)
+	avar.model <- tryCatch(my.autofit.gwvario(avar,model=c("Exp"),fix.values = c(min(avar$gamma),NA,sill),fit.method=7)$var_model,error=function(e) e)
+	#avar.model <- tryCatch(my.autofit.gwvario(avar,model=c("Exp"),fix.values = c(NA,NA,NA),fit.method=7)$var_model,error=function(e) e)
 	
 	if (is(avar.model,"simpleError"))
 	{
@@ -84,8 +98,8 @@ get_vario_params <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,n
 	stns_ngh$resid <- stns_ngh$tair - gls_df$val.pred
 	sill <- var(stns_ngh$resid)
 	avar.gls <- variogram(resid~1,stns_ngh,cutoff=cutoff,width=5)
-	#avar.model.gls <- tryCatch(my.autofit.gwvario(avar.gls,model=c("Exp"),fix.values = c(min(avar.gls$gamma),NA,sill),fit.method=7)$var_model,error=function(e) e)
-	avar.model.gls <- tryCatch(my.autofit.gwvario(avar.gls,model=c("Exp"),fix.values = c(NA,NA,NA),fit.method=7)$var_model,error=function(e) e)
+	avar.model.gls <- tryCatch(my.autofit.gwvario(avar.gls,model=c("Exp"),fix.values = c(min(avar.gls$gamma),NA,sill),fit.method=7)$var_model,error=function(e) e)
+	#avar.model.gls <- tryCatch(my.autofit.gwvario(avar.gls,model=c("Exp"),fix.values = c(NA,NA,NA),fit.method=7)$var_model,error=function(e) e)
 	if (is(avar.model.gls,"simpleError"))
 	{
 		avar.model.gls <- vgm(sill,"Nug")

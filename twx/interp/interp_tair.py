@@ -5,7 +5,8 @@ import numpy as np
 from twx.db.station_data import LON,LAT,ELEV,TDI,LST,MEAN_OBS,NEON,OPTIM_NNGH,\
     VARIO_NUG, VARIO_PSILL, VARIO_RNG, OPTIM_NNGH_ANOM, BAD, MASK, station_data_infill,STN_ID,MONTH,get_norm_varname,\
     get_optim_varname, get_krigparam_varname, get_lst_varname,\
-    get_optim_anom_varname, DTYPE_NORMS, DTYPE_OPTIM, DTYPE_LST,DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO_OPTIMNNGHANOM,DTYPE_ANOM_OPTIM,YEAR
+    get_optim_anom_varname, DTYPE_NORMS, DTYPE_OPTIM, DTYPE_LST,DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO_OPTIMNNGHANOM,DTYPE_ANOM_OPTIM,YEAR,\
+    DTYPE_INTERP_OPTIM_ALL
 from twx.interp.clibs import clib_wxTopo
 import scipy.stats as stats
 from twx.utils.util_ncdf import GeoNc
@@ -189,9 +190,10 @@ class GwrTairAnom(object):
             #Get the nnghs to use from the optimal values at surrounding stations
             nnghs = self.__get_nnghs(pt,mth,stns_rm)
         
-        self.stn_slct.set_ngh_stns(pt[LAT],pt[LON],nnghs,load_obs=True,stns_rm=stns_rm)
+        self.stn_slct.set_ngh_stns(pt[LAT],pt[LON],nnghs,load_obs=True,stns_rm=stns_rm,obs_mth=mth)
         
-        ngh_obs = np.take(self.stn_slct.ngh_obs, self.mthIdx[mth], 0)
+        ngh_obs = self.stn_slct.ngh_obs
+        #ngh_obs = np.take(self.stn_slct.ngh_obs, self.mthIdx[mth], 0)
         ngh_stns = self.stn_slct.ngh_stns
         ngh_wgt = self.stn_slct.ngh_wgt
            
@@ -218,7 +220,56 @@ class GwrTairAnom(object):
         interp_vals = interp_anom + pt[get_norm_varname(mth)]
                 
         return interp_vals 
-                    
+
+class GwrTairAnomR(GwrTairAnom):
+    
+    def __init__(self,stn_slct,days):
+        
+        GwrTairAnom.__init__(self, stn_slct, days)
+        
+    
+    def gwr_mth(self,pt,mth,nnghs=None,stns_rm=None):
+        
+        if nnghs == None:
+            #Get the nnghs to use from the optimal values at surrounding stations
+            nnghs = self._GwrTairAnom__get_nnghs(pt,mth,stns_rm)
+        
+        self.stn_slct.set_ngh_stns(pt[LAT],pt[LON],nnghs,load_obs=True,stns_rm=stns_rm)
+        
+        ngh_obs = np.take(self.stn_slct.ngh_obs, self.mthIdx[mth], 0)
+        ngh_stns = self.stn_slct.ngh_stns
+        ngh_wgt = self.stn_slct.ngh_wgt
+        a_pt = np.array([pt[LON],pt[LAT],pt[ELEV],pt[TDI],pt[get_lst_varname(mth)]])
+           
+        ngh_obs_cntr = ngh_obs - ngh_stns[get_norm_varname(mth)]
+        
+        rslt = r.gwr_anomaly(robjects.FloatVector(ngh_stns[LON]),
+                          robjects.FloatVector(ngh_stns[LAT]),
+                          robjects.FloatVector(ngh_stns[ELEV]),
+                          robjects.FloatVector(ngh_stns[TDI]),
+                          robjects.FloatVector(ngh_stns[get_lst_varname(mth)]),
+                          robjects.FloatVector(ngh_wgt),
+                          robjects.Matrix(ngh_obs_cntr),
+                          robjects.FloatVector(a_pt))
+                
+        fit_anom = np.array(rslt.rx('fit_anom'))
+        nrow = np.array(rslt.rx('fit_nrow'))[0]
+        ncol = np.array(rslt.rx('fit_ncol'))[0]
+        fit_anom = np.reshape(fit_anom, (nrow,ncol), order='F')
+        
+        interp_anom = np.array(rslt.rx('pt_anom'))
+        
+        #Perform IDW of GWR residuals
+        resids = ngh_obs_cntr-fit_anom
+        dists = np.copy(self.stn_slct.ngh_dists)
+        dists[dists==0] = 0.01
+        interp_resids = np.average(resids, axis=1, weights=1.0/(dists**2))    
+        interp_anom = interp_anom+interp_resids
+        
+        interp_vals = interp_anom + pt[get_norm_varname(mth)]
+                
+        return interp_vals 
+               
 class InterpTair(object):
     
     def __init__(self,krig_tair,gwr_tair):
@@ -317,7 +368,7 @@ class PtInterpTair(object):
             self.a_pt[get_optim_varname(mth)],self.a_pt[get_optim_anom_varname(mth)] = self.nnghparams_tmin[self.a_pt[NEON]][mth]
 
         #Perform Tmin interpolation
-        tmin_dly, tmin_norms, tmin_se = self.interp_tmin.interp(self.a_pt,rm_stnid=stns_rm)
+        tmin_dly, tmin_norms, tmin_se = self.interp_tmin.interp(self.a_pt,stns_rm=stns_rm)
         
         #Set the monthly lst values and optim nnghs on the point
         for mth in np.arange(1,13):
@@ -326,7 +377,7 @@ class PtInterpTair(object):
             self.a_pt[get_optim_varname(mth)],self.a_pt[get_optim_anom_varname(mth)] = self.nnghparams_tmax[self.a_pt[NEON]][mth]
         
         #Perform Tmax interpolation
-        tmax_dly, tmax_norms, tmax_se = self.interp_tmax.interp(self.a_pt,rm_stnid=stns_rm)
+        tmax_dly, tmax_norms, tmax_se = self.interp_tmax.interp(self.a_pt,stns_rm=stns_rm)
         
         ninvalid = 0
         
@@ -535,7 +586,7 @@ class StationDataWrkChk(station_data_infill):
     A station_data class for accessing stations and observations from a single variable infilled netcdf weather station database.
     '''
     
-    def __init__(self, nc_path, var_name,vcc_size=None,vcc_nelems=None,vcc_preemption=None,stn_dtype=DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO_OPTIMNNGHANOM):
+    def __init__(self, nc_path, var_name,vcc_size=None,vcc_nelems=None,vcc_preemption=None,stn_dtype=DTYPE_INTERP_OPTIM_ALL):
         
         station_data_infill.__init__(self, nc_path, var_name, vcc_size, vcc_nelems, vcc_preemption, stn_dtype)
         self.chkStnIds = None

@@ -6441,11 +6441,11 @@ def plotOptimNnghsKriging():
 
 if __name__ == '__main__':
     
-    plotOptimNnghsKriging()
+    #plotOptimNnghsKriging()
     #plotInterpErrorMapsNcdcNormsTest()
     #plotNcdcNormsBiasBars()
     #plotNcdcNormsBiasMaps()
-    #plotInterpErrorMaps2()
+    plotInterpErrorMaps2()
     #plotNcdcNormsErrorBars()
     #plotNcdcNormsErrorMaps()
     #plotNcdcNormsErrorMapsDifs()

@@ -286,7 +286,7 @@ def perfXvalTairOverall():
     
     optim = XvalTairOverall("/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc", 'tmax')
     
-    biasNorm,maeNorm,maeDly,biasDly,r2Dly,seNorm = optim.runXval('SNOTEL_13A19S')
+    biasNorm,maeNorm,maeDly,biasDly,r2Dly,seNorm = optim.runXval('GHCN_USC00244558')
     
     print "MAE Norm"
     print maeNorm
@@ -488,10 +488,10 @@ def perftOptimKrigBwStns():
  
 if __name__ == '__main__':
 
-    #perftOptimKrigBwStns()
+    perftOptimKrigBwStns()
     #perfPtInterpTair()
     #analyze_ci()
-    perfXvalTairOverall()
+    #perfXvalTairOverall()
     #perfOptimTairAnom()
     #perfOptimKrigParams()
     #perfOptimTairMean()

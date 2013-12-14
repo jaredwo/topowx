@@ -12,8 +12,9 @@ from twx.utils.util_dates import YMD,DATE
 import netCDF4
 from twx.utils.util_ncdf import to_geotiff,to_geotiffa
 from twx.db.all_create_db import dbDataset
-from twx.interp_constants import *
 import matplotlib.pyplot as plt
+
+SCALE_FACTOR = np.float32(0.01) #factor by which interp outputs are scaled. everything is stored as int16
 
 #long name, units, standard name, missing value,cell method
 VAR_ATTRS = {'tmin':("minimum air temperature","C","air_temperature",netCDF4.default_fillvals['i2'],"minimum"),

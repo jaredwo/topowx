@@ -333,16 +333,17 @@ if __name__ == '__main__':
     params[P_PATH_LST_TMAX] = ["".join([gridPath,'fnl_lst_tmax%02d.nc'%mth]) for mth in np.arange(1,13)]
     params[P_PATH_NEON] = "".join([gridPath,'fnl_climdiv.nc'])
     
-    params[P_PATH_OUT] = '/stage/climate/topowx_tile_output/'
+    params[P_PATH_OUT] = '/stage/climate/test_tile_output/'
     params[P_TILESIZE_X] = 250
     params[P_TILESIZE_Y] = 250
     params[P_CHCKSIZE_X] = 50
     params[P_CHCKSIZE_Y] = 50
     
-    mcoUsgsTiles = np.loadtxt('/stage/climate/topowx_tiles_shp/McoUsgsTileList.csv',
-                              dtype=np.int,usecols=[0],delimiter=',',skiprows=1)
+#    mcoUsgsTiles = np.loadtxt('/stage/climate/topowx_tiles_shp/McoUsgsTileList.csv',
+#                              dtype=np.int,usecols=[0],delimiter=',',skiprows=1)
     #doneTiles = np.array([2,3,4,16,17,18,37,38])
-    params[P_TILES_PROCESS] = mcoUsgsTiles[mcoUsgsTiles > 173]
+    params[P_TILES_PROCESS] = np.array([17])
+    #params[P_TILES_PROCESS] = mcoUsgsTiles[mcoUsgsTiles > 173]
     #params[P_TILES_PROCESS] = mcoUsgsTiles[~np.in1d(mcoUsgsTiles, doneTiles, True)]
     ############################################################################################
     #params[P_TILES_PROCESS] = np.array([74,75]) #Wisconsin

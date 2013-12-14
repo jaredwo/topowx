@@ -729,7 +729,7 @@ class station_data_infill(object):
     A station_data class for accessing stations and observations from a single variable infilled netcdf weather station database.
     '''
     #235280000 bytes
-    def __init__(self, nc_path, var_name,vcc_size=470560000,vcc_nelems=None,vcc_preemption=0,stn_dtype=DTYPE_INTERP):
+    def __init__(self, nc_path, var_name,vcc_size=470560000,vcc_nelems=None,vcc_preemption=0,stn_dtype=DTYPE_INTERP_OPTIM_ALL):
         '''
         Constructor
         
