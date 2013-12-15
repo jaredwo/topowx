@@ -7,7 +7,8 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,MASK,BAD
+from twx.db.station_data import station_data_infill,STN_ID,MASK,BAD,\
+    get_norm_varname
 from twx.utils.status_check import status_check
 import netCDF4
 from netCDF4 import Dataset
@@ -24,6 +25,8 @@ RANK_WRITE = 1
 N_NON_WRKRS = 2
 
 P_PATH_DB = 'P_PATH_DB'
+P_PATH_WRITEDB = 'P_PATH_WRITEDB'
+
 P_PATH_OUT = 'P_PATH_OUT'
 P_PATH_DB_XVAL = 'P_PATH_DB_XVAL'
 P_PATH_RMSTNS = 'P_PATH_RMSTNS'
@@ -54,34 +57,30 @@ def proc_work(params,rank):
     status = MPI.Status()
     
     xval = XvalTairOverall(params[P_PATH_DB], params[P_VARNAME])
+    ndays = xval.stn_da.days.size
         
     while 1:
     
         stn_id = MPI.COMM_WORLD.recv(source=RANK_COORD,tag=MPI.ANY_TAG,status=status)
         
         if status.tag == TAG_STOPWORK:
-            MPI.COMM_WORLD.send([None]*7, dest=RANK_WRITE, tag=TAG_STOPWORK)
+            MPI.COMM_WORLD.send([None]*3, dest=RANK_WRITE, tag=TAG_STOPWORK)
             print "".join(["Worker ",str(rank),": Finished"]) 
             return 0
         else:
             
             try:
                 
-                biasNorm,maeNorm,maeDly,biasDly,r2Dly,seNorm = xval.run_xval(stn_id)
+                tair_daily,tair_norms,tair_se = xval.run_interp(stn_id)
                                             
             except Exception as e:
             
                 print "".join(["ERROR: Worker ",str(rank),": could not xval ",stn_id,str(e)])
                 
-                ndata = np.ones(13)*netCDF4.default_fillvals['f8']
-                biasNorm = ndata
-                maeNorm = ndata
-                maeDly = ndata
-                biasDly = ndata
-                r2Dly = ndata
-                seNorm = ndata[0:12]
+                tair_daily = np.ones(ndays)*netCDF4.default_fillvals['f8']
+                tair_norms = np.ones(12)*netCDF4.default_fillvals['f8']
             
-            MPI.COMM_WORLD.send((stn_id,biasNorm,maeNorm,maeDly,biasDly,r2Dly,seNorm), dest=RANK_WRITE, tag=TAG_DOWORK)
+            MPI.COMM_WORLD.send((stn_id,tair_daily,tair_norms), dest=RANK_WRITE, tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
                 
 def proc_write(params,nwrkers):
@@ -95,34 +94,19 @@ def proc_write(params,nwrkers):
     stns = stn_da.stns[stn_mask]
     stn_da.ds.close()
     stn_da = None
-    ds = Dataset(params[P_PATH_DB],'r+')
-    dsvars = ('xvalfnl_bias_norm','xvalfnl_mae_norm','xvalfnl_bias_dly','xvalfnl_mae_dly','xvalfnl_r2_dly','xvalfnl_se_norm')
+    ds = Dataset(params[P_PATH_WRITEDB],'r+')
     
-    if 'time_mthly_err' not in ds.dimensions.keys():
-        ds.createDimension('time_mthly_err',13)
-        ds.sync()
+    mths = np.arange(12)
     
-    for avarname in dsvars:
-    
-        if avarname not in ds.variables.keys():
-                
-            avar = ds.createVariable(avarname,'f8',('time_mthly_err','stn_id'),fill_value=netCDF4.default_fillvals['f8'])
-            avar.long_name = avarname
-            avar.units = 'NA'
-            ds.sync()
-        
-        else:
-            
-            avar = ds.variables[avarname]
-    
-        avar[:] = netCDF4.default_fillvals['f8']
-        ds.sync()
+    mthNames = []
+    for mth in mths:
+        mthNames.append(get_norm_varname(mth+1))
     
     stat_chk = status_check(stns.size,250)
     
     while 1:
        
-        stn_id,biasNorm,maeNorm,maeDly,biasDly,r2Dly,seNorm = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
+        stn_id,tair_daily,tair_norms = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
         
         if status.tag == TAG_STOPWORK:
             
@@ -133,12 +117,11 @@ def proc_write(params,nwrkers):
         else:
             
             x = np.nonzero(stn_ids==stn_id)[0][0]
-            ds.variables['xvalfnl_bias_norm'][:,x] = biasNorm
-            ds.variables['xvalfnl_mae_norm'][:,x] = maeNorm
-            ds.variables['xvalfnl_bias_dly'][:,x] = biasDly
-            ds.variables['xvalfnl_mae_dly'][:,x] = maeDly
-            ds.variables['xvalfnl_r2_dly'][:,x] = r2Dly
-            ds.variables['xvalfnl_se_norm'][0:12,x] = seNorm
+            ds.variables[params[P_VARNAME]][:,x] = tair_daily
+            
+            for i in mths:
+                ds.variables[mthNames[i]] = tair_norms[i]
+            
             ds.sync()
             
             stat_chk.increment()
@@ -179,8 +162,9 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc"
-    params[P_VARNAME] = 'tmax'
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc"
+    params[P_PATH_WRITEDB] = "projects/daymet2/station_data/infill/serial_fnl/xval_tmin.nc"
+    params[P_VARNAME] = 'tmin'
         
     if rank == RANK_COORD:        
         proc_coord(params, nsize-N_NON_WRKRS)

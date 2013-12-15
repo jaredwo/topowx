@@ -241,14 +241,20 @@ class XvalTairOverall():
         self.stn_da = stn_da
         self.interp_tair = interp_tair
         self.mthMasks = gwr_tair.mthMasks
+    
+    def run_interp(self,stn_id):
         
-    def runXval(self,stn_id):
+        xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
+        tair_daily,tair_norms,tair_se = self.interp_tair.interp(xval_stn, xval_stn[STN_ID])
+        return tair_daily,tair_norms,tair_se
+      
+    def run_xval(self,stn_id):
 
         xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
         xval_obs = self.stn_da.load_obs(xval_stn[STN_ID])
         xval_norms = np.array([xval_stn[get_norm_varname(mth)] for mth in np.arange(1,13)])
-
-        tair_daily,tair_norms,tair_se = self.interp_tair.interp(xval_stn, xval_stn[STN_ID])
+        
+        tair_daily,tair_norms,tair_se = self.run_interp(stn_id)
         
         #Monthly + Annual error stats
         maeDly = np.zeros(13)
@@ -284,9 +290,9 @@ class XvalTairOverall():
 
 def perfXvalTairOverall():
     
-    optim = XvalTairOverall("/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc", 'tmax')
+    optim = XvalTairOverall("/Users/jaredwo/Documents/data/serial_tmax.nc", 'tmax')
     
-    biasNorm,maeNorm,maeDly,biasDly,r2Dly,seNorm = optim.runXval('GHCN_USC00244558')
+    biasNorm,maeNorm,maeDly,biasDly,r2Dly,seNorm = optim.run_xval('GHCN_USC00244558')
     
     print "MAE Norm"
     print maeNorm
@@ -488,10 +494,10 @@ def perftOptimKrigBwStns():
  
 if __name__ == '__main__':
 
-    perftOptimKrigBwStns()
+    #perftOptimKrigBwStns()
     #perfPtInterpTair()
     #analyze_ci()
-    #perfXvalTairOverall()
+    perfXvalTairOverall()
     #perfOptimTairAnom()
     #perfOptimKrigParams()
     #perfOptimTairMean()
