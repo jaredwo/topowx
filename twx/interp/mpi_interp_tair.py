@@ -342,7 +342,7 @@ if __name__ == '__main__':
 #    mcoUsgsTiles = np.loadtxt('/stage/climate/topowx_tiles_shp/McoUsgsTileList.csv',
 #                              dtype=np.int,usecols=[0],delimiter=',',skiprows=1)
     #doneTiles = np.array([2,3,4,16,17,18,37,38])
-    params[P_TILES_PROCESS] = np.array([17])
+    params[P_TILES_PROCESS] = np.array([16,17,18,37,38])
     #params[P_TILES_PROCESS] = mcoUsgsTiles[mcoUsgsTiles > 173]
     #params[P_TILES_PROCESS] = mcoUsgsTiles[~np.in1d(mcoUsgsTiles, doneTiles, True)]
     ############################################################################################

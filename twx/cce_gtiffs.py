@@ -68,7 +68,7 @@ def mosaic(in_files,out_mosaic,ndata=-9999):
 
 
 def mainTopoWxTileToTiff():
-    tilePath = '/stage/climate/topowx_tile_output/'
+    tilePath = '/stage/climate/test_tile_output/'
     pathOut = '/projects/daymet2/cce_case_study/topowx_files/normals/'
     
     for tileName in CCE_TILES_TWX:
@@ -80,7 +80,6 @@ def mainTopoWxTileToTiff():
         tmaxNorms = getMaskedArray(tmaxDs,'tmax_normal')
         tminSe = getMaskedArray(tminDs,'tmin_se')
         tmaxSe = getMaskedArray(tmaxDs,'tmax_se')
-        
         
         for mth in np.arange(1,13):
             topoWxTileToTiff(tminDs, tminNorms[mth-1,:,:], "".join([pathOut,"tmin_normal_%02d_%s.tif"%(mth,tileName)]))
@@ -154,8 +153,9 @@ def mainResampleCrop():
     os.system("".join(['rm ',mosaics_path,'temp.tif']))
 
 if __name__ == '__main__':
-    mainResampleCrop()
+    #mainTopoWxTileToTiff()
     #mainMosaic()
+    mainResampleCrop()
 
         
          

@@ -37,7 +37,7 @@ from qa.qa_location import get_elev_usgs
 
 from twx.infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,infill_prcp_norm,ImputeMatrix,impute_tair_norm
 from twx.infill.obs_por import load_por_csv,POR_DTYPE,build_valid_por_masks
-from twx.interp.station_select import station_select
+from twx.interp.station_select import StationSelect
 from twx.interp.interp_tair import KrigTair, LST_TMAX, LST_TMIN, StationDataWrkChk
 from twx.interp.clibs import clib_wxTopo
 from twx.utils.status_check import timer
@@ -61,14 +61,12 @@ from twx.infill.infill_post_process import output_no_tdi_stns
 #import osgeo.osr as osr
 #from modis.montana_ndvi import modis_sin_rast
 import time
-from twx.interp.station_select import station_select_neon
 
 from twx.db import station_data, ushcn
 from twx.utils.output_raster import output_raster
 from qa import qa_temp
 from qa.qa_temp import run_qa_spatial_only
 from twx.interp.topo_disect import TopoDisectDEM
-from twx.interp.station_select import NEON_AREAS
 from mpl_toolkits.basemap import Basemap
 import twx.interp.tiling as tl
 import qa.qa_change_point as qa_cp
@@ -9572,11 +9570,26 @@ def colorMapTest():
     ds = Dataset('/stage/climate/topowx_tile_output/h05v02/h05v02_tmin.nc')
     plt.imshow(ds.variables['tmin_normal'][11,:,:],cmap=my_cmap)
     plt.show()
-    
+
+def save_stns_basic_to_csv():
+
+    stn_da = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc','tmin')
+    stn_mask = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD]))   
+    stns = stn_da.stns[stn_mask]
+        
+    fout = open('/projects/daymet2/station_data/infill/serial_fnl/stns_tmin.csv','w')
+    fout.write(",".join(['STNID','LON','LAT','ELEV','TDI\n']))
+
+    for stn in stns:
+
+        fout.write(",".join([stn[STN_ID],str(stn[LON]),str(stn[LAT]),str(stn[ELEV]),"".join([str(stn[TDI]),"\n"])]))
+        
+    fout.close()  
  
 if __name__ == '__main__':
     
-    colorMapTest()
+    save_stns_basic_to_csv()
+    #colorMapTest()
     #test_exp_gauss()
     #perfInterpTair()
     #plotLstStn()

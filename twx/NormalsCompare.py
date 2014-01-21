@@ -6,7 +6,7 @@ Created on Nov 19, 2013
 import numpy as np
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
-from twx.db.station_data import DTYPE_STN_BASIC,STN_NAME,STN_ID,LON,LAT,ELEV,STATE,station_data_infill,NEON
+from twx.db.station_data import DTYPE_STN_BASIC,STN_NAME,STN_ID,LON,LAT,ELEV,STATE,station_data_infill,NEON,MASK,BAD
 from twx.utils.input_raster import RasterDataset,OutsideExtent
 from copy import copy
 import twx.interp.interp_tair as it
@@ -16,6 +16,9 @@ from multiprocessing import Pool
 import twx.utils.util_dates as utld
 from datetime import datetime
 from twx.utils.util_dates import YEAR
+
+PATH_STNDB_SERIAL_TMIN = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc'
+PATH_STNDB_SERIAL_TMAX = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc'
 
 def saveNpyNorms(inPath,outPath):
     obsFile = open(inPath)
@@ -49,13 +52,15 @@ def testStnObsMatch():
 def saveNpyNormStns():
     
     stnfile = open('/projects/daymet2/station_data/ncdc_normals/temp-inventory.txt')
-    
+    stnda_tmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc','tmin')
+    stnda_tmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc','tmax')
     stnIds = []
     lon = []
     lat = []
     elev = []
     state = []
     name = []
+    method = []
     
     for aline in stnfile.readlines():
         vals = aline.split()
@@ -65,9 +70,11 @@ def saveNpyNormStns():
         elev.append(np.float(vals[3]))
         state.append(vals[4])
         name.append(" ".join(vals[5:-1]))
+        method.append(vals[-1])
     
     stnDtype = copy(DTYPE_STN_BASIC)
     stnDtype.append((NEON, np.float64))
+    stnDtype.append(('method', '<S16'))
     
     stns = np.empty(len(stnIds), dtype=stnDtype)
     stns[STN_ID] = stnIds
@@ -76,6 +83,7 @@ def saveNpyNormStns():
     stns[ELEV] = elev
     stns[STATE] = state
     stns[STN_NAME] = name
+    stns['method'] = method
     
     ds = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/climdivLccMerge.tif')
     ndata = ds.gdalDs.GetRasterBand(1).GetNoDataValue()
@@ -105,18 +113,19 @@ def runInterp(x):
     global stns
     
     if ptInterp is None:
-        ptInterp = it.buildDefaultPtInterp()
+        ptInterp = it.buildDefaultPtInterp(norms_only=True)
         tagg = TairAggregate(ptInterp.stn_da_tmax.days)
-        stns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
-        maskStns = np.isfinite(stns['neon'])
-        stns = stns[maskStns]
+        #stns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
+        #maskStns = np.isfinite(stns['neon'])
+        #stns = stns[maskStns]
+        stns = get_twx_stns()
         print "Interpolation initialized"
 
     error = False
     try:
-        tmin_dly, tmax_dly, tmin_norms, tmax_norms, tmin_se, tmax_se, ninvalid = ptInterp.interpLonLatPt(stns[LON][x], stns[LAT][x], fixInvalid=False, chgLatLon=True)
-        tmin_mthly = tagg.dailyToMthly(tmin_dly,-1)[0].data
-        tmax_mthly = tagg.dailyToMthly(tmax_dly,-1)[0].data
+        tmin_dly, tmax_dly, tmin_norms, tmax_norms, tmin_se, tmax_se, ninvalid = ptInterp.interpLonLatPt(stns[LON][x], stns[LAT][x], fixInvalid=False, chgLatLon=True)#,stns_rm=stns[STN_ID][x],elev=stns[ELEV][x])
+        #tmin_mthly = tagg.dailyToMthly(tmin_dly,-1)[0].data
+        #tmax_mthly = tagg.dailyToMthly(tmax_dly,-1)[0].data
 #        if x%10 == 0:
 #            print "Station count: %d / %d "%(x,stns.size)
     except Exception:
@@ -131,13 +140,13 @@ def runInterp(x):
     if error:
         tmin_norms = np.ones(12)*np.nan
         tmax_norms = np.ones(12)*np.nan
-        tmin_mthly = np.ones(tagg.yrMths.size)*np.nan
-        tmax_mthly = np.ones(tagg.yrMths.size)*np.nan
+        #tmin_mthly = np.ones(tagg.yrMths.size)*np.nan
+        #tmax_mthly = np.ones(tagg.yrMths.size)*np.nan
         
     
-    return x,tmin_norms,tmax_norms,tmin_mthly,tmax_mthly
+    return x,tmin_norms,tmax_norms#,tmin_mthly,tmax_mthly
 
-def runInterps():
+def runTwxInterps():
     
     global ptInterp
     global tagg
@@ -145,18 +154,19 @@ def runInterps():
     ptInterp = None
     tagg = None
     stns = None
-    pool = Pool(5)#, initializer=initPtInterp)
+    pool = Pool(10)#, initializer=initPtInterp)
     
-    aPtInterp = it.buildDefaultPtInterp()
-    aTagg = TairAggregate(aPtInterp.stn_da_tmax.days)
-    astns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
-    maskStns = np.isfinite(astns['neon'])
-    astns = astns[maskStns]
+    #aPtInterp = it.buildDefaultPtInterp(norms_only=True) 
+    #aTagg = TairAggregate(aPtInterp.stn_da_tmax.days)
+    astns = get_twx_stns()
+    #astns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
+    #maskStns = np.isfinite(astns['neon'])
+    #astns = astns[maskStns]
     
     tminNorms = np.zeros((12,astns.size))*np.nan
     tmaxNorms = np.zeros((12,astns.size))*np.nan
-    tminMthly = np.zeros((aTagg.yrMths.size,astns.size))*np.nan
-    tmaxMthly = np.zeros((aTagg.yrMths.size,astns.size))*np.nan
+    #tminMthly = np.zeros((aTagg.yrMths.size,astns.size))*np.nan
+    #tmaxMthly = np.zeros((aTagg.yrMths.size,astns.size))*np.nan
     
     sck = status_check(astns.size, 100)
     chksize = 100
@@ -170,32 +180,34 @@ def runInterps():
         results = pool.map(runInterp,idx,chunksize=1)
         
         for aresult in results:
-            j,tmin_norms,tmax_norms,tmin_mthly,tmax_mthly = aresult
+            #j,tmin_norms,tmax_norms,tmin_mthly,tmax_mthly = aresult
+            j,tmin_norms,tmax_norms = aresult
             tminNorms[:,j] = tmin_norms
             tmaxNorms[:,j] = tmax_norms
-            tminMthly[:,j] = tmin_mthly
-            tmaxMthly[:,j] = tmax_mthly
+            #tminMthly[:,j] = tmin_mthly
+            #tmaxMthly[:,j] = tmax_mthly
         
         sck.increment(chksize)
     
     pool.close()
     pool.join()
     
-    np.save('/projects/daymet2/ds_compare/normals/twx_stnids.npy', astns[STN_ID])
-    np.save('/projects/daymet2/ds_compare/normals/twx_norms_tmin.npy', tminNorms)
-    np.save('/projects/daymet2/ds_compare/normals/twx_norms_tmax.npy', tmaxNorms)
-    np.save('/projects/daymet2/ds_compare/normals/twx_mthly_tmin.npy', tminMthly)
-    np.save('/projects/daymet2/ds_compare/normals/twx_mthly_tmax.npy', tmaxMthly)
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_twx_stnids.npy', astns[STN_ID])
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_twx_norms_tmin.npy', tminNorms)
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_twx_norms_tmax.npy', tmaxNorms)
+#    np.save('/projects/daymet2/ds_compare/normals/twxxval_mthly_tmin.npy', tminMthly)
+#    np.save('/projects/daymet2/ds_compare/normals/twxxval_mthly_tmax.npy', tmaxMthly)
 
 def buildDaymetNorms():
     
-    days = utld.get_days_metadata(datetime(1980,1,1), datetime(2012,1,1))
+    days = utld.get_days_metadata(datetime(1980,1,1), datetime(2012,12,31))
     tagg = TairAggregate(days)
     mthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
     dataPath = '/projects/daymet2/ds_compare/normals/daymet_data/tmax_allyrs/'
-    stns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
-    maskStns = np.isfinite(stns['neon'])
-    stns = stns[maskStns]
+#    stns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
+#    maskStns = np.isfinite(stns['neon'])
+#    stns = stns[maskStns]
+    stns = get_twx_stns()
         
     #tmaxNorms = np.zeros((12,stns.size))
     tmaxMthly = np.zeros((tagg.yrMths.size,stns.size))
@@ -231,9 +243,9 @@ def buildDaymetNorms():
         
     tmaxNorms = tagg.mthlyToMthlyNorms(tmaxMthly).data
     
-    np.save('/projects/daymet2/ds_compare/normals/daymet_stnids.npy', stns[STN_ID])
-    np.save('/projects/daymet2/ds_compare/normals/daymet_norms_tmax.npy', tmaxNorms)
-    np.save('/projects/daymet2/ds_compare/normals/daymet_mthly_tmax.npy', tmaxMthly)
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_daymet_stnids.npy', stns[STN_ID])
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_daymet_norms_tmax.npy', tmaxNorms)
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_daymet_mthly_tmax.npy', tmaxMthly)
     
 def testInterp():
     ptInterp = it.buildDefaultPtInterp()
@@ -247,9 +259,10 @@ def testInterp():
     plt.show()
 
 def buildPrismNorms():
-    stns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
-    maskStns = np.isfinite(stns['neon'])
-    stns = stns[maskStns]
+#    stns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
+#    maskStns = np.isfinite(stns['neon'])
+#    stns = stns[maskStns]
+    stns = get_twx_stns()
     
     prismFpath = '/projects/daymet2/prism/new_norms/'
     
@@ -271,29 +284,54 @@ def buildPrismNorms():
     
     print "Getting station norms...."
     for x in np.arange(stns.size):
-        
-        row,col = egDs.getRowCol(stns[LON][x],stns[LAT][x])
-        tmaxNorms[:,x] = tmaxNormsPrism[:,row,col]
-        tminNorms[:,x] = tminNormsPrism[:,row,col]
+        try:
+            row,col = egDs.getRowCol(stns[LON][x],stns[LAT][x])
+            tmaxNorms[:,x] = tmaxNormsPrism[:,row,col]
+            tminNorms[:,x] = tminNormsPrism[:,row,col]
+        except:
+            tmaxNorms[:,x] = np.nan
+            tminNorms[:,x] = np.nan
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_prism_stnids.npy', stns[STN_ID])
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_prism_norms_tmax.npy', tmaxNorms)
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_prism_norms_tmin.npy', tminNorms)
+
+def get_twx_stns():
+    stndaTmax = station_data_infill(PATH_STNDB_SERIAL_TMAX, 'tmax')
+    stndaTmin = station_data_infill(PATH_STNDB_SERIAL_TMIN, 'tmin')
     
-    np.save('/projects/daymet2/ds_compare/normals/prism_stnids.npy', stns[STN_ID])
-    np.save('/projects/daymet2/ds_compare/normals/prism_norms_tmax.npy', tmaxNorms)
-    np.save('/projects/daymet2/ds_compare/normals/prism_norms_tmin.npy', tminNorms)
+    stnsTmin = stndaTmin.stns[np.logical_and(np.isfinite(stndaTmin.stns[MASK]),np.isnan(stndaTmin.stns[BAD])) ]
+    stnsTmax = stndaTmax.stns[np.logical_and(np.isfinite(stndaTmax.stns[MASK]),np.isnan(stndaTmax.stns[BAD])) ]
     
+    stns = stnsTmax
+    stnsTmin = stnsTmin[~np.in1d(stnsTmin[STN_ID], stns[STN_ID], True)]
+    
+    stnsAll = np.hstack((stns,stnsTmin))
+    
+    sIdx = np.argsort(stnsAll[STN_ID])
+    stnsAll = stnsAll[sIdx]
+
+    return stnsAll
+  
 if __name__ == '__main__':
-    
+        
+    #saveNpyNormStns()
+    #run for both tmin and tmax
+#    saveNpyNorms('/projects/daymet2/station_data/ncdc_normals/mly-tmax-normal.txt',
+#                 '/projects/daymet2/station_data/ncdc_normals/norm_tmax.npy')
+    runTwxInterps()
+    #buildDaymetNorms() #run for both tmin and tmax
+    #buildPrismNorms()
     #plotNcdcNormsErrorBars()
     #plotNcdcNormsErrorMaps()
     #buildPrismNorms()
     #testInterp()
     #buildDaymetNorms()
-    runInterps()
+    
     #testStnObsMatch()
     
     #saveNpyNormStns()
     
-#    saveNpyNorms('/projects/daymet2/station_data/ncdc_normals/mly-tmax-normal.txt',
-#                 '/projects/daymet2/station_data/ncdc_normals/norm_tmax.npy')
+
     
 #    stns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
 #    

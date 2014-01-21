@@ -219,10 +219,12 @@ if __name__ == '__main__':
 
     #Build a list of raws stn ids    
 #    build_stnid_list('/projects/daymet2/station_data/raws/raws_stnlst_pages.txt',
-#                     '/projects/daymet2/station_data/raws/raws_stnids.txt')
+#                     '/projects/daymet2/station_data/raws/raws_download_201401/raws_stnids.txt')
    
     #Build all metadata for stations
     #build_stn_metadata('/projects/daymet2/station_data/raws/raws_ghcn_stnids.txt','/projects/daymet2/station_data/raws/raws_meta.txt')
+#    build_stn_metadata('/projects/daymet2/station_data/raws/raws_download_201401/raws_stnids.txt',
+#                       '/projects/daymet2/station_data/raws/raws_download_201401/raws_meta.txt')
    
     #Build daily time series for each station
-    save_all_dly_series('/projects/daymet2/station_data/raws/raws_meta.txt','/projects/daymet2/station_data/raws/raws_data/')
+    save_all_dly_series('/projects/daymet2/station_data/raws/raws_download_201401/raws_meta.txt','/projects/daymet2/station_data/raws/raws_download_201401/data/')

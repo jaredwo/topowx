@@ -339,13 +339,13 @@ def qa_loc_cnts(path_locqa):
 def plotClimDivStnDensity():
     
     #Load station counts per climate division into dictionary
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc', 'tmax')
+    stnda = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
     stns = stnda.stns
     #stns = stnda.stns[np.char.startswith(stnda.stns[STN_ID], 'GHCN')]
-    climDivs = np.unique(stnda.stns[CLIMDIV][np.isfinite(stnda.stns[CLIMDIV])])#[2:]
+    climDivs = np.unique(stnda.stns[NEON][np.isfinite(stnda.stns[NEON])])[2:]
     stnCnts = []
     for div in climDivs:
-        stnCnts.append(np.sum(stns[CLIMDIV]==div))
+        stnCnts.append(np.sum(stns[NEON]==div))
     stnCnts = np.array(stnCnts)
     
     #Load the climate division areas
@@ -364,7 +364,7 @@ def plotClimDivStnDensity():
     #Create a normalized colormap
     norm = Normalize(0,5)
     #norm = Normalize(np.min(stnCnts), np.max(stnCnts))
-    cmap = cm.Greys#jet
+    cmap = cm.hot_r#jet
     sm = cm.ScalarMappable(norm, cmap)
     sm.set_array(stnDensity)
     cmap.set_over(sm.to_rgba(5))
@@ -4835,7 +4835,7 @@ def plotCcePredictors2():
     dsElev = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_elev.tif')
     dsTdi = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_tdi.tif')
     dsTmin = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_tmin08.tif')
-    dsTmax = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_tmax01.tif')
+    dsTmax = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_tmax08.tif')
     
     elev = dsElev.readAsArray()
     tdi = dsTdi.readAsArray()
@@ -6441,11 +6441,12 @@ def plotOptimNnghsKriging():
 
 if __name__ == '__main__':
     
+    plotClimDivStnDensity()
     #plotOptimNnghsKriging()
     #plotInterpErrorMapsNcdcNormsTest()
     #plotNcdcNormsBiasBars()
     #plotNcdcNormsBiasMaps()
-    plotInterpErrorMaps2()
+    #plotInterpErrorMaps2()
     #plotNcdcNormsErrorBars()
     #plotNcdcNormsErrorMaps()
     #plotNcdcNormsErrorMapsDifs()

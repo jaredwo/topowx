@@ -967,8 +967,8 @@ if __name__ == '__main__':
     ################################################
     #TWX
     #Normal Product Paths
-#    tilepath = '/stage/climate/topowx_tile_output/'
-#    outpath = '/projects/daymet2/compare/topowx_files/normals/'
+    tilepath = '/stage/climate/test_tile_output/'
+    outpath = '/projects/daymet2/cce_case_study/topowx_files/normals/'
     #No LST Paths
 #    tilepath = '/stage/climate/topowx_nolst/'
 #    outpath = '/projects/daymet2/compare/topowx_files/normals/no_lst/'
@@ -978,15 +978,15 @@ if __name__ == '__main__':
     #Non-Homog station data, no LST
 #    tilepath = '/stage/climate/topowx_nohomog_nolst/'
 #    outpath = '/projects/daymet2/compare/topowx_files/normals/no_homog_lst/'
-#    for atile in CCE_TILES_TWX:
-#        for atair in ['tmin','tmax']:
-#            print atile,atair
-#            ds_path = "".join([tilepath,atile,"/",atile,"_",atair,".nc"])
-#            tairNorm = getNorm(ds_path,atair)
-#            tairNorm.fill_value = -9999.
-#            outFpath = "".join([outpath,atile,"_",atair,"_19812010norm.tif"])
-#            print outFpath
-#            topoWxTileToTiff(ds_path, tairNorm,outFpath)
+    for atile in CCE_TILES_TWX:
+        for atair in ['tmin','tmax']:
+            print atile,atair
+            ds_path = "".join([tilepath,atile,"/",atile,"_",atair,".nc"])
+            tairNorm = getNorm(ds_path,atair)
+            tairNorm.fill_value = -9999.
+            outFpath = "".join([outpath,atile,"_",atair,"_19812010norm.tif"])
+            print outFpath
+            topoWxTileToTiff(ds_path, tairNorm,outFpath)
 #    
 #    #Daymet
 #    tilepath = "/projects/daymet2/daymet_oakridge/multi_yr_tiles/"

@@ -162,9 +162,9 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc"
-    params[P_PATH_WRITEDB] = "projects/daymet2/station_data/infill/serial_fnl/xval_tmin.nc"
-    params[P_VARNAME] = 'tmin'
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc"
+    params[P_PATH_WRITEDB] = "/projects/daymet2/station_data/infill/serial_fnl/xval_tmax.nc"
+    params[P_VARNAME] = 'tmax'
         
     if rank == RANK_COORD:        
         proc_coord(params, nsize-N_NON_WRKRS)

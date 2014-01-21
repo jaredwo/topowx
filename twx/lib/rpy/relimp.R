@@ -8,7 +8,7 @@ library(relaimpo)
 stnsTmax <- read.csv('/projects/daymet2/docs/final_writeup/cce_stns_tmax.csv')
 stnsTmin <- read.csv('/projects/daymet2/docs/final_writeup/cce_stns_tmin.csv')
 
-stns <- stnsTmin
+stns <- stnsTmax
 
 lmgLon <- c()
 lmgLat <- c()
@@ -34,5 +34,5 @@ for (mth in 1:12)
 }
 
 lmg <- data.frame(lon=lmgLon,lat=lmgLat,elev=lmgElev,lst=lmgLst,r2=r2)
-write.table(lmg,'/projects/daymet2/docs/final_writeup/cce_relimpr2_tmin.csv',row.names=FALSE,sep=",",quote=FALSE)
+write.table(lmg,'/projects/daymet2/docs/final_writeup/cce_relimpr2_tmax.csv',row.names=FALSE,sep=",",quote=FALSE)
 

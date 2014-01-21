@@ -5,7 +5,7 @@ import numpy as np
 from twx.db.station_data import LON,LAT,ELEV,YMD,PRCP,station_data_infill,STN_ID
 import matplotlib.mlab as mlab
 from twx.interp.clibs import clib_wxTopo
-from twx.interp.station_select import station_select
+from twx.interp.station_select import StationSelect
 import scipy.stats as stats
 
 #rpy2

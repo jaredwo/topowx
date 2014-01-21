@@ -15,6 +15,7 @@ from twx.interp.station_select import StationSelect
 from matplotlib.mlab import griddata 
 import matplotlib.pyplot as plt
 import twx.utils.util_dates as utld
+import mpl_toolkits.basemap as bm
 #rpy2
 import rpy2
 import rpy2.robjects as robjects
@@ -52,29 +53,59 @@ class SVD_Exception(Exception):
 
 class PredictorGrids():
 
-    def __init__(self,ncFpaths):
+    def __init__(self,ncFpaths,interpOrders=None):
         
         self.ncDs = {}
+        self.ncData = {}
+        self.xGrid = None
+        self.yGrid = None
         
-        for fpath in ncFpaths:
+        interpOrders = np.zeros(len(ncFpaths)) if interpOrders is None else interpOrders 
+        
+        for fpath,interpOrder in zip(ncFpaths,interpOrders):
             
             geoNc = GeoNc(Dataset(fpath))
             varKeys =  np.array(geoNc.ds.variables.keys())
             ncVarname = varKeys[np.logical_and(varKeys != 'lon',varKeys != 'lat')][0]
             self.ncDs[ncVarname] = geoNc
-        
+            
+            if interpOrder == 1:
+                a = geoNc.ds.variables[ncVarname][:]
+                aflip = np.flipud(a)
+                #aflip = aflip.astype(np.float)
+                self.ncData[ncVarname] = aflip
+                
+                if self.xGrid == None:
+                    self.xGrid = geoNc.ds.variables['lon'][:]
+                    self.yGrid = np.sort(geoNc.ds.variables['lat'][:])
+                        
     def setPtValues(self,aPt,chgLatLon=True):
                 
         chged = False
         for varname,geoNc in self.ncDs.items():
             
-            row,col,gridlon,gridlat =  geoNc.getRowCol(aPt[LON],aPt[LAT])
-            aPt[varname] = geoNc.ds.variables[varname][row,col]
+            if chgLatLon or not self.ncData.has_key(varname):
             
-            if chgLatLon and not chged:
-                aPt[LON] = gridlon
-                aPt[LAT] = gridlat
-                chged = True
+                row,col,gridlon,gridlat =  geoNc.getRowCol(aPt[LON],aPt[LAT])
+                aPt[varname] = geoNc.ds.variables[varname][row,col]
+                
+                if chgLatLon and not chged:
+                    aPt[LON] = gridlon
+                    aPt[LAT] = gridlat
+                    chged = True
+            
+            else:
+                
+                rval = bm.interp(self.ncData[varname].astype(np.float), self.xGrid, self.yGrid, np.array(aPt[LON]), np.array(aPt[LAT]), checkbounds=False, masked=True, order=1)
+        
+                if np.ma.is_masked(rval):
+                    
+                    rval = bm.interp(self.ncData[varname], self.xGrid, self.yGrid, np.array(aPt[LON]), np.array(aPt[LAT]), checkbounds=False, masked=True, order=0)
+                        
+                    if np.ma.is_masked(rval):
+                        rval = geoNc.ds.variables[varname].missing_value
+                    
+                aPt[varname] = rval
             
 def check_tmin_tmax_valid(tmin,tmax,mean_tmin,mean_tmax,ci_tmin,ci_tmax):
     
@@ -269,7 +300,20 @@ class GwrTairAnomR(GwrTairAnom):
         interp_vals = interp_anom + pt[get_norm_varname(mth)]
                 
         return interp_vals 
-               
+
+class GwrTairAnomBlank(GwrTairAnom):
+    
+    def __init__(self,stn_slct,days):
+        
+        GwrTairAnom.__init__(self, stn_slct, days)
+        self.blank_vals = {}
+        for mth in np.arange(1,13):
+            self.blank_vals[mth] = np.zeros(self.mthIdx[mth].size)
+        
+    
+    def gwr_mth(self,pt,mth,nnghs=None,stns_rm=None):  
+        return self.blank_vals[mth] 
+      
 class InterpTair(object):
     
     def __init__(self,krig_tair,gwr_tair):
@@ -299,7 +343,7 @@ class InterpTair(object):
 
 class PtInterpTair(object):
     
-    def __init__(self,stn_da_tmin,stn_da_tmax,auxFpaths=None):    
+    def __init__(self,stn_da_tmin,stn_da_tmax,auxFpaths=None,interpOrders=None,norms_only=False):    
 
         self.days = stn_da_tmin.days
         self.stn_da_tmin = stn_da_tmin
@@ -336,23 +380,29 @@ class PtInterpTair(object):
         krig_tmin = KrigTair(stn_slct_tmin)
         krig_tmax = KrigTair(stn_slct_tmax)
         
-        gwr_tmin = GwrTairAnom(stn_slct_tmin, self.days)
-        gwr_tmax = GwrTairAnom(stn_slct_tmax, self.days)
+        if norms_only:
+            gwr_tmin = GwrTairAnomBlank(stn_slct_tmin, self.days)
+            gwr_tmax = GwrTairAnomBlank(stn_slct_tmax, self.days)
+        else:
+            gwr_tmin = GwrTairAnom(stn_slct_tmin, self.days)
+            gwr_tmax = GwrTairAnom(stn_slct_tmax, self.days)
                 
         self.interp_tmin = InterpTair(krig_tmin, gwr_tmin)
         self.interp_tmax = InterpTair(krig_tmax, gwr_tmax)
         
         if auxFpaths is not None:
-            self.pGrids = PredictorGrids(auxFpaths)
+            self.pGrids = PredictorGrids(auxFpaths,interpOrders)
         
         self.a_pt = build_empty_pt()
         
     
-    def interpLonLatPt(self,lon,lat,fixInvalid=True,chgLatLon=True,stns_rm=None):
+    def interpLonLatPt(self,lon,lat,fixInvalid=True,chgLatLon=True,stns_rm=None,elev=None):
         
         self.a_pt[LON] = lon
         self.a_pt[LAT] = lat
         self.pGrids.setPtValues(self.a_pt,chgLatLon)
+        if elev is not None:
+            self.a_pt[ELEV] = elev
         
         if self.a_pt[MASK] == 0:
             raise Exception('Point is outside interpolation region')
@@ -562,13 +612,13 @@ class KrigTair(object):
         ngh_tair = ri.FloatSexpVector(nghs[get_norm_varname(mth)])
                 
         pt_svp = ri.FloatSexpVector((pt[LON],pt[LAT],pt[ELEV],pt[TDI],pt[get_lst_varname(mth)]))
-
+        
         nug = ri.FloatSexpVector([nug])
         psill = ri.FloatSexpVector([psill])
         vrange = ri.FloatSexpVector([vrange])
         
         ngh_wgt = ri.FloatSexpVector(self.stn_slct.ngh_wgt)
-
+        
         rslt = self.r_krig_func(ngh_lon, ngh_lat, ngh_elev, ngh_tdi, ngh_lst, ngh_tair, ngh_wgt, pt_svp, nug, psill, vrange)
       
         tair_mean = rslt[0]
@@ -636,7 +686,7 @@ class StationDataWrkChk(station_data_infill):
                    
             return obs
 
-def buildDefaultPtInterp():
+def buildDefaultPtInterp(norms_only=False):
     stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
     stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
     
@@ -648,5 +698,10 @@ def buildDefaultPtInterp():
     auxFpaths.extend(["".join([gridPath,'fnl_lst_tmin%02d.nc'%mth]) for mth in np.arange(1,13)])
     auxFpaths.extend(["".join([gridPath,'fnl_lst_tmax%02d.nc'%mth]) for mth in np.arange(1,13)])
     
-    ptInterp = PtInterpTair(stndaTmin,stndaTmax,auxFpaths) 
+    interpOrders = np.zeros(len(auxFpaths))
+    #interpOrders = np.ones(len(auxFpaths))
+    #interpOrders[2] = 0 #climdiv
+    #interpOrders[3] = 0 #mask
+    #interpOrders = None
+    ptInterp = PtInterpTair(stndaTmin,stndaTmax,auxFpaths,interpOrders,norms_only) 
     return ptInterp
