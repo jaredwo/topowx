@@ -158,8 +158,8 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DEM] = "/projects/daymet2/dem/gtopo/srtm30/srtm_prism_merge_fnl.tif"
-    params[P_PATH_OUTPUT] = "/projects/daymet2/dem/gtopo/srtm30/srtm_prism_merge_tdi.tif"
+    params[P_PATH_DEM] = "/projects/daymet2/dem/interp_grids/conus/tifs/crop_lst_tmin08.tif"
+    params[P_PATH_OUTPUT] = "/projects/daymet2/dem/interp_grids/conus/tifs/crop_lsttdi_tmin08.tif"
     #params[P_WIN_SIZES] = [14] #in km
     params[P_WIN_SIZES] = [3,6,9,12,15] #in km
     params[P_STN_LOC_BNDS] = (-126.0,-64.0,22.0,53.0) #CONUS

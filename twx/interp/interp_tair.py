@@ -26,7 +26,7 @@ r = robjects.r
 import rpy2.rinterface as ri
 import os
 
-KRIG_TREND_VARS = (LON,LAT,ELEV,LST)
+KRIG_TREND_VARS = (LON,LAT,ELEV)#(LON,LAT,ELEV,LST)
 GWR_TREND_VARS = (LON,LAT,ELEV,TDI,LST)
 LST_TMAX = 'lst_tmax'
 LST_TMIN = 'lst_tmin'
@@ -687,8 +687,10 @@ class StationDataWrkChk(station_data_infill):
             return obs
 
 def buildDefaultPtInterp(norms_only=False):
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
+    #stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
+    #stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
+    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_nolst/serial_tmin.nc', 'tmin')
+    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_nolst/serial_tmax.nc', 'tmax')
     
     gridPath = '/projects/daymet2/dem/interp_grids/conus/ncdf/'
     auxFpaths = ["".join([gridPath,'fnl_elev.nc']),

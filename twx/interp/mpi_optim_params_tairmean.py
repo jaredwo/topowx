@@ -222,11 +222,11 @@ if __name__ == '__main__':
 
     params = {}
     
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc"
-    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/serial_fnl/xval/optimTairMean/tmax/xval_tmax_mean'   
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_nolst/serial_tmin.nc"
+    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/serial_nolst/xval/optimTairMean/tmin/xval_tmin_mean'   
     params[P_NGH_RNG] = build_min_ngh_windows(35, 150, 0.10)
     params[P_NGH_RNG_STEP] = .10 #in pct
-    params[P_VARNAME] = 'tmax'
+    params[P_VARNAME] = 'tmin'
     
     ds = Dataset(params[P_PATH_DB])
     divs = ds.variables['neon'][:]

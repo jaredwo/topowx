@@ -34,6 +34,25 @@ def saveNpyNorms(inPath,outPath):
     
     np.save(outPath, obsNorms)
     
+def get_ncdc_norms(fpath_norms):
+    obsFile = open(fpath_norms)
+    lines = obsFile.readlines()
+    n = len(lines)
+    
+    obsNorms = np.zeros((12,n))
+    
+    stnid_idx = {}
+    
+    for x in np.arange(n):
+        vals = lines[x].split()
+        
+        stnid_idx["".join(['GHCN_',vals[0]])] = x
+        
+        normsStn = [((np.float(anorm[0:-1])/10.0)-32.0)/1.8 for anorm in vals[1:]]
+        obsNorms[:,x] = normsStn
+    
+    return stnid_idx,obsNorms
+    
 
 def testStnObsMatch():
     stns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
@@ -192,9 +211,9 @@ def runTwxInterps():
     pool.close()
     pool.join()
     
-    np.save('/projects/daymet2/ds_compare/normals/all_stns_twx_stnids.npy', astns[STN_ID])
-    np.save('/projects/daymet2/ds_compare/normals/all_stns_twx_norms_tmin.npy', tminNorms)
-    np.save('/projects/daymet2/ds_compare/normals/all_stns_twx_norms_tmax.npy', tmaxNorms)
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_twxnolst_stnids.npy', astns[STN_ID])
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_twxnolst_norms_tmin.npy', tminNorms)
+    np.save('/projects/daymet2/ds_compare/normals/all_stns_twxnolst_norms_tmax.npy', tmaxNorms)
 #    np.save('/projects/daymet2/ds_compare/normals/twxxval_mthly_tmin.npy', tminMthly)
 #    np.save('/projects/daymet2/ds_compare/normals/twxxval_mthly_tmax.npy', tmaxMthly)
 
