@@ -917,6 +917,11 @@ max_pcs2 <- function(pca_tair,means=NULL,scales=NULL,frac_obs=FRAC_OBS,max_r2cum
 	}
 	
 	npcs <- round((ncol(pca_tair)-1)*frac_obs,0)
+	if (npcs < 2)
+	{
+		npcs <- 2	
+	}
+	
 	pcs_fnd <- FALSE
 	warn_fnd <- FALSE
 	

@@ -26,12 +26,14 @@ r = robjects.r
 import rpy2.rinterface as ri
 import os
 
-KRIG_TREND_VARS = (LON,LAT,ELEV)#(LON,LAT,ELEV,LST)
+KRIG_TREND_VARS = (LON,LAT,ELEV,LST)
 GWR_TREND_VARS = (LON,LAT,ELEV,TDI,LST)
 LST_TMAX = 'lst_tmax'
 LST_TMIN = 'lst_tmin'
 
+MIN_RADIUS_INFLUENCE = 10
 DFLT_INIT_NNGHS = 100
+
 
 def init_interp_R_env():
     
@@ -240,13 +242,24 @@ class GwrTairAnom(object):
         x = np.array(x)
                 
         interp_anom,fit_anom = self.aclib.repRegress(X, ngh_obs_cntr, x, ngh_wgt)
-        
+    
         #Perform IDW of GWR residuals
-        resids = ngh_obs_cntr-fit_anom
-        dists = np.copy(self.stn_slct.ngh_dists)
-        dists[dists==0] = 0.01
-        interp_resids = np.average(resids, axis=1, weights=1.0/(dists**2))    
-        interp_anom = interp_anom+interp_resids
+#        resids = ngh_obs_cntr-fit_anom
+#        dists = np.copy(self.stn_slct.ngh_dists)        
+#        dists = np.round(dists)
+#        idw_wgts = np.ones(dists.size)
+#        dists_idw = dists - MIN_RADIUS_INFLUENCE
+#        dists_idw_mask = np.nonzero(dists_idw > 0)[0]
+#        idw_wgts[dists_idw_mask] = 1.0/(np.take(dists_idw,dists_idw_mask)**2)
+#        
+#        #interp_resids = np.average(resids, axis=1, weights=1.0/(dists**2))
+#        interp_resids = np.average(resids, axis=1, weights=idw_wgts)   
+#        
+#        
+##        plt.plot(runningMean(interp_resids, 30))
+##        plt.show()
+#        
+#        interp_anom = interp_anom+interp_resids 
         
         interp_vals = interp_anom + pt[get_norm_varname(mth)]
                 
@@ -687,10 +700,10 @@ class StationDataWrkChk(station_data_infill):
             return obs
 
 def buildDefaultPtInterp(norms_only=False):
-    #stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
-    #stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_nolst/serial_tmin.nc', 'tmin')
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_nolst/serial_tmax.nc', 'tmax')
+    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
+    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
+#    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_nolst/serial_tmin.nc', 'tmin')
+#    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_nolst/serial_tmax.nc', 'tmax')
     
     gridPath = '/projects/daymet2/dem/interp_grids/conus/ncdf/'
     auxFpaths = ["".join([gridPath,'fnl_elev.nc']),

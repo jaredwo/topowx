@@ -33,9 +33,6 @@ MTH_SRT_END_DATES = {1:(datetime(2003,1,1),datetime(2003,1,31)),
                      11:(datetime(2003,11,1),datetime(2003,11,30)),
                      12:(datetime(2003,12,1),datetime(2003,12,31))}
 
-#def date_mask(dates,year,month,day):
-#    return numpy.logical_and(full_year==1990,full_month==5),full_day==1
-
 def get_date_array_from_strings(strings,format="%Y-%m-%d"):
     
     return numpy.array([datetime.strptime(date,format) for date in strings])
@@ -156,6 +153,15 @@ def get_mth_metadata(str_yr,end_yr):
     mth_metadata[YMD] = get_ymd_array(dates)
     return mth_metadata
 
+def get_mth_metadata_dates(dates):
+    
+    mth_metadata = numpy.recarray(dates.size,dtype=[(DATE,numpy.object_),(YEAR,numpy.int32),(MONTH,numpy.int32),(YMD,numpy.int32)])
+    mth_metadata[DATE] = dates
+    mth_metadata[YEAR] = get_year_array(dates)
+    mth_metadata[MONTH] = get_month_array(dates)
+    mth_metadata[YMD] = get_ymd_array(dates)
+    return mth_metadata
+
 def get_date_yr_array(str_yr,end_yr):
     
     yrs = numpy.arange(str_yr,end_yr+1)
@@ -179,93 +185,4 @@ def get_date_mth_array(str_yr,end_yr):
             
             dates.append(datetime(yr,mth,1))
     
-    return numpy.array(dates)
-
-#def yearRangeArray(yearArray):
-#    return yearRange(numpy.min(yearArray),numpy.max(yearArray))
-#
-#def yearRange(startYear,endYear):
-#    return range(startYear,endYear+1)
-#
-#def numOfDaysYear(startYear,endYear,removeLeap=True):
-#    return numOfDays(datetime(startYear,1,1),datetime(endYear,12,31),removeLeap)
-#
-#def numOfDays(startDate,endDate,removeLeap=True):
-#    numOfDays = 0
-#    date = startDate
-#    while date <= endDate:
-#        yearDay = date.timetuple().tm_yday
-#        if removeLeap and yearDay == 366:
-#            pass
-#        else:
-#            numOfDays+=1
-#        date = date + A_DAY
-#    return numOfDays
-#
-#def ymdL(date):
-#    return long(datetime.strftime(date,"%Y%m%d"))
-#
-#def yearArray(startDate,endDate,removeLeap366=True):
-#    totalNumDays = numOfDays(startDate,endDate,removeLeap366)
-#    years = numpy.zeros(totalNumDays,dtype=numpy.int32) #had to change dtype=numpy.int32 to get int to pass to C correctly
-#    count = 0;
-#    date = startDate
-#    while date <= endDate:
-#        yearDay = date.timetuple().tm_yday
-#        if removeLeap366 and yearDay == 366:
-#            pass
-#        else:
-#            years[count] = date.year
-#            count+=1;
-#        date = date + A_DAY
-#        
-#    return years
-#
-#def yearDayArray(startDate,endDate,removeLeap366=True):
-#    totalNumDays = numOfDays(startDate,endDate,removeLeap366)
-#    yearDays = numpy.zeros(totalNumDays,dtype=numpy.int32) #had to change dtype=numpy.int32 to get int to pass to C correctly
-#    count = 0;
-#    date = startDate
-#    while date <= endDate:
-#        yearDay = date.timetuple().tm_yday
-#        if removeLeap366 and yearDay == 366:
-#            pass
-#        else:
-#            yearDays[count] = yearDay
-#            count+= 1
-#        date = date + A_DAY
-#        
-#    return yearDays
-#
-#def ymdArray(startDate,endDate,removeLeap=True):
-#    totalNumDays = numOfDays(startDate,endDate,removeLeap)
-#    yrs = numpy.arange(startDate.year,endDate.year+1)
-#    ymdArray = numpy.zeros([totalNumDays],dtype=numpy.long)
-#    dayCount = 0
-#    cal = Calendar()
-#    complete = False
-#    
-#    ymdsRemoved = []
-#    for yr in yrs:
-#        isleap = calendar.isleap(yr)
-#        for month in range(1,13):
-#            if complete == True:
-#                break
-#            days = cal.itermonthdates(yr,month)
-#            for day in days:
-#                day = datetime(day.year,day.month,day.day)
-#                if day.month != month:
-#                    continue
-#                if day < startDate:
-#                    continue
-#                if day > endDate:
-#                    complete = True
-#                    break
-#                if removeLeap and isleap and day.month == 12 and day.day == 31: #remove 2/29 or 12/31
-#                    ymdsRemoved.append(long(datetime.strftime(day,"%Y%m%d")))
-#                    continue
-#                ymdArray[dayCount] = long(datetime.strftime(day,"%Y%m%d"))
-#                dayCount+=1
-#    return ymdArray,numpy.array(ymdsRemoved)
-
-    
+    return numpy.array(dates)    

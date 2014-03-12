@@ -17,7 +17,7 @@ from twx.utils.status_check import status_check
 SCALE_FACTOR = np.float32(0.01)
 CCE_BBOX = (-117.0,-109.0,45.0,50.0)
 
-def createPrismNcDataset(aPrismRast,varname,fpathOut,startYr=1981,endYr=2010):
+def create_prism_nc(aPrismRast,varname,fpathOut,startYr=1981,endYr=2010):
     
     lat,lon = aPrismRast.getCoordGrid1d()
 #    lon = lon[np.logical_and(lon>=CCE_BBOX[0],lon<=CCE_BBOX[1])]

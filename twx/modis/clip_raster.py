@@ -246,7 +246,7 @@ def get_lonlat(geot,c,r):
     lat = (geot[3] + c*geot[4] + r*geot[5]) + geot[5] / 2.0
     return lon,lat
 
-def resample_to_grd1(fpath_dstgrid,fpath_srcgrid,fpath_out,resample_alg=gdalconst.GRA_NearestNeighbour):
+def resample_to_grd1(fpath_dstgrid,fpath_srcgrid,fpath_out,resample_alg=gdalconst.GRA_NearestNeighbour,out_driver_name='GTiff'):
     grid_dst = gdal.Open(fpath_dstgrid)
     grid_src = gdal.Open(fpath_srcgrid)
     
@@ -258,9 +258,9 @@ def resample_to_grd1(fpath_dstgrid,fpath_srcgrid,fpath_out,resample_alg=gdalcons
     src_dtype = src_band.DataType
     src_ndata =  src_band.GetNoDataValue()
     
-    grid_out = gdal.GetDriverByName('GTiff').Create(fpath_out, 
-                                                    grid_dst.RasterXSize, 
-                                                    grid_dst.RasterYSize, grid_src.RasterCount, src_dtype)
+    grid_out = gdal.GetDriverByName(out_driver_name).Create(fpath_out, 
+                                                            grid_dst.RasterXSize, 
+                                                            grid_dst.RasterYSize, grid_src.RasterCount, src_dtype)
     
     band_out = grid_out.GetRasterBand(1)
     band_out.Fill(src_ndata)
@@ -272,6 +272,8 @@ def resample_to_grd1(fpath_dstgrid,fpath_srcgrid,fpath_out,resample_alg=gdalcons
     gdal.ReprojectImage(grid_src, grid_out, src_proj, dst_proj, resample_alg)
     
     grid_out.FlushCache()
+    
+    return grid_out
 
 def resample_modis_sinu_to_grid(fpath_dstgrid,fpath_modis_sinu_grid,fpath_out,resample_alg=gdalconst.GRA_Bilinear):
     grid_dst = gdal.Open(fpath_dstgrid)

@@ -4158,7 +4158,7 @@ def plotTwxVsDaymetPRISMTrend():
     #plt.savefig('/projects/daymet2/docs/final_writeup/map_trends_19812010.png',dpi=150) 
     #plt.savefig()
     cfig.set_size_inches(8,7)
-    plt.savefig('/projects/daymet2/docs/final_writeup/map_trends_19812010.png',dpi=250) 
+    #plt.savefig('/projects/daymet2/docs/final_writeup/map_trends_19812010.png',dpi=250) 
     plt.show()
 
 def plotTwxVsPRISMTrend2():
@@ -6441,7 +6441,8 @@ def plotOptimNnghsKriging():
 
 if __name__ == '__main__':
     
-    plotClimDivStnDensity()
+    plotTwxVsDaymetPRISMTrend()
+    #plotClimDivStnDensity()
     #plotOptimNnghsKriging()
     #plotInterpErrorMapsNcdcNormsTest()
     #plotNcdcNormsBiasBars()

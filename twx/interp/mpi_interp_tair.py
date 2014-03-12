@@ -341,8 +341,18 @@ if __name__ == '__main__':
     
 #    mcoUsgsTiles = np.loadtxt('/stage/climate/topowx_tiles_shp/McoUsgsTileList.csv',
 #                              dtype=np.int,usecols=[0],delimiter=',',skiprows=1)
-    #doneTiles = np.array([2,3,4,16,17,18,37,38])
-    params[P_TILES_PROCESS] = np.array([16,17,18,37,38])
+    #doneTiles = np.array([16,17,18,19,36,37,38,39,63,64])
+    #tile_list = np.unique(np.loadtxt('/projects/daymet2/snotel_inhomog/ds_compare/twx_tile_list.txt',dtype=np.int))
+    #tile_list = tile_list[~np.in1d(tile_list,doneTiles, True)]
+#    tile_list = np.array([12,20,21,22,41,42,60,68,88,89,90,95,112,115,116,117,122,
+#                          138,142,143,144,148,162,165,166,167,168,171,187,188,189,
+#                          190,191,192,193,206,207,208,209,210,211,212,224,225])
+    
+    #tile_list = np.array([188,189,190,191,192,193,206,207,208,209,210,211,212,224,225])
+    tile_list = np.array([211,212])
+    
+    params[P_TILES_PROCESS] = tile_list
+    #params[P_TILES_PROCESS] = np.array([16,17,18,37,38]) #CCE
     #params[P_TILES_PROCESS] = mcoUsgsTiles[mcoUsgsTiles > 173]
     #params[P_TILES_PROCESS] = mcoUsgsTiles[~np.in1d(mcoUsgsTiles, doneTiles, True)]
     ############################################################################################
