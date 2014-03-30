@@ -45,6 +45,41 @@ class OptimKrigBwNstns(object):
                 
         return err
 
+class OptimGwrNormBwNstns(object):
+    '''
+    classdocs
+    '''
+
+    def __init__(self,pathDb,tairVar):
+                
+        stn_da = station_data_infill(pathDb, tairVar)
+        mask_stns = np.isnan(stn_da.stns[BAD])         
+        stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
+                     
+        self.gwr_norm = it.GwrTairNorm(stn_slct)
+        self.stn_da = stn_da
+        
+    def runXval(self,stnId,abw_nngh):
+        
+        xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stnId]]
+        
+        err = np.zeros((12,abw_nngh.size))
+        xvalNorms = np.array([xval_stn[get_norm_varname(mth)] for mth in np.arange(1,13)])
+        
+        for bw_nngh,x in zip(abw_nngh,np.arange(abw_nngh.size)):
+            
+            interp_norms = np.zeros(12)
+            
+            for i in np.arange(interp_norms.size):
+            
+                mth = i+1
+                interp_mth = self.gwr_norm.gwr_predict(xval_stn, mth, nnghs=bw_nngh, stns_rm=xval_stn[STN_ID])[0]
+                interp_norms[i] = interp_mth
+            
+            err[:,x] = interp_norms-xvalNorms
+                
+        return err
+
 def setOptimTairParams(pathDb,pathXvalDs):
 #    '/projects/daymet2/station_data/infill/infill_20130725/xval/optimTairMean/tmax/xval_tmax_mean' 
     dsStns = Dataset(pathDb,'r+')

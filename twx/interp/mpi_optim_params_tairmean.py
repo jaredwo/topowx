@@ -12,7 +12,8 @@ from twx.db.station_data import station_data_infill,STN_ID,NEON,MASK,BAD
 from twx.utils.status_check import status_check
 from twx.db.all_create_db import dbDataset
 from netCDF4 import Dataset
-from twx.interp.optimize import OptimKrigBwNstns, setOptimTairParams
+from twx.interp.optimize import OptimKrigBwNstns, setOptimTairParams,\
+    OptimGwrNormBwNstns
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -46,7 +47,8 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    optim = OptimKrigBwNstns(params[P_PATH_DB], params[P_VARNAME])
+    #optim = OptimKrigBwNstns(params[P_PATH_DB], params[P_VARNAME])
+    optim = OptimGwrNormBwNstns(params[P_PATH_DB], params[P_VARNAME])
     
     bcast_msg = None
     MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)
@@ -62,7 +64,7 @@ def proc_work(params,rank):
         else:
             
             try:
-                
+      
                 err = optim.runXval(stn_id, params[P_NGH_RNG])
                                             
             except Exception as e:
@@ -222,8 +224,8 @@ if __name__ == '__main__':
 
     params = {}
     
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_nolst/serial_tmin.nc"
-    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/serial_nolst/xval/optimTairMean/tmin/xval_tmin_mean'   
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_gwr_norm/serial_tmin.nc"
+    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/serial_gwr_norm/xval/optimTairMean/tmin/xval_tmin_mean'   
     params[P_NGH_RNG] = build_min_ngh_windows(35, 150, 0.10)
     params[P_NGH_RNG_STEP] = .10 #in pct
     params[P_VARNAME] = 'tmin'

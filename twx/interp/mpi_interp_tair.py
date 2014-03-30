@@ -14,6 +14,7 @@ import netCDF4
 from collections import deque
 import tiling as tl
 import numpy as np
+import os
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 1000
@@ -349,9 +350,46 @@ if __name__ == '__main__':
 #                          190,191,192,193,206,207,208,209,210,211,212,224,225])
     
     #tile_list = np.array([188,189,190,191,192,193,206,207,208,209,210,211,212,224,225])
-    tile_list = np.array([211,212])
     
-    params[P_TILES_PROCESS] = tile_list
+    #Build list of tiles ids not yet completed
+    ###################################
+    ds_mask = Dataset('/projects/daymet2/dem/interp_grids/conus/ncdf/fnl_mask.nc')  
+    
+    atiler = tl.tiler(ds_mask, [], 250, 250, 50, 50)
+    
+    id_to_name = atiler.tile_ids
+    name_to_id = {}
+    all_ids = []
+    
+    for a_id,a_name in id_to_name.items():
+        name_to_id[a_name] = a_id
+        all_ids.append(a_id)
+    
+    all_ids = np.unique(all_ids)
+    
+    names_done = os.listdir('/stage/climate/test_tile_output/')
+    ids_done = np.unique([name_to_id[a_name] for a_name in names_done])
+    
+    id_mask = np.in1d(all_ids, ids_done, True)
+    
+#    print np.sum(id_mask)
+#    print np.sum(~id_mask)
+#    
+#    print all_ids[id_mask]
+    params[P_TILES_PROCESS] = all_ids[~id_mask]
+    
+    atiler = None
+    ds_mask.close()
+    ds_mask = None
+    
+    ###################################
+    
+    
+    
+    
+    #tile_list = np.array([211,212])
+    
+    #params[P_TILES_PROCESS] = tile_list
     #params[P_TILES_PROCESS] = np.array([16,17,18,37,38]) #CCE
     #params[P_TILES_PROCESS] = mcoUsgsTiles[mcoUsgsTiles > 173]
     #params[P_TILES_PROCESS] = mcoUsgsTiles[~np.in1d(mcoUsgsTiles, doneTiles, True)]

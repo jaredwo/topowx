@@ -6,26 +6,27 @@
 options(warn = -1)
 library(sp)
 library(gstat)
+library(GWmodel)
 #library(mgcv)
 
-gwr_meantair <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,pt)
-{
-	#Build dataframes
-	stns_ngh <- data.frame(lon=ngh_lon,lat=ngh_lat,elev=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,tair=ngh_tair,ngh_wgt=ngh_wgt)
-	pt <- data.frame(lon=pt[1],lat=pt[2],elev=pt[3],tdi=pt[4],lst=pt[5],neon=pt[6])
-	
-	#GWR
-	#a.lm <- lm(FORMULA,stns_ngh,weights=ngh_wgt)
-	#Changed to perform a regular linear regression
-	a.lm <- lm(FORMULA,stns_ngh)
-	tair_mean <- as.numeric(predict.lm(a.lm,pt))
-	
-	#tair.gam <- gam(FORMULA,data=stns_ngh)
-	#tair.gam <- gam(tair~lst,data=stns_ngh)
-	#tair_mean <- as.numeric(predict(tair.gam,pt))
-	
-	return(c(tair_mean,0))
-}
+#gwr_meantair <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,pt)
+#{
+#	#Build dataframes
+#	stns_ngh <- data.frame(lon=ngh_lon,lat=ngh_lat,elev=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,tair=ngh_tair,ngh_wgt=ngh_wgt)
+#	pt <- data.frame(lon=pt[1],lat=pt[2],elev=pt[3],tdi=pt[4],lst=pt[5],neon=pt[6])
+#	
+#	#GWR
+#	#a.lm <- lm(FORMULA,stns_ngh,weights=ngh_wgt)
+#	#Changed to perform a regular linear regression
+#	a.lm <- lm(FORMULA,stns_ngh)
+#	tair_mean <- as.numeric(predict.lm(a.lm,pt))
+#	
+#	#tair.gam <- gam(FORMULA,data=stns_ngh)
+#	#tair.gam <- gam(tair~lst,data=stns_ngh)
+#	#tair_mean <- as.numeric(predict(tair.gam,pt))
+#	
+#	return(c(tair_mean,0))
+#}
 
 gwr_anomaly <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_wgt,obs_matrix,pt)
 {
@@ -214,6 +215,30 @@ krig_meantair <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_
 	return(c(tair_mean,tair_var,0))
 	
 }
+
+gwr_meantair <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,pt)
+{  
+	#Build dataframes
+	stns_ngh <- data.frame(lon=ngh_lon,lat=ngh_lat,elev=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,tair=ngh_tair,ngh_wgt=ngh_wgt)
+	pt <- data.frame(lon=pt[1],lat=pt[2],elev=pt[3],tdi=pt[4],lst=pt[5])
+	
+	n_stns <- length(ngh_lon)
+	
+	#Turn dataframes into spatial dataframes
+	coordinates(stns_ngh) <- ~lon+lat
+	proj4string(stns_ngh)=CRS("+proj=longlat +datum=WGS84")
+	coordinates(pt) <- ~lon+lat
+	proj4string(pt)=CRS("+proj=longlat +datum=WGS84")
+	
+	a.predict <- gwr.predict(FORMULA,data=stns_ngh,predictdata=pt,bw=n_stns,adaptive=TRUE,longlat=TRUE)
+	
+	tair_mean <- a.predict$SDF$prediction
+	tair_var <- a.predict$SDF$prediction_var
+	
+	return(c(tair_mean,tair_var,0))
+	
+}
+
 
 build_formula <- function(y_var,x_vars)
 {

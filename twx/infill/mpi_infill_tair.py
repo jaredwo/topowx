@@ -88,7 +88,7 @@ def proc_work(params,rank):
     empty_varpct = netCDF4.default_fillvals['f4']
     
     ds_nnr = NNRNghData(params[P_PATH_NNR], (params[P_START_YMD],params[P_END_YMD]))
-    aclib = clib_wxTopo(params[P_PATH_CLIB])
+    aclib = clib_wxTopo()
     
     bcast_msg = None
     bcast_msg = MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)
@@ -483,12 +483,11 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = '/projects/daymet2/station_data/all/tairHomog_1948_2012.nc'
-    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/infill_20130725/' 
+    params[P_PATH_DB] = '/projects/daymet2/station_data/all/all_1948_2012.nc'
+    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/' 
     params[P_PATH_NNR] = '/projects/daymet2/reanalysis_data/conus_subset/'
-    params[P_PATH_R_FUNCS] = '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/pca_infill.R'
-    params[P_PATH_CLIB] = '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C'
-    params[P_NCDF_MODE] = 'r+' #w or r+
+    params[P_PATH_R_FUNCS] = '/home/jared.oyler/repos/twx/twx/lib/rpy/pca_infill.R'
+    params[P_NCDF_MODE] = 'w' #w or r+
     params[P_START_YMD] = 19480101
     params[P_END_YMD] = 20121231
     params[P_CHK_MAE_IMPROVE] = False

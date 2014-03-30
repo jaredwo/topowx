@@ -305,7 +305,6 @@ class station_data_ncdb(object):
     
     def load_all_stn_obs_var(self, stn_ids, var, set_flagged_nan=True):
         
-        
         if isinstance(stn_ids, np.ndarray):
             
             num_stns = stn_ids.size 
@@ -345,8 +344,8 @@ class station_data_ncdb(object):
         if num_stns == 1:
             
             vals.shape = (vals.shape[0],)
-            flags.shape = (flags.shape[0],)
-
+            flags.shape = (flags.shape[0],)        
+        
         return vals, flags
     
     def get_stn_mean(self,tair_var,x=None):

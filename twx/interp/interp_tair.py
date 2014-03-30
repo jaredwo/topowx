@@ -644,6 +644,74 @@ class KrigTair(object):
         return tair_mean,tair_var
     
 
+class GwrTairNorm(object):
+    '''
+    A class for performing monthly normal interpolation using GWR 
+    to be used as a comparison to regression kriging.
+    '''
+    
+    
+    def __init__(self,stn_slct):
+        
+        self.stn_slct = stn_slct
+        self.r_gwr_func = ri.globalenv.get('gwr_meantair')
+        self.ci_critval = stats.norm.ppf(0.025)
+            
+    def std_err_ci(self,tair_mean,tair_var):
+        
+        std_err = np.sqrt(tair_var) if tair_var >= 0 else 0
+        ci_r = np.abs(std_err*self.ci_critval) 
+        
+        return std_err,(tair_mean-ci_r,tair_mean+ci_r)
+    
+    def __get_nnghs(self,pt,mth,stns_rm=None):
+        
+        self.stn_slct.set_ngh_stns(pt[LAT], pt[LON], DFLT_INIT_NNGHS, load_obs=False, stns_rm=stns_rm)
+        
+        indomain_mask = np.isfinite(self.stn_slct.ngh_stns[get_optim_varname(mth)])
+        domain_stns = self.stn_slct.ngh_stns[indomain_mask]
+        
+        if domain_stns.size == 0:
+            raise Exception("Cannot determine the optimal # of neighbors to use!")
+        
+        n_wgt = self.stn_slct.ngh_wgt[indomain_mask]
+                    
+        nnghs = np.int(np.round(np.average(domain_stns[get_optim_varname(mth)],weights=n_wgt)))
+        
+        return nnghs
+        
+    def gwr_predict(self,pt,mth,nnghs=None,stns_rm=None):
+        
+        if nnghs is None:
+            #Get the nnghs to use from the optimal values at surrounding stations
+            nnghs = self.__get_nnghs(pt,mth,stns_rm)
+        
+        self.stn_slct.set_ngh_stns(pt[LAT], pt[LON], nnghs, load_obs=False, stns_rm=stns_rm)
+        
+        nghs = self.stn_slct.ngh_stns
+
+        ngh_lon = ri.FloatSexpVector(nghs[LON])
+        ngh_lat = ri.FloatSexpVector(nghs[LAT])
+        ngh_elev = ri.FloatSexpVector(nghs[ELEV])
+        ngh_tdi = ri.FloatSexpVector(nghs[TDI])
+        ngh_lst = ri.FloatSexpVector(nghs[get_lst_varname(mth)])
+        ngh_tair = ri.FloatSexpVector(nghs[get_norm_varname(mth)])
+                
+        pt_svp = ri.FloatSexpVector((pt[LON],pt[LAT],pt[ELEV],pt[TDI],pt[get_lst_varname(mth)]))
+        
+        ngh_wgt = ri.FloatSexpVector(self.stn_slct.ngh_wgt)
+        
+        rslt = self.r_gwr_func(ngh_lon, ngh_lat, ngh_elev, ngh_tdi, ngh_lst, ngh_tair, ngh_wgt, pt_svp)
+      
+        tair_mean = rslt[0]
+        tair_var = rslt[1]
+        bad_interp = rslt[2]
+        
+        if bad_interp != 0:
+            print "".join(["ERROR: ",str(bad_interp)," bad interp: ",str(pt)])
+        
+        return tair_mean,tair_var
+
 class StationDataWrkChk(station_data_infill):
     '''
     A station_data class for accessing stations and observations from a single variable infilled netcdf weather station database.
