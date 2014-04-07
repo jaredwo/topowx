@@ -170,11 +170,12 @@ class XvalStnsTairSnotelRaws:
         min_obs = np.round(min_por_pct*stn_da.days.size)
         
         #Number of obs in period-of-record for each month and variable
-        por_cols = np.array([x[0] for x in POR_DTYPE])
+        por_cols = [x[0] for x in POR_DTYPE]
         cols_tmin = por_cols[6:18]
         cols_tmax = por_cols[18:30]
-        por_tmin = por[cols_tmin].view(np.int32).reshape((por.size,cols_tmin.size))
-        por_tmax = por[cols_tmax].view(np.int32).reshape((por.size,cols_tmax.size))
+        
+        por_tmin = por[cols_tmin].view(np.int32).reshape((por.size,len(cols_tmin)))
+        por_tmax = por[cols_tmax].view(np.int32).reshape((por.size,len(cols_tmax)))
         
         #Mask stations that have the min number of observations for both tmin and tmax
         mask_tmin = np.sum(por_tmin,axis=1)>=min_obs

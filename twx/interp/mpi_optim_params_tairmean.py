@@ -8,7 +8,8 @@ number of stations to use in each climate division.
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,NEON,MASK,BAD
+from twx.db.station_data import station_data_infill,STN_ID,NEON,MASK,BAD,\
+    DTYPE_INTERP
 from twx.utils.status_check import status_check
 from twx.db.all_create_db import dbDataset
 from netCDF4 import Dataset
@@ -47,8 +48,8 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    #optim = OptimKrigBwNstns(params[P_PATH_DB], params[P_VARNAME])
-    optim = OptimGwrNormBwNstns(params[P_PATH_DB], params[P_VARNAME])
+    optim = OptimKrigBwNstns(params[P_PATH_DB], params[P_VARNAME])
+    #optim = OptimGwrNormBwNstns(params[P_PATH_DB], params[P_VARNAME])
     
     bcast_msg = None
     MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)
@@ -84,7 +85,7 @@ def proc_write(params,nwrkers):
     stn_ids = bcast_msg
     print "Writer: Received broadcast msg"
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME],stn_dtype=DTYPE_INTERP)
     stn_mask = np.in1d(stn_da.stn_ids,stn_ids,True)
     stns = stn_da.stns[stn_mask]
     
@@ -142,7 +143,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
         
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME],stn_dtype=DTYPE_INTERP)
     mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD])) 
     stns = stn_da.stns[mask_stns]
         
@@ -224,11 +225,11 @@ if __name__ == '__main__':
 
     params = {}
     
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_gwr_norm/serial_tmin.nc"
-    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/serial_gwr_norm/xval/optimTairMean/tmin/xval_tmin_mean'   
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc"
+    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/xval/optimTairMean/tmax/xval_tmax_mean'   
     params[P_NGH_RNG] = build_min_ngh_windows(35, 150, 0.10)
     params[P_NGH_RNG_STEP] = .10 #in pct
-    params[P_VARNAME] = 'tmin'
+    params[P_VARNAME] = 'tmax'
     
     ds = Dataset(params[P_PATH_DB])
     divs = ds.variables['neon'][:]

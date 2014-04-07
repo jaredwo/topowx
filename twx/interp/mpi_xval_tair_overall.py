@@ -12,7 +12,7 @@ from twx.utils.status_check import status_check
 import netCDF4
 from netCDF4 import Dataset
 import rpy2.robjects as robjects
-from twx.interp.optimize import XvalTairOverall
+from twx.interp.optimize import XvalTairOverall, XvalGwrNormOverall
 r = robjects.r
 
 TAG_DOWORK = 1
@@ -53,7 +53,8 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    xval = XvalTairOverall(params[P_PATH_DB], params[P_VARNAME])
+    #xval = XvalTairOverall(params[P_PATH_DB], params[P_VARNAME])
+    xval = XvalGwrNormOverall(params[P_PATH_DB], params[P_VARNAME])
         
     while 1:
     
@@ -179,8 +180,8 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_nolst/serial_tmin.nc"
-    params[P_VARNAME] = 'tmin'
+    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_gwr_norm/serial_tmax.nc"
+    params[P_VARNAME] = 'tmax'
         
     if rank == RANK_COORD:        
         proc_coord(params, nsize-N_NON_WRKRS)

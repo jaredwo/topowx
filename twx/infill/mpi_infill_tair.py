@@ -487,7 +487,7 @@ if __name__ == '__main__':
     params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/' 
     params[P_PATH_NNR] = '/projects/daymet2/reanalysis_data/conus_subset/'
     params[P_PATH_R_FUNCS] = '/home/jared.oyler/repos/twx/twx/lib/rpy/pca_infill.R'
-    params[P_NCDF_MODE] = 'w' #w or r+
+    params[P_NCDF_MODE] = 'r+' #w or r+
     params[P_START_YMD] = 19480101
     params[P_END_YMD] = 20121231
     params[P_CHK_MAE_IMPROVE] = False

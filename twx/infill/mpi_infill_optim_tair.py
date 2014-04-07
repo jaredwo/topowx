@@ -25,6 +25,9 @@ from scipy import stats
 from httplib import HTTPException
 from twx.interp.clibs import clib_wxTopo
 from twx.infill.random_xval_stations import XvalStnsTairSnotelRaws
+import twx.utils.util_dates as utld
+from twx.utils.util_dates import DATE
+from netCDF4 import date2num
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -63,6 +66,8 @@ P_PPCA_VARYEXPLAIN = 'P_PPCA_VARYEXPLAIN'
 P_CHCK_IMP_PERF = 'P_CHCK_IMP_PERF'
 P_NPCS_PPCA = 'P_NPCS_PPCA'
 
+NODATA = -9999
+
 class Unbuffered:
     def __init__(self, stream):
         self.stream = stream
@@ -93,16 +98,18 @@ def proc_work(params,rank):
     stn_ids,xval_masks_tmin,xval_masks_tmax = bcast_msg
     xval_masks = {'tmin':xval_masks_tmin,'tmax':xval_masks_tmax}
     
-    aclib = clib_wxTopo('/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C')
+    aclib = clib_wxTopo()
     
     print "".join(["Worker ",str(rank),": Received broadcast msg"])
+    
+    empty = np.ones(stn_da.days.size)*np.nan
         
     while 1:
     
         stn_id,nnghs,tair_var = MPI.COMM_WORLD.recv(source=RANK_COORD,tag=MPI.ANY_TAG,status=status)
         
         if status.tag == TAG_STOPWORK:
-            MPI.COMM_WORLD.send([None]*6, dest=RANK_WRITE, tag=TAG_STOPWORK)
+            MPI.COMM_WORLD.send([None]*4, dest=RANK_WRITE, tag=TAG_STOPWORK)
             print "".join(["Worker ",str(rank),": Finished"]) 
             return 0
         else:
@@ -128,7 +135,7 @@ def proc_work(params,rank):
                 
                 a_pca_matrix = ImputeMatrixPCA(stn_id, stn_da, tair_var,ds_nnr,aclib,tair_mask=tair_mask)
                             
-                fit_tair =  a_pca_matrix.impute(min_daily_nnghs=nnghs,
+                imp_tair =  a_pca_matrix.impute(min_daily_nnghs=nnghs,
                                                 nnghs_nnr=params[P_NNGH_NNR],
                                                 max_nnr_var=params[P_NNR_VARYEXPLAIN],
                                                 chk_perf=params[P_CHCK_IMP_PERF],
@@ -136,36 +143,34 @@ def proc_work(params,rank):
                                                 frac_obs_initnpcs=params[P_FRACOBS_INIT_PCS],
                                                 ppca_varyexplain=params[P_PPCA_VARYEXPLAIN])[0]   
                 
-                xval_fit = fit_tair[tair_mask]
-                xval_obs = obs_tair[tair_mask]
+#                xval_fit = fit_tair[tair_mask]
+#                xval_obs = obs_tair[tair_mask]
                 
-                mae = np.mean(np.abs(xval_fit-xval_obs))
-                bias = np.mean(xval_fit-xval_obs)
-                r_value = stats.linregress(xval_fit, xval_obs)[2]
-                var_pct = r_value**2 #r-squared value; variance explained
+                imp_tair[~tair_mask] = np.nan
+                obs_tair[~tair_mask] = np.nan
                 
+#                mae = np.mean(np.abs(xval_fit-xval_obs))
+#                bias = np.mean(xval_fit-xval_obs)
+#                r_value = stats.linregress(xval_fit, xval_obs)[2]
+#                var_pct = r_value**2 #r-squared value; variance explained
+#                
                 #Reset mean and var
                 stn_da.stns["_".join(["mean",tair_var])][i] = norm_orig
                 stn_da.stns["_".join(["var",tair_var])][i] = va_orig
-
-                #var_tmin_obs = np.var(xval_obs,ddof=1)
-                #var_tmin_fit = np.var(xval_fit,ddof=1)
-                #var_pct = (var_tmin_fit/var_tmin_obs)*100.
             
             except Exception as e:
             
                 print "".join(["ERROR: Worker ",str(rank),": could not infill ",
                                tair_var," for ",stn_id," with ",str(nnghs)," nghs...",str(e)])
                 
-                mae = netCDF4.default_fillvals['f4']
-                bias = netCDF4.default_fillvals['f4']
-                var_pct = netCDF4.default_fillvals['f4']
+                imp_tair = empty
+                obs_tair = empty
                 #Reset mean and var
                 stn_da.stns["_".join(["mean",tair_var])][i] = norm_orig
                 stn_da.stns["_".join(["var",tair_var])][i] = va_orig
             
             
-            MPI.COMM_WORLD.send((stn_id,tair_var,nnghs,mae,bias,var_pct), dest=RANK_WRITE, tag=TAG_DOWORK)
+            MPI.COMM_WORLD.send((stn_id,tair_var,imp_tair,obs_tair), dest=RANK_WRITE, tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
                 
 def proc_write(params,nwrkers):
@@ -183,28 +188,33 @@ def proc_write(params,nwrkers):
         ds = create_ncdf(params,stn_ids)
         print "Writer: Output NCDF file created"
         ttl_infills = params[P_NGH_RNG].size * stn_ids.size * 2
-    
+            
     else:
         
         ds = Dataset(params[P_PATH_OUT],"r+")
-        mask_ic = ds.variables['var_pct'][:].mask
-        ttl_infills = np.sum(mask_ic)
+        ttl_infills = params[P_NGH_RNG].size * stn_ids.size * 2
+        
+        stn_ids = ds.variables[STN_ID][:].astype("<S16")
+        #mask_ic = ds.variables['var_pct'][:].mask
+        #ttl_infills = np.sum(mask_ic)
+        
         
     stn_idxs = {}
     for x in np.arange(stn_ids.size):
         stn_idxs[stn_ids[x]] = x
-    
-    ngh_idxs = {}
-    for x in np.arange(params[P_NGH_RNG].size):
-        ngh_idxs[params[P_NGH_RNG][x]] = x
         
-    tair_idxs = {'tmin':0,'tmax':1}
+        
+
     
+#    ngh_idxs = {}
+#    for x in np.arange(params[P_NGH_RNG].size):
+#        ngh_idxs[params[P_NGH_RNG][x]] = x
+            
     stat_chk = status_check(ttl_infills,10)
     
     while 1:
 
-        stn_id,tair_var,min_nghs,mae,bias,var_pct = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
+        stn_id,tair_var,imp_tair,obs_tair = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
         
         if status.tag == TAG_STOPWORK:
             
@@ -214,15 +224,18 @@ def proc_write(params,nwrkers):
                 return 0
         else:
             
-            dim1 = tair_idxs[tair_var]
-            dim2 = ngh_idxs[min_nghs]
-            dim3 = stn_idxs[stn_id]
+            imp_tair = np.ma.masked_array(imp_tair,np.isnan(imp_tair))
+            obs_tair = np.ma.masked_array(obs_tair,np.isnan(obs_tair))
             
-            print "|".join(["WRITER",stn_id,tair_var,str(min_nghs),"%.4f"%(mae,),"%.4f"%(bias,),"%.4f"%(var_pct,)])
+            #dim1 = tair_idxs[tair_var]
+            #dim2 = ngh_idxs[min_nghs]
+            dim2 = stn_idxs[stn_id]
             
-            ds.variables['mae'][dim1,dim2,dim3] = mae
-            ds.variables['bias'][dim1,dim2,dim3] = bias
-            ds.variables['var_pct'][dim1,dim2,dim3] = var_pct
+            #print "|".join(["WRITER",stn_id,tair_var,str(min_nghs),"%.4f"%(mae,),"%.4f"%(bias,),"%.4f"%(var_pct,)])
+            print "|".join(["WRITER",stn_id,tair_var])
+            ds.variables["obs_%s"%(tair_var)][:,dim2] = np.ma.filled(obs_tair, NODATA)
+            ds.variables["imp_%s"%(tair_var)][:,dim2] = np.ma.filled(imp_tair, NODATA)
+            
             ds.sync()
             
             stat_chk.increment()
@@ -323,7 +336,7 @@ def proc_coord_hcn(params,nwrkers):
         fnl_stn_ids = np.array(fnl_stn_ids)
         fnl_stn_ids = stn_da.stn_ids[np.in1d(stn_da.stn_ids, fnl_stn_ids, assume_unique=True)]
     
-    elif params[P_NCDF_MODE] == "r+":
+    elif params[P_INCLUDE_STNIDS] is None and params[P_NCDF_MODE] == "r+":
         
         ds_out = Dataset(params[P_PATH_OUT])
         fnl_stn_ids = np.array(ds_out.variables['stn_id'][:],dtype="<S16")
@@ -383,7 +396,7 @@ def proc_coord_hcn(params,nwrkers):
         
         for min_ngh in params[P_NGH_RNG]:
             
-            for tair_var in ['tmin','tmax']:
+            for tair_var in ['tmax']:#,'tmax']:
                 
                 send_work = True
                 if mask_ic is not None:
@@ -458,10 +471,8 @@ def proc_coord(params,nwrkers):
 def create_ncdf(params,stn_ids):
     
     path = params[P_PATH_OUT]
-    min_ngh_rng = params[P_NGH_RNG]
     
     ncdf_file = Dataset(path,'w')
-    
     
     cmts = ''
     
@@ -472,6 +483,10 @@ def create_ncdf(params,stn_ids):
             cmts = "".join([cmts,"|",key,": ",str(val)])
             
     
+    date_start = utld.ymdL_to_date(params[P_START_YMD])
+    date_end = utld.ymdL_to_date(params[P_END_YMD])
+    days = utld.get_days_metadata(date_start, date_end)
+    
     #Set global attributes
     title = "INFILL EXTRAPOLATION TESTING"
     ncdf_file.title = title
@@ -479,41 +494,26 @@ def create_ncdf(params,stn_ids):
     ncdf_file.history = "".join(["Created on: ",datetime.datetime.strftime(datetime.date.today(),"%Y-%m-%d")]) 
     ncdf_file.comments = cmts
     
-    dim_ngh = ncdf_file.createDimension('min_nghs',min_ngh_rng.size)
-    dim_station = ncdf_file.createDimension('stn_id',stn_ids.size)
-    dim_tair = ncdf_file.createDimension('tair_var',2)
+    ncdf_file.createDimension('time',days.size)
+    ncdf_file.createDimension('stn_id',stn_ids.size)
     
-    nghs = ncdf_file.createVariable('min_nghs','i4',('min_nghs',),fill_value=False)
-    nghs.long_name = "min_nghs"
-    nghs.standard_name = "min_nghs"
-    nghs[:] = min_ngh_rng
+    times = ncdf_file.createVariable('time','f8',('time',),fill_value=False)
+    times.long_name = "time"
+    times.units = "".join(["days since ",str(date_start.year),"-",str(date_start.month),"-",str(date_start.day)," 0:0:0"])
+    times.standard_name = "time"
+    times.calendar = "standard"
+    times[:] = date2num(days[DATE],times.units)
     
     stations = ncdf_file.createVariable('stn_id','str',('stn_id',))
     stations.long_name = "station id"
     stations.standard_name = "station id"
     stations[:] = np.array(stn_ids,dtype=np.object)
     
-    tair_var = ncdf_file.createVariable('tair_var','str',('tair_var',))
-    tair_var.long_name = "tair_var"
-    tair_var.standard_name = "tair_var"
-    tair_var[0] = 'tmin'
-    tair_var[1] = 'tmax'
-    
-    mae_var = ncdf_file.createVariable('mae','f4',('tair_var','min_nghs','stn_id'))
-    mae_var.long_name = "mae"
-    mae_var.standard_name = "mae"
-    mae_var.missing_value = netCDF4.default_fillvals['f4']
-    
-    bias_var = ncdf_file.createVariable('bias','f4',('tair_var','min_nghs','stn_id'))
-    bias_var.long_name = "bias"
-    bias_var.standard_name = "bias"
-    bias_var.missing_value = netCDF4.default_fillvals['f4']
-    
-    var_pct_var = ncdf_file.createVariable('var_pct','f4',('tair_var','min_nghs','stn_id'))
-    var_pct_var.long_name = "var_pct"
-    var_pct_var.standard_name = "var_pct"
-    var_pct_var.missing_value = netCDF4.default_fillvals['f4']
-    
+    ncdf_file.createVariable('obs_tmin',np.float32,('time','stn_id'),fill_value=NODATA)
+    ncdf_file.createVariable('obs_tmax',np.float32,('time','stn_id'),fill_value=NODATA)
+    ncdf_file.createVariable('imp_tmin',np.float32,('time','stn_id'),fill_value=NODATA)
+    ncdf_file.createVariable('imp_tmax',np.float32,('time','stn_id'),fill_value=NODATA)
+        
     ncdf_file.sync()
     
     return ncdf_file
@@ -544,11 +544,11 @@ if __name__ == '__main__':
     params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/xval_impute_homog_tair_hcn.nc'
     params[P_PATH_POR] = '/projects/daymet2/station_data/all/tairHomog_por_1948_2012.csv'
     params[P_PATH_NEON] =  '/projects/daymet2/dem/fwpusgs_lcc_impxval.nc'
-    params[P_PATH_R_FUNCS] = ['/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/pca_infill.R',
-                              '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/imputation.R']
+    params[P_PATH_R_FUNCS] = ['/home/jared.oyler/repos/twx/twx/lib/rpy/pca_infill.R',
+                              '/home/jared.oyler/repos/twx/twx/lib/rpy/imputation.R']
     params[P_PATH_NNR] = '/projects/daymet2/reanalysis_data/conus_subset/'
     
-    params[P_MIN_POR_PCT] = 0.90#0.90 for HCN, 0.31 for SNOTEL/RAWS
+    params[P_MIN_POR_PCT] = 0.31#0.90 for HCN, 0.31 for SNOTEL/RAWS
     params[P_STNS_PER_RGN] = 15
     params[P_NYRS_MOD] = 5
     params[P_NGH_RNG] = np.array([3])
@@ -570,7 +570,9 @@ if __name__ == '__main__':
         params[P_EXCLUDE_STNIDS] = np.array([])
         params[P_INCLUDE_STNIDS] = None
         
-        params[P_INCLUDE_STNIDS] = np.unique(np.loadtxt('/projects/daymet2/station_data/ghcn/hcnXvalStns.txt',dtype=np.str))
+        params[P_INCLUDE_STNIDS] = np.array(['GHCN_USC00115079','GHCN_USC00243110'])
+        
+        #params[P_INCLUDE_STNIDS] = np.unique(np.loadtxt('/projects/daymet2/station_data/ghcn/hcnXvalStns.txt',dtype=np.str))
         
 #        ds = Dataset('/projects/daymet2/station_data/infill/xval_impute_norm.nc')
 #        params[P_INCLUDE_STNIDS] = np.array(ds.variables['stn_id'][:],dtype="<S16")

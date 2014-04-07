@@ -173,7 +173,7 @@ def runTwxInterps():
     ptInterp = None
     tagg = None
     stns = None
-    pool = Pool(10)#, initializer=initPtInterp)
+    pool = Pool(15)#, initializer=initPtInterp)
     
     #aPtInterp = it.buildDefaultPtInterp(norms_only=True) 
     #aTagg = TairAggregate(aPtInterp.stn_da_tmax.days)
@@ -211,9 +211,9 @@ def runTwxInterps():
     pool.close()
     pool.join()
     
-    np.save('/projects/daymet2/ds_compare/normals/all_stns_twxnolst_stnids.npy', astns[STN_ID])
-    np.save('/projects/daymet2/ds_compare/normals/all_stns_twxnolst_norms_tmin.npy', tminNorms)
-    np.save('/projects/daymet2/ds_compare/normals/all_stns_twxnolst_norms_tmax.npy', tmaxNorms)
+    np.save('/projects/daymet2/docs/final_writeup/fnl_uploads/norms_compare/wus_stns_twxnolst_stnids.npy', astns[STN_ID])
+    np.save('/projects/daymet2/docs/final_writeup/fnl_uploads/norms_compare/wus_twxnolst_norms_tmin.npy', tminNorms)
+    np.save('/projects/daymet2/docs/final_writeup/fnl_uploads/norms_compare/wus_twxnolst_norms_tmax.npy', tmaxNorms)
 #    np.save('/projects/daymet2/ds_compare/normals/twxxval_mthly_tmin.npy', tminMthly)
 #    np.save('/projects/daymet2/ds_compare/normals/twxxval_mthly_tmax.npy', tmaxMthly)
 
@@ -318,8 +318,8 @@ def get_twx_stns():
     stndaTmax = station_data_infill(PATH_STNDB_SERIAL_TMAX, 'tmax')
     stndaTmin = station_data_infill(PATH_STNDB_SERIAL_TMIN, 'tmin')
     
-    stnsTmin = stndaTmin.stns[np.logical_and(np.isfinite(stndaTmin.stns[MASK]),np.isnan(stndaTmin.stns[BAD])) ]
-    stnsTmax = stndaTmax.stns[np.logical_and(np.isfinite(stndaTmax.stns[MASK]),np.isnan(stndaTmax.stns[BAD])) ]
+    stnsTmin = stndaTmin.stns[np.logical_and(np.logical_and(np.isfinite(stndaTmin.stns[MASK]),np.isnan(stndaTmin.stns[BAD])),stndaTmin.stns[LON]<=-103) ]
+    stnsTmax = stndaTmax.stns[np.logical_and(np.logical_and(np.isfinite(stndaTmax.stns[MASK]),np.isnan(stndaTmax.stns[BAD])),stndaTmax.stns[LON]<=-103) ]
     
     stns = stnsTmax
     stnsTmin = stnsTmin[~np.in1d(stnsTmin[STN_ID], stns[STN_ID], True)]

@@ -526,7 +526,6 @@ def build_serial_complete_ds(ds_in,tair_var,out_path):
             mtair_stn = ds_in.variables["".join([tair_var,"_mean"])][x]
             
         #ctair_stn = tair_stn.astype(np.float64) - mtair_stn
-            
         ds_out.variables[tair_var][:,x] = tair_stn
         #ds_out.variables["".join([tair_var,"_center"])][:,x] = ctair_stn
         ds_out.variables['flag_impute'][:,x] = flag_stn
@@ -851,28 +850,26 @@ def updateImputeDaily():
     LAST_VAR_WRITTEN = 'nnghs'
     
     params = {}
-    params[P_PATH_DB] = '/projects/daymet2/station_data/all/tairHomog_1948_2012.nc'
-    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/infill_20130725/' 
+    params[P_PATH_DB] = '/projects/daymet2/station_data/all/all_1948_2012.nc'
+    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/' 
     params[P_PATH_NNR] = '/projects/daymet2/reanalysis_data/conus_subset/'
-    params[P_PATH_R_FUNCS] = ['/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/pca_infill.R',
-                              '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/imputation.R']
-    params[P_PATH_CLIB] = '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C'
+    params[P_PATH_R_FUNCS] = '/home/jared.oyler/repos/twx/twx/lib/rpy/pca_infill.R'
     params[P_START_YMD] = 19480101
     params[P_END_YMD] = 20121231
-    params[P_MIN_NNGH_DAILY] = 3
+    params[P_MIN_NNGH_DAILY] = 7
     params[P_NNGH_NNR] = 4
     params[P_NNR_VARYEXPLAIN] = 0.99
-    params[P_FRACOBS_INIT_PCS] = 0.75
+    params[P_FRACOBS_INIT_PCS] = 0.5
     params[P_PPCA_VARYEXPLAIN] = 0.99
-    params[P_CHCK_IMP_PERF] = False
-    params[P_NPCS_PPCA] = 12
+    params[P_CHCK_IMP_PERF] = True
+    params[P_NPCS_PPCA] = 0
     
-    for path in params[P_PATH_R_FUNCS]:    
-        source_r(path)
+
+    source_r(params[P_PATH_R_FUNCS])
     
-    stn_id = 'GHCN_CA004026480'
+    stn_id = 'GHCN_USW00012924'
     tair_var = 'tmax'
-    ppcaConThres=1e-8
+    ppcaConThres=1e-5
     runUpdate = True
     tair_mask = None
     
@@ -891,7 +888,7 @@ def updateImputeDaily():
     plt.show()
     
     ds_nnr = NNRNghData(params[P_PATH_NNR], (params[P_START_YMD],params[P_END_YMD]))
-    aclib = clib_wxTopo(params[P_PATH_CLIB])
+    aclib = clib_wxTopo()
     
     
     a_pca_matrix = ImputeMatrixPCA(stn_id, stn_da, tair_var,ds_nnr,aclib,tair_mask=tair_mask)
@@ -1232,14 +1229,14 @@ if __name__ == '__main__':
 #################################################################################################################
 #CREATE A FINAL SERIALLY COMPLETE TMIN DATASET FROM IMPUTED/INFILLED STATIONS
 #################################################################################################################   
-#    ds_tmin = Dataset('/projects/daymet2/station_data/infill/infill_20130725/infill_tmin.nc')
-#    build_serial_complete_ds(ds_tmin, 'tmin', '/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc')
+#    ds_tmin = Dataset('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/infill_tmin.nc')
+#    build_serial_complete_ds(ds_tmin, 'tmin', '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmin.nc')
 #################################################################################################################   
 #################################################################################################################
 #CREATE A FINAL SERIALLY COMPLETE TMAX DATASET FROM IMPUTED/INFILLED STATIONS
 #################################################################################################################  
-#    ds_tmax = Dataset('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc')
-#    build_serial_complete_ds(ds_tmax, 'tmax', '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc')
+#    ds_tmax = Dataset('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/infill_tmax.nc')
+#    build_serial_complete_ds(ds_tmax, 'tmax', '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc')
 #################################################################################################################
 #Perform any one off updates
 #    update_serial_complete_ds('/projects/daymet2/station_data/infill/infill_fnl/infill_tmin.nc',
@@ -1255,11 +1252,24 @@ if __name__ == '__main__':
 #################################################################################################################
 # 2.) STEP 2: Mark any stations that should not be used
 #################################################################################################################
-#    ds_path_tmin = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc'
-#    ds_path_tmax = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc'
-#    rm_stns = np.loadtxt('/projects/daymet2/station_data/infill/infill_20130725/BadStns.csv',delimiter=",",dtype=np.str,skiprows=1,usecols=(0,))
-#    rm_ids = np.unique(rm_stns)
-#    print rm_stns.size,rm_ids.size
+
+#    ds_path_tmin = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmin.nc'
+#    ds_path_tmax = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc'
+#    
+#    stnda_tmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
+#    stnda_tmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
+#    
+#    rm_ids = np.concatenate((stnda_tmin.stn_ids[np.isfinite(stnda_tmin.stns[BAD])],stnda_tmax.stn_ids[np.isfinite(stnda_tmax.stns[BAD])]))
+#    rm_ids = np.unique(rm_ids)
+#    
+#    stnda_tmin = None
+#    stnda_tmax = None
+#    
+##    ds_path_tmin = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc'
+##    ds_path_tmax = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc'
+##    rm_stns = np.loadtxt('/projects/daymet2/station_data/infill/infill_20130725/BadStns.csv',delimiter=",",dtype=np.str,skiprows=1,usecols=(0,))
+##    rm_ids = np.unique(rm_stns)
+#    print rm_ids.size
 #    set_rm_bad_stations(rm_ids, ds_path_tmin)
 #    set_rm_bad_stations(rm_ids, ds_path_tmax)
 
@@ -1297,7 +1307,10 @@ if __name__ == '__main__':
 #################################################################################################################
 #    ds_path_tmin = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc'
 #    ds_path_tmax = '/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc'
-#
+#    ds_path_tmin = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmin.nc'
+#    ds_path_tmax = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc'
+
+
 #TMIN LST
 #    name = 'land surface temperature'
 #    units = "C"
@@ -1366,5 +1379,5 @@ if __name__ == '__main__':
 #    add_ann_means('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
 #    add_ann_means('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
 
-    add_monthly_norms('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc','tmin', 1981, 2010)
-    add_monthly_norms('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc','tmax', 1981, 2010)
+    add_monthly_norms('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmin.nc','tmin', 1981, 2010)
+    add_monthly_norms('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc','tmax', 1981, 2010)

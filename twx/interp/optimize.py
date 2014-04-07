@@ -7,7 +7,7 @@ Created on Sep 25, 2013
 import numpy as np
 from twx.db.station_data import station_data_infill,STN_ID,BAD,get_norm_varname,LAT,LON,\
     get_optim_varname, get_optim_anom_varname, get_lst_varname,DTYPE_STN_BASIC,MASK,TDI,BAD,NEON,DTYPE_NORMS,DTYPE_LST,\
-    DTYPE_INTERP_OPTIM, DTYPE_INTERP_OPTIM_ALL
+    DTYPE_INTERP_OPTIM, DTYPE_INTERP_OPTIM_ALL, DTYPE_INTERP
 from twx.interp.station_select import StationSelect
 import twx.interp.interp_tair as it
 import cProfile
@@ -24,7 +24,7 @@ class OptimKrigBwNstns(object):
 
     def __init__(self,pathDb,tairVar):
                 
-        stn_da = station_data_infill(pathDb, tairVar)
+        stn_da = station_data_infill(pathDb, tairVar,stn_dtype=DTYPE_INTERP)
         mask_stns = np.isnan(stn_da.stns[BAD])         
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
                      
@@ -321,6 +321,51 @@ class XvalTairOverall():
         r_value = stats.linregress(tair_daily, xval_obs)[2]
         r2Dly[-1] = r_value**2
         
+        return biasNorm,maeNorm,maeDly,biasDly,r2Dly,tair_se
+
+class XvalGwrNormOverall(object):
+    '''
+    classdocs
+    '''
+
+    def __init__(self,pathDb,tairVar):
+                
+        stn_da = station_data_infill(pathDb, tairVar)
+        mask_stns = np.isnan(stn_da.stns[BAD])         
+        stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
+                     
+        self.gwr_norm = it.GwrTairNorm(stn_slct)
+        self.stn_da = stn_da
+        self.blank_err = np.zeros(13)
+        
+    def run_xval(self,stnId):
+        
+        xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stnId]]
+        
+        xval_norms = np.array([xval_stn[get_norm_varname(mth)] for mth in np.arange(1,13)])
+        xval_norms = np.concatenate((xval_norms,np.array([np.mean(xval_norms)])))
+        
+        interp_norms = np.zeros(13)
+        interp_se = np.zeros(12)
+           
+        for i in np.arange(12):
+        
+            mth = i+1
+            interp_mth,vary_mth = self.gwr_norm.gwr_predict(xval_stn, mth, stns_rm=xval_stn[STN_ID])
+            interp_norms[i] = interp_mth
+            interp_se[i] = np.sqrt(vary_mth) if vary_mth >= 0 else 0
+        
+        interp_norms[-1] = np.mean(interp_norms[0:12])
+    
+        err = interp_norms - xval_norms
+        
+        biasNorm = err
+        maeNorm = np.abs(err)
+        maeDly = self.blank_err
+        biasDly = self.blank_err
+        r2Dly = self.blank_err
+        tair_se = interp_se
+         
         return biasNorm,maeNorm,maeDly,biasDly,r2Dly,tair_se
 
 def perfXvalTairOverall():
