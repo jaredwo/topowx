@@ -153,6 +153,7 @@ def crop_nodata(fpath,fpath_out,data_mask=None):
         mask_nd = a != ndata
     else:
         mask_nd = data_mask
+        a[~data_mask] = ndata
     
     nonzero_rows,nonzero_cols = np.nonzero(mask_nd)
     nonzero_rows = np.unique(nonzero_rows)

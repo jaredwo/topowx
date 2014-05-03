@@ -19,7 +19,101 @@ import brewer2mpl
 import shapefile
 from matplotlib.collections import LineCollection
 from pyhdf.SD import SD, SDC
+import os
+import gdalconst
+from twx.modis.clip_raster import crop_nodata
+import matplotlib
 
+cdict = {'red':[(0.0,   194/255.0,      194/255.0),
+                (0.2,   237.0/255.0,    237.0/255.0),
+                (0.4,   255.0/255.0,    255.0/255.0),
+                (0.6,   0.0/255.0,      0.0/255.0),
+                (0.8,   32.0/255.0,     32.0/255.0),
+                (1.0,   11.0/255.0,     11.0/255.0)],
+     'green': [ (0.0,   80/255.0,       80/255.0),
+                (0.2,   161/255.0,      161/255.0),
+                (0.4,   255.0/255.0,    255.0/255.0),
+                (0.6,   219.0/255.0,    219.0/255.0),
+                (0.8,   153.0/255.0,    153.0/255.0),
+                (1.0,   44.0/255.0,     44.0/255.0)],
+     'blue': [  (0.0,   60/255.0,       60/255.0),
+                (0.2,   19/255.0,       19/255.0),
+                (0.4,   0.0/255.0,      0.0/255.0),
+                (0.6,   0.0/255.0,      0.0/255.0),
+                (0.8,   143.0/255.0,    143.0/255.0),
+                (1.0,   122.0/255.0,    122.0/255.0)]}
+
+def reverseCmapDict(cdict):
+    cdict_r = {}
+    
+    r = np.array(cdict['red'])
+    r[:,1] = r[:,1][::-1]
+    r[:,2] = r[:,2][::-1]
+    
+    g = np.array(cdict['green'])
+    g[:,1] = g[:,1][::-1]
+    g[:,2] = g[:,2][::-1]
+    
+    b = np.array(cdict['blue'])
+    b[:,1] = b[:,1][::-1]
+    b[:,2] = b[:,2][::-1]
+    
+    cdict_r['red'] = [tuple(x) for x in tuple(r)]
+    cdict_r['green'] = [tuple(x) for x in tuple(g)]
+    cdict_r['blue'] = [tuple(x) for x in tuple(b)]
+    
+    return cdict_r
+
+#CMAP_ESRI_PRCP = matplotlib.colors.LinearSegmentedColormap('prcp',reverseCmapDict(cdict),256)
+CMAP_ESRI_PRCP = matplotlib.colors.LinearSegmentedColormap('prcp',cdict,256)
+
+def dsi_hdf_to_tif():
+    
+    path_hdf = '/projects/daymet2/docs/dsi_presentation/dsi_data'
+    path_out = '/projects/daymet2/docs/dsi_presentation/dsi_data/tifs/'
+    fpath_mask = '/projects/daymet2/docs/noaa_proposal/montana_mask.tif'
+    
+    ds_mask = RasterDataset(fpath_mask)
+    geot = ds_mask.geoT
+    proj = ds_mask.projection
+    
+    for yr in np.arange(2000,2012):
+        
+        print yr
+        sd = SD(os.path.join(path_hdf,'DSI_05deg_%d.hdf'%(yr,)),SDC.READ)
+        dsi = sd.select('ET_1km')[:]
+        fval = sd.select('ET_1km').attributes()['_FillValue']
+        
+        ds_out = gdal.GetDriverByName('GTiff').Create(  os.path.join(path_out,'DSI_05deg_%d.tif'%(yr,)), 
+                                                        ds_mask.cols, 
+                                                        ds_mask.rows, 1, gdalconst.GDT_Float32)
+    
+        ds_out.SetGeoTransform(geot)
+        ds_out.SetProjection(proj)
+        
+        band_out = ds_out.GetRasterBand(1)
+        #band_out.Fill(fval)
+        band_out.SetNoDataValue(fval)
+        band_out.WriteArray(dsi)
+        
+        ds_out.FlushCache()
+
+def dsi_crop_montana():
+    
+    path_out = '/projects/daymet2/docs/dsi_presentation/dsi_data/tifs/'
+    path_in = '/projects/daymet2/docs/dsi_presentation/dsi_data/tifs/'
+    fpath_mask = '/projects/daymet2/docs/noaa_proposal/montana_mask.tif'
+    
+    ds_mask = RasterDataset(fpath_mask)
+    mask = ds_mask.readAsArray().data == 1 
+    
+    for yr in np.arange(2000,2012):
+        
+        print yr
+        crop_nodata(os.path.join(path_in,'DSI_05deg_%d.tif'%(yr,)), 
+                    os.path.join(path_out,'Montana_DSI_05deg_%d.tif'%(yr,)), 
+                    mask)
+    
 
 def plotDsiSeries():
     '/MODIS/NTSG_Products/DSI/Annual/DSI_05deg_2000.hdf'
@@ -469,7 +563,146 @@ def plotMerraVsTwx():
     #plt.savefig()
     plt.show()
 
+def plot_montana_dsi_all_yrs():
+    
+    path_dsi = '/projects/daymet2/docs/dsi_presentation/dsi_data/tifs/'
+    
+    dsi_yrs = []
+    yrs = np.arange(2000,2012)
+    
+    for yr in yrs:
+        ds_dsi = RasterDataset(os.path.join(path_dsi,'Montana_DSI_05deg_%d.tif'%(yr,)))
+        dsi = ds_dsi.readAsArray()
+        dsi_yrs.append(dsi)
+    
+    dsDsi = RasterDataset('/projects/daymet2/docs/noaa_proposal/DSI_2007225.tif')
+    dsi = dsDsi.readAsArray()
+    
+    #levels = [-0.3,-0.7,-9,-1.2,-1.5]
+    levels = np.array([np.min(dsi),-1.5,-1.2,-.9,-0.7,-0.3,np.max(dsi)])
+    midPts = (levels[0:-1] + np.diff(levels, 1)/2.0)
+    
+    clrs = brewer2mpl.get_map('RdYlGn', 'Diverging', 11, reverse=False)
+    cmap = clrs.get_mpl_colormap()
+    clrs = clrs.mpl_colors
+    levels = np.linspace(-1.5,1.5,11)
+    
+    dsGrid = dsDsi
+    lat,lon = dsGrid.getCoordGrid1d()
+    buf = 0.25
+    llcrnrlat=np.min(lat-buf)
+    urcrnrlat=np.max(lat+buf)
+    llcrnrlon=np.min(lon-buf)
+    urcrnrlon=np.max(lon+buf*4)
+
+    print "Mapping data...."
+    m = Basemap(resolution='h',projection='tmerc', llcrnrlat=llcrnrlat,urcrnrlat=urcrnrlat,
+                llcrnrlon=llcrnrlon,urcrnrlon=urcrnrlon,lon_0=-111,lat_0=0)
+    xMap, yMap = m(*np.meshgrid(lon,lat))
+    
+  
+    cf = plt.gcf()
+    grid = ImageGrid(cf,111,nrows_ncols=(4,3),cbar_mode="single",cbar_location="right",axes_pad=0.05,cbar_pad=0.05,cbar_size="1.5%")
+    
+    for x in np.arange(12):
+        
+        m.ax = grid[x]
+        cf = m.contourf(xMap,yMap,dsi_yrs[x],cmap=cmap,levels=levels,extend='both')
+        m.drawcountries()
+        m.drawstates()
+        #grid[x].set_title(str(yrs[x]))
+        
+        plt.sca(grid[x])
+
+        plt.text(107088-80000,140951-100000,str(yrs[x]),fontsize=16)
+        
+        if x == 0:
+    
+            cbar = plt.colorbar(cf, cax = grid.cbar_axes[0])
+            cbar.set_ticks(levels)
+            cbar.ax.set_ylabel("DSI",fontsize=16)
+            #cbar.set_ticklabels(["Normal/\nWet","D0","D1","D2","D3","D4"][::-1])
+            #cbar.set_alpha(1)
+            #cbar.draw_all()
+        #cbar.set_label(r'Tmin ($^\circ$C)')
+        print x
+    
+    plt.show()
+
+def plot_ndvi():
+    ds_ndvi = RasterDataset('/projects/daymet2/docs/dsi_presentation/NDVI225_mean_wgs84.tif')
+    ndvi = ds_ndvi.readAsArray()
+    
+    dsDsi = RasterDataset('/projects/daymet2/docs/noaa_proposal/DSI_2007225.tif')
+    lat,lon = dsDsi.getCoordGrid1d()
+    buf = 0.25
+    llcrnrlat=np.min(lat-buf)
+    urcrnrlat=np.max(lat+buf)
+    llcrnrlon=np.min(lon-buf)
+    urcrnrlon=np.max(lon+buf*4)
+
+    print "Mapping data...."
+    lat,lon = ds_ndvi.getCoordGrid1d()
+    m = Basemap(resolution='h',projection='tmerc', llcrnrlat=llcrnrlat,urcrnrlat=urcrnrlat,
+                llcrnrlon=llcrnrlon,urcrnrlon=urcrnrlon,lon_0=-111,lat_0=0)
+    xMap, yMap = m(*np.meshgrid(lon,lat))
+    
+  
+    cf = plt.gcf()
+    grid = ImageGrid(cf,111,nrows_ncols=(1,1),cbar_mode="single",cbar_location="right",axes_pad=0.05,cbar_pad=0.05,cbar_size="1.5%")
+    
+    m.ax = grid[0]
+    cf = m.contourf(xMap,yMap,ndvi,cmap=CMAP_ESRI_PRCP,levels=np.linspace(0, .9, 100),extend='min')
+    cbar = plt.colorbar(cf, cax = grid.cbar_axes[0])
+    cbar.set_ticks(np.arange(0,1.0,.1))
+    cbar.ax.set_ylabel("NDVI",fontsize=16)
+    grid[0].set_title("Average Mid-August NDVI")
+    m.drawcountries()
+    m.drawstates()
+    
+    plt.show()
+
+def plot_et():
+    ds_et = RasterDataset('/projects/daymet2/docs/dsi_presentation/ET08_mean_wgs84.tif')
+    et = ds_et.readAsArray()
+    
+    
+    dsDsi = RasterDataset('/projects/daymet2/docs/noaa_proposal/DSI_2007225.tif')
+    lat,lon = dsDsi.getCoordGrid1d()
+    buf = 0.25
+    llcrnrlat=np.min(lat-buf)
+    urcrnrlat=np.max(lat+buf)
+    llcrnrlon=np.min(lon-buf)
+    urcrnrlon=np.max(lon+buf*4)
+
+    print "Mapping data...."
+    lat,lon = ds_et.getCoordGrid1d()
+    m = Basemap(resolution='h',projection='tmerc', llcrnrlat=llcrnrlat,urcrnrlat=urcrnrlat,
+                llcrnrlon=llcrnrlon,urcrnrlon=urcrnrlon,lon_0=-111,lat_0=0)
+    xMap, yMap = m(*np.meshgrid(lon,lat))
+    
+  
+    cf = plt.gcf()
+    grid = ImageGrid(cf,111,nrows_ncols=(1,1),cbar_mode="single",cbar_location="right",axes_pad=0.05,cbar_pad=0.05,cbar_size="1.5%")
+    
+    m.ax = grid[0]
+    cf = m.contourf(xMap,yMap,et,cmap=CMAP_ESRI_PRCP,levels=np.linspace(0, 150, 100),extend='max')
+    cbar = plt.colorbar(cf, cax = grid.cbar_axes[0])
+    cbar.set_ticks(np.arange(0,150,15))
+    cbar.ax.set_ylabel("ET (mm)",fontsize=16)
+    m.drawcountries()
+    m.drawstates()
+    
+    grid[0].set_title("Average August Total ET")
+    plt.show()
+
 if __name__ == '__main__':
     #plotMerraVsTwx()
     #plotUdmVsDSI()
-    plotDsiSeries()
+    #plotDsiSeries()
+    #dsi_hdf_to_tif()
+    #dsi_crop_montana()
+    #plot_montana_dsi_all_yrs()
+    plot_ndvi()
+    #plot_et()
+    

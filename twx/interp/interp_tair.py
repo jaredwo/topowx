@@ -769,14 +769,14 @@ class StationDataWrkChk(station_data_infill):
 
 def buildDefaultPtInterp(norms_only=False):
     #Normal
-#    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
-#    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
+    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
+    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
     #No LST
 #    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_nolst/serial_tmin.nc', 'tmin')
 #    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_nolst/serial_tmax.nc', 'tmax')
     #No homogenization
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmin.nc', 'tmin')
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc', 'tmax')
+#    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmin.nc', 'tmin')
+#    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc', 'tmax')
     
     gridPath = '/projects/daymet2/dem/interp_grids/conus/ncdf/'
     auxFpaths = ["".join([gridPath,'fnl_elev.nc']),

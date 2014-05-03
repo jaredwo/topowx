@@ -328,7 +328,10 @@ def get_twx_stns():
     
     sIdx = np.argsort(stnsAll[STN_ID])
     stnsAll = stnsAll[sIdx]
-
+    
+    stndaTmax.ds.close()
+    stndaTmin.ds.close()
+    
     return stnsAll
   
 if __name__ == '__main__':
