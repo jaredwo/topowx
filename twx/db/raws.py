@@ -47,31 +47,46 @@ def dms2decimal(degrees, minutes, seconds):
         
     return decimal
 
-def build_stnid_list(path_stnlst_pages,out_path):
-    
-    afile = open(path_stnlst_pages)
+
+def raws_save_stnid_list(out_fpath):
+    '''
+    Build and save a list of RAWS station ids available from WRCC.
+
+    Parameters
+    ----------
+    out_path : str
+        The filename to which to save the station id list.
+    remote_path : str, optional
+        The remote path to mirror from.
+    '''
+
+    path_root = os.path.dirname(__file__)
+
+    #raws_stnlist_pages.txt has URLs for HTML files that list RAWS stations
+    afile = open(os.path.join(path_root, 'raws_stnlist_pages.txt'))
     stn_ids = []
-    
+
     for line in afile.readlines():
-        
+
         req = urllib2.Request(line.strip())
         response = urllib2.urlopen(req)
         plines = response.readlines()
         for pline in plines:
-            
+
             if "rawMAIN.pl" in pline:
-                
+
                 stn_id = pline.split("?")[1][0:6]
                 print stn_id
                 stn_ids.append(stn_id)
-    
+
     stn_ids = np.unique(stn_ids)
-    print "Total # of stn_ids: "+str(stn_ids.size)
-    
-    fo = open(out_path,"w")
+    print "Total # of stn_ids: " + str(stn_ids.size)
+
+    fo = open(out_fpath, "w")
     for stn_id in stn_ids:
-        fo.write("".join([stn_id,"\n"]))
-   
+        fo.write("".join([stn_id, "\n"]))
+
+
 def subset_ghcn_raws(raws_stnid_fpath,ghcn_stn_fpath,out_path):
     
     raws_ids_orig = np.loadtxt(raws_stnid_fpath,dtype="<S6")
@@ -214,6 +229,27 @@ def parse_decdegrees(a_str):
     sec = float(vals[2])
     
     return dms2decimal(deg,minute,sec)
+
+def ghcn_raws():
+    
+    raws_ids_orig = np.loadtxt('/projects/daymet2/station_data/raws/raws_stnids.txt',dtype="<S6")
+    raws_ids = np.array([x[2:] for x in raws_ids_orig],dtype="<S4")
+    
+    ghcn_stns = open('/projects/daymet2/station_data/ghcn/ghcnd-stations.txt')
+    
+    ghcn_raws = []
+    for aline in ghcn_stns.readlines():
+        
+        stn_id = aline[0:11].strip()
+        
+        #prefix for a raws station
+        if stn_id[0:3] == "USR":
+            ghcn_raws.append(stn_id[-4:])
+            
+    ghcn_raws = np.array(ghcn_raws,dtype="<S4")
+    
+    fnl_ids = raws_ids_orig[np.in1d(raws_ids, ghcn_raws, True)]
+    np.savetxt('/projects/daymet2/station_data/raws/raws_ghcn_stnids.txt', fnl_ids, "%s")
 
 if __name__ == '__main__':
 

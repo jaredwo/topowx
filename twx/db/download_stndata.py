@@ -22,7 +22,7 @@ RPATH_GHCN = 'http://www1.ncdc.noaa.gov/pub/data/ghcn/daily/'
 RPATH_GHCN_BYYEAR = 'http://www1.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/'
 
 
-def mirror_snotel_tabdata(local_path, remote_path=RPATH_SNOTEL_TABDATA):
+def snotel_mirror_tabdata(local_path, remote_path=RPATH_SNOTEL_TABDATA):
     '''
     Use wget to mirror SNOTEL current tab card files. This takes a while
     since there are many individual files.
@@ -39,9 +39,9 @@ def mirror_snotel_tabdata(local_path, remote_path=RPATH_SNOTEL_TABDATA):
                      '--directory-prefix=' + local_path, remote_path])
 
 
-def download_ghcn_data(local_path, remote_path=RPATH_GHCN):
+def ghcnd_download_data(local_path, remote_path=RPATH_GHCN, extract_tar=True):
     '''
-    Download and unzip the latest GHCN-Daily data
+    Use wget to download and unzip the latest GHCN-Daily data
 
     Parameters
     ----------
@@ -49,6 +49,8 @@ def download_ghcn_data(local_path, remote_path=RPATH_GHCN):
         The local path to download to.
     remote_path : str, optional
         The remote path to download from.
+    extract_tar : bool, optional
+        Extract the ghcnd_all.tar.gz file
     '''
 
     subprocess.call(['wget', '--directory-prefix=' + local_path,
@@ -69,14 +71,15 @@ def download_ghcn_data(local_path, remote_path=RPATH_GHCN):
     subprocess.call(['wget', '--directory-prefix=' + local_path,
                      urljoin(remote_path, 'ghcnd_all.tar.gz')])
 
-    print "Extracting GHCN-Daily tar.gz file..."
-    ghcn_tar = tarfile.open(os.path.join(local_path, 'ghcnd_all.tar.gz'))
-    ghcn_tar.extractall()
+    if extract_tar:
+        print "Extracting GHCN-Daily tar.gz file..."
+        ghcn_tar = tarfile.open(os.path.join(local_path, 'ghcnd_all.tar.gz'))
+        ghcn_tar.extractall(local_path)
 
 
-def download_ghcn_byyr_data(local_path, yrs, remote_path=RPATH_GHCN_BYYEAR):
+def ghcnd_download_byyr_data(local_path, yrs, remote_path=RPATH_GHCN_BYYEAR):
     '''
-    Download the latest GHCN-Daily data in "by year" format
+    Use wget to download the latest GHCN-Daily data in "by year" format
 
     Parameters
     ----------

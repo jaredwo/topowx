@@ -4,13 +4,22 @@ Created on Jun 16, 2014
 @author: jaredwo
 '''
 import twx
-
-'''
-if __name__ == '__main__':
-    #mirror_snotel_tabdata('/projects/daymet2/station_data/snotel/current/')
-    #download_ghcn_data('/projects/daymet2/station_data/ghcn/',backup=True)
-    download_ghcn_byyr_data('/projects/daymet2/station_data/ghcn/ghcnByYr/', np.arange(1948,2013))
-'''
+import numpy as np
+import os
 
 if __name__ == '__main__':
-    twx.db.mirror_snotel_tabdata('/Users/jaredwo/Documents/twx/station_data/snotel')
+
+    PROJECT_ROOT = "/projects/topowx"
+
+    # Download GHCN-D data from NCDC
+    twx.db.ghcnd_download_data(os.path.join(PROJECT_ROOT, 'station_data',
+                                           'ghcn'))
+
+    # Download GHCN-D data from NCDC in "by year" format for 1948-2013
+    twx.db.ghcnd_download_byyr_data(os.path.join(PROJECT_ROOT, 'station_data',
+                                                'ghcn', 'ghcn_yrly'),
+                                   yrs=np.arange(1948, 2014))
+
+    # Mirror SNOTEL tab-delimited data from NRCS FTP
+    twx.db.snotel_mirror_tabdata(os.path.join(PROJECT_ROOT, 'station_data',
+                                              'snotel', 'current'))
