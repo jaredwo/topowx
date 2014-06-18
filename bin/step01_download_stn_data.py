@@ -24,6 +24,24 @@ if __name__ == '__main__':
     twx.db.snotel_mirror_tabdata(os.path.join(FPATH_STNDATA,
                                               'snotel', 'current'))
 
+    snotel_path_hist = os.path.join(FPATH_STNDATA, 'snotel', 'historical')
+    snotel_fpath_locs = os.path.join(FPATH_STNDATA, 'snotel', 'locations',
+                                     '2011-03-31-WCC-high-resolution-snotel.csv')
+    snotel_fpath_meta = os.path.join(FPATH_STNDATA, 'snotel', 'cleaned',
+                                     'snotel_stns.csv')
+    snotel_path_tab = os.path.join(FPATH_STNDATA, 'snotel', 'current',
+                                   'ftp.wcc.nrcs.usda.gov', 'data', 'snow',
+                                   'snotel', 'cards')
+
+    twx.db.snotel_write_stn_metadata(snotel_path_hist, snotel_fpath_locs,
+                                     snotel_fpath_meta)
+
+    twx.db.snotel_find_no_metadata_stns(snotel_path_tab, snotel_fpath_meta)
+    
+    
+    #    find_no_metadata_stns('/projects/daymet2/station_data/snotel/current/ftp.wcc.nrcs.usda.gov/data/snow/snotel/cards/',
+#                          '/projects/daymet2/station_data/snotel/cleaned/snotel_stns.csv')
+
     #Download Raws from WRCC (http://www.raws.dri.edu) using web crawler
 
     #Generate list of RAWS station ids that are available on the WRCC website
