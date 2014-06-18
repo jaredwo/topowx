@@ -37,12 +37,12 @@ VAL_STR = 10
 VAL_END = 18
 VAL_SHIFT = 8
 MISSING_HIST = -999.9
-SNTL_DSOURCE_HIST = "H" #historical
-SNTL_DSOURCE_CUR = "C" #current
-SNTL_DSOURCE_BOTH = "B" #both
+SNTL_DSOURCE_HIST = "H"  # historical
+SNTL_DSOURCE_CUR = "C"  # current
+SNTL_DSOURCE_BOTH = "B"  # both
 STATE_DIRS = {'AZ':'arizona', 'CA':'california', 'CO':'colorado',
               'ID':'idaho', 'MT':'montana', 'NV':'nevada', 'NM':'new_mexico', 'OR':'oregon', 'SD':'south_dakota',
-              'UT':'utah', 'WA':'washington', 'WY':'wyoming','AK':'alaska'}
+              'UT':'utah', 'WA':'washington', 'WY':'wyoming', 'AK':'alaska'}
 
 
 def find_no_metadata_stns(path_tab, fpath_stn_metadata):
@@ -59,44 +59,44 @@ def find_no_metadata_stns(path_tab, fpath_stn_metadata):
 
     f_in = open(fpath_stn_metadata)
     f_in.readline()
-    
+
     stn_ids = []
-    
+
     for line in f_in.readlines():
-        
+
         vals = line.split(',')
         stn_ids.append(vals[0])
-        
+
     stn_ids = np.array(stn_ids)
-    
+
     for state in STATE_DIRS.values():
-        
+
         files = np.array(os.listdir("".join([path_tab, state])))
 
         files = files[np.logical_or(np.core.defchararray.find(files, ".tab") != -1,
                                     np.core.defchararray.find(files, ".txt") != -1)]
-        
+
         nodata_stns = []
         for afile in files:
-            
+
             stn_id = afile.split("_")[0]
-            
+
             if stn_id not in stn_ids:
-                
+
                 stn_tab = file("".join([path_tab, state, "/", afile]))
-                #possible headings: ['date', 'pill', 'prec', 'tmax', 'tmin', 'tavg', 'prcp']
+                # possible headings: ['date', 'pill', 'prec', 'tmax', 'tmin', 'tavg', 'prcp']
                 headings = stn_tab.readline().split('\t')
                 headings = [x.strip() for x in headings]
-                
+
                 try:
-                    stn_name = headings[0].split('-')[0][2:] 
+                    stn_name = headings[0].split('-')[0][2:]
                 except IndexError:
                     stn_name = "None"
-                
+
                 nodata_stns.append((stn_id, stn_name))
-        
+
         nodata_stns = np.unique(nodata_stns)
-        
+
         for stn in nodata_stns:
             print ": ".join([state, str(stn)])
 
@@ -110,10 +110,10 @@ def write_stn_metadata(path_hist, fpath_highres, path_out):
     This method consolidates all station metadata information into a single simple csv. Data includes
     station id, name, state, datasource (historical, current tab, both), lat, lon, and elev.
     '''
-    
+
     stns = build_stn_metadata(path_hist, fpath_highres)
-    
-    #Write out station metadata to simple csv file
+
+    # Write out station metadata to simple csv file
     fout = open("".join([path_out, "snotel_stns.csv"]), 'w')
     fout.write(",".join(["STN_ID", "NAME", "STATE", "DSOURCE", "LAT", "LON", "ELEV" + "\n"]))
     for stn_id in stns.keys():
@@ -136,32 +136,32 @@ def write_stn_obs(path_hist, path_tab, fpath_stn_metadata, path_out):
     one-by-one. The headers for each csv file are: "YMD","TMIN","TMAX","PRCP","TAVG","PREC","PILL"
     
     '''
-    
+
     f_in = open(fpath_stn_metadata)
     f_in.readline()
-    
+
     stn_ids = []
     states = []
-    
+
     for line in f_in.readlines():
-        
+
         vals = line.split(',')
         stn_ids.append(vals[0])
         states.append(vals[2])
-    
-    #Load all historical data into memory
-    #This will take a ~6 minutes
+
+    # Load all historical data into memory
+    # This will take a ~6 minutes
     obs_hist = load_obs_hist(path_hist)
 
     print "Writing cleaned station observations..."
     statchk = status_check(len(stn_ids), 10)
-    
+
     for x in np.arange(len(stn_ids)):
-        
-        #Load current tab observations for this station
+
+        # Load current tab observations for this station
         obs_cur = load_cur_obs(stn_ids[x], states[x], path_tab)
-        
-        #Combine historic and current tab datasources if necessary
+
+        # Combine historic and current tab datasources if necessary
         if obs_hist.has_key(stn_ids[x]) and len(obs_cur) > 0:
             obs_final = combine_hist_cur_obs(obs_cur, obs_hist[stn_ids[x]])
         elif obs_hist.has_key(stn_ids[x]) and len(obs_cur) == 0:
@@ -169,30 +169,30 @@ def write_stn_obs(path_hist, path_tab, fpath_stn_metadata, path_out):
         elif not obs_hist.has_key(stn_ids[x]) and len(obs_cur) > 0:
             obs_final = obs_cur
         else:
-            #no obs for this station
+            # no obs for this station
             obs_final = {}
-        
+
         if len(obs_final) > 0:
-            
+
             fout = open("".join([path_out, stn_ids[x], ".csv"]), "w")
             fout.write(",".join(["YMD", "TMIN", "TMAX", "PRCP", "TAVG", "PREC", "".join(["PILL\n"])]))
-            
+
             for ymd in np.sort(obs_final.keys()):
-                
+
                 vals = obs_final[ymd]
                 vals = [str(x) for x in vals]
-                
+
                 aline = ",".join(vals)
                 aline = "".join([aline, "\n"])
-                
+
                 fout.write(aline)
-            
-            fout.close() 
-        
+
+            fout.close()
+
         else:
-            
+
             print "No obs for stn: " + stn_ids[x]
-        
+
         statchk.increment()
 
 def combine_hist_cur_obs(obs_cur, obs_hist):
@@ -206,23 +206,23 @@ def combine_hist_cur_obs(obs_cur, obs_hist):
     datasource taking precedence on overlapping days.
     
     '''
-    
+
     obs_final = {}
     obs_final.update(obs_cur)
-    
+
     ymd_cur = obs_cur.keys()
     ymd_cur = np.array(ymd_cur)
-    
+
     ymd_hist = obs_hist.keys()
     ymd_hist = np.array(ymd_hist)
-    
+
     all_mask = np.in1d(ymd_hist, ymd_cur, assume_unique=True)
-    
+
     ymd_hist_only = ymd_hist[np.logical_not(all_mask)]
-    
+
     for ymd in ymd_hist_only:
         obs_final[ymd] = obs_hist[ymd]
-        
+
     return obs_final
 
 def load_cur_obs(stn_id, state, path_tab):
@@ -238,40 +238,40 @@ def load_cur_obs(stn_id, state, path_tab):
     entire period of record except for the most recent. On overlapping days, the all file takes precedence.
     
     '''
-    
+
     path_state = "".join([path_tab, STATE_DIRS[state]])
-    
+
     files = np.array(os.listdir(path_state))
-    
+
     files_stn = files[np.core.defchararray.find(files, stn_id) != -1]
-    
+
     all_file_mask = np.core.defchararray.find(files_stn, "all") != -1
-    
+
     all_file = files_stn[all_file_mask]
     if all_file.size > 1:
         raise Exception("More than 1 all file for stn: " + stn_id)
-    
+
     all_file = all_file[0] if all_file.size == 1 else None
-    
+
     obs_all = parse_stn_tab("".join([path_state, "/", all_file])) if all_file is not None else {}
-    
+
     obs_yrs = {}
     for afile in files_stn[np.logical_not(all_file_mask)]:
         obs_yrs.update(parse_stn_tab("".join([path_state, "/", afile])))
-    
+
     obs_final = {}
     if len(obs_all) > 0 and len(obs_yrs) > 0:
-        
+
         obs_final.update(obs_all)
-        
+
         ymd_all = obs_all.keys()
         ymd_all = np.array(ymd_all)
-        
+
         ymd_yrs = obs_yrs.keys()
         ymd_yrs = np.array(ymd_yrs)
-        
+
         all_mask = np.in1d(ymd_yrs, ymd_all, assume_unique=True)
-        
+
         ymd_yrs_only = ymd_yrs[np.logical_not(all_mask)]
 
         for ymd in ymd_yrs_only:
@@ -280,7 +280,7 @@ def load_cur_obs(stn_id, state, path_tab):
         obs_final = obs_all
     elif len(obs_all) == 0 and len(obs_yrs) > 0:
         obs_final = obs_yrs
-    
+
     return obs_final
 
 def build_stn_metadata(path_hist, fpath_highres):
@@ -293,19 +293,19 @@ def build_stn_metadata(path_hist, fpath_highres):
     
     This method consolidates station metadata information.
     '''
-    
+
     stns_hist = parse_hist_stns(path_hist)
     stns_hs = parse_highres_stns(fpath_highres)
     stns_hist = update_stn_locs(stns_hist, stns_hs)
-    
+
     stn_ids = stns_hist.keys()
     stn_ids.extend(stns_hs.keys())
-    
+
     stn_ids = np.unique(np.array(stn_ids))
-    
+
     stns_final = {}
     for stn_id in stn_ids:
-        
+
         if stns_hist.has_key(stn_id) and stns_hs.has_key(stn_id):
             dsrc = SNTL_DSOURCE_BOTH
             name, lat, lon, elev, st = stns_hist[stn_id]
@@ -317,9 +317,9 @@ def build_stn_metadata(path_hist, fpath_highres):
             name, lat, lon, elev, st = stns_hs[stn_id]
         else:
             raise Exception("STN ID not found in historical or current database: " + str(stn_id))
-        
+
         stns_final[stn_id] = [stn_id, name, st, dsrc, lat, lon, elev]
-    
+
     return stns_final
 
 def update_stn_locs(stns, stns_highres):
@@ -331,43 +331,43 @@ def update_stn_locs(stns, stns_highres):
     
     If available, updates the station metadata in stns with high res metadata from stns_highres.
     '''
-    
+
     stns_new = {}
     all_hs = stns_highres.items()
-    
+
     for stn_id in stns.keys():
-        
+
         name = stns[stn_id][0]
         state = stns[stn_id][4]
         elev = stns[stn_id][3]
-        
+
         if stns_highres.has_key(stn_id):
-            
+
             namehs, lat, lon, elev, st = stns_highres[stn_id]
-            
-            #Make sure there is not a typo with the historical station id
+
+            # Make sure there is not a typo with the historical station id
             if namehs != name:
                 print "Station name in high res locations does not match historical name: " + namehs + "|" + name + "|" + stn_id
                 hgh_fnd = False
-                
+
                 for hs_id, hghres in all_hs:
-                    
+
                     if hghres[0] == name:
-                        
+
                         namehs, lat, lon, elev, st = hghres
                         hgh_fnd = True
                         stn_id = hs_id
                         break
                 if not hgh_fnd:
                     raise Exception("High res location found, but no station name match for " + stn_id)
-        
+
         else:
-            
+
             print stn_id + " in " + state + " did not have high res location info.| " + str(elev)
             name, lat, lon, elev, st = stns[stn_id]
-    
+
         stns_new[stn_id.lower()] = [name, lat, lon, elev, st]
-    
+
     return stns_new
 
 def parse_hist_stns(path_hist):
@@ -378,40 +378,40 @@ def parse_hist_stns(path_hist):
     
     Loads station metadata from the historical datasource
     '''
-    
+
     file_names = os.listdir(path_hist)
-    
+
     stns = {}
-    
+
     for file_name in file_names:
-        
-        #open list[state].txt files that have station information
+
+        # open list[state].txt files that have station information
         if "list" in file_name:
-            
+
             file = open("".join([path_hist, file_name]))
-            
-            #in listfiles, the state abbreviation is the last 2 characters before the .txt extension
+
+            # in listfiles, the state abbreviation is the last 2 characters before the .txt extension
             state = file_name[-6:-4].upper()
-            
+
             while True:
                 line = file.readline()
                 if '---' in line:
                     break
             for line in file.readlines():
                 stn_id = line[26:34].strip().lower()
-                #Lat and Lon are given in degrees, minutes
-                lat = float(line[35:37]) + (float(line[37:39]) / 60.0) 
+                # Lat and Lon are given in degrees, minutes
+                lat = float(line[35:37]) + (float(line[37:39]) / 60.0)
                 lon = -1 * (float(line[40:43]) + (float(line[43:45]) / 60.0))
-                #convert from feet to meters
+                # convert from feet to meters
                 try:
-                    elev = float(line[46:51]) * 0.3048 
+                    elev = float(line[46:51]) * 0.3048
                 except ValueError:
                     elev = 0
-            
+
                 name = line[52:].strip()
-                
+
                 stns[stn_id.lower()] = [name, lat, lon, elev, state]
-    
+
     return stns
 
 def parse_highres_stns(fpath):
@@ -425,21 +425,21 @@ def parse_highres_stns(fpath):
 
     a_file = file(fpath)
     a_file.readline()
-    
+
     locs_highres = {}
     for line in a_file.readlines():
         vals = line.split(",")
         st = vals[0].strip().upper()
         name = vals[1].strip()
         id = vals[2].strip().lower()
-        
+
         if id == '':
             continue
-        
+
         lat = float(vals[5].strip())
         lon = float(vals[6].strip())
-        elev = float(vals[8].strip()) * 0.3048 #convert from feet to meters
-        
+        elev = float(vals[8].strip()) * 0.3048  # convert from feet to meters
+
         locs_highres[id] = [name, lat, lon, elev, st]
     return locs_highres
 
@@ -451,69 +451,69 @@ def parse_stn_tab(fpath):
     
     Parses and loads station observations from a single tab file in the current tab datasource.
     '''
-    
+
     stn_id = fpath.split("/")[-1].split("_")[0]
     stn_tab = file(fpath)
-    #possible headings: ['date', 'pill', 'prec', 'tmax', 'tmin', 'tavg', 'prcp']
+    # possible headings: ['date', 'pill', 'prec', 'tmax', 'tmin', 'tavg', 'prcp']
     headings = stn_tab.readline().split('\t')
-    
+
     headings = [x.strip() for x in headings]
-    
+
     try:
-        headings[0] = headings[0].split('-')[1] 
+        headings[0] = headings[0].split('-')[1]
     except IndexError:
         print "Invalid file: " + fpath
         return {}
 
     obs = {}
-    
+
     date = None
-    
+
     for line in stn_tab.readlines():
-        
+
         vals = line.split("\t")
         vals = [x.strip() for x in vals]
-        
+
         year = int(vals[0][4:])
-        #correct for 2 digit year
-        if year > 65: #data starts at water year 1966
+        # correct for 2 digit year
+        if year > 65:  # data starts at water year 1966
             year = year + 1900
         else:
             year = year + 2000
-                            
+
         month = int(vals[0][0:2])
         day = int(vals[0][2:4])
-                                
+
         date = datetime.date(year, month, day)
         prev_date = date - A_DAY
-        
+
         ymd = long(date.strftime("%Y%m%d"))
         ymd_prev = long(prev_date.strftime("%Y%m%d"))
-         
+
         if not obs.has_key(ymd):
-            obs[ymd] = [ymd, MISSING, MISSING, MISSING, #TMIN,TMAX,PRCP
-                            MISSING, MISSING, MISSING]#TAVG,PREC,PILL
-                                
+            obs[ymd] = [ymd, MISSING, MISSING, MISSING,  # TMIN,TMAX,PRCP
+                            MISSING, MISSING, MISSING]  # TAVG,PREC,PILL
+
         if not obs.has_key(ymd_prev):
-            obs[ymd_prev] = [ymd_prev, MISSING, MISSING, MISSING, #TMIN,TMAX,PRCP
-                                      MISSING, MISSING, MISSING]#TAVG,PREC,PILL  
-        
+            obs[ymd_prev] = [ymd_prev, MISSING, MISSING, MISSING,  # TMIN,TMAX,PRCP
+                                      MISSING, MISSING, MISSING]  # TAVG,PREC,PILL
+
         for x in np.arange(len(vals)):
-            
+
             if headings[x] == 'date':
                 continue
             elif headings[x] == 'tmin':
-                if len(vals[x]) > 0: obs[ymd_prev][1] = float(vals[x]) #tmin
+                if len(vals[x]) > 0: obs[ymd_prev][1] = float(vals[x])  # tmin
             elif headings[x] == 'tmax':
-                if len(vals[x]) > 0: obs[ymd_prev][2] = float(vals[x]) #tmax
+                if len(vals[x]) > 0: obs[ymd_prev][2] = float(vals[x])  # tmax
             elif headings[x] == 'prcp':
-                if len(vals[x]) > 0: obs[ymd][3] = float(vals[x]) * 2.54 #prcp convert inches to cm
+                if len(vals[x]) > 0: obs[ymd][3] = float(vals[x]) * 2.54  # prcp convert inches to cm
             elif headings[x] == 'tavg':
-                if len(vals[x]) > 0: obs[ymd_prev][4] = float(vals[x]) #tavg
+                if len(vals[x]) > 0: obs[ymd_prev][4] = float(vals[x])  # tavg
             elif headings[x] == 'prec':
-                if len(vals[x]) > 0: obs[ymd_prev][5] = float(vals[x]) * 2.54 #prec convert inches to cm
+                if len(vals[x]) > 0: obs[ymd_prev][5] = float(vals[x]) * 2.54  # prec convert inches to cm
             elif headings[x] == 'pill':
-                if len(vals[x]) > 0: obs[ymd_prev][6] = float(vals[x]) * 2.54 #swe convert inches to cm
+                if len(vals[x]) > 0: obs[ymd_prev][6] = float(vals[x]) * 2.54  # swe convert inches to cm
     return obs
 
 
@@ -525,88 +525,88 @@ def load_obs_hist(path_hist):
     
     Loads all historical observation data into memory.
     '''
-    
+
     print "SNOTEL: Loading historical data"
     fileNames = os.listdir(path_hist)
     obs_dict = {}
-    
+
     stat_chk = status_check(-1, 50)
     for fileName in fileNames:
-        
+
         if SNTL_DATAFILE_PREFIX in fileName:
-            
+
             filePath = "".join([path_hist, fileName])
             afile = open(filePath)
-                
+
             while True:
-                
+
                 line = afile.readline()
-                
+
                 if not line:
                     break
-                
+
                 if 'Station' in line:
-                    
+
                     stn_id, name = line.split(",")
                     stn_id = stn_id.split(":")[-1].strip().lower()
-                    #stn_id_full = "".join(["SNOTEL_",stn_id]).upper()
-                    
+                    # stn_id_full = "".join(["SNOTEL_",stn_id]).upper()
+
                     if not obs_dict.has_key(stn_id):
                         obs_dict[stn_id] = {}
-                    
-                    #next 4 lines are not meaningful
+
+                    # next 4 lines are not meaningful
                     for i in range(4):
                         afile.readline()
-                    
-                    #next line has column headings - these matter!
+
+                    # next line has column headings - these matter!
                     line = afile.readline()
-                    headings = line.split()[1:]#skip DATE heading
-                    nhead = len(headings) 
+                    headings = line.split()[1:]  # skip DATE heading
+                    nhead = len(headings)
                     rnghead = np.arange(nhead)
-                    
-                    #now we have a bunch of data lines
+
+                    # now we have a bunch of data lines
                     while True:
                         line = afile.readline()
                         if line[:3] == '---' or not line:
-                            break #next station
+                            break  # next station
                         year = int(line[0:2])
-                        #correct for 2 digit year
-                        if year > 65: #data starts at water year 1966
+                        # correct for 2 digit year
+                        if year > 65:  # data starts at water year 1966
                             year = year + 1900
                         else:
                             year = year + 2000
-                        
-                        #if  year >= min_yr and year <= max_yr:
-                        
+
+                        # if  year >= min_yr and year <= max_yr:
+
                         month = int(line[2:4])
                         day = int(line[4:6])
-                        
+
                         date = datetime.date(year, month, day)
                         prev_date = date - A_DAY
                         ymd = long(date.strftime("%Y%m%d"))
                         ymd_prev = long(prev_date.strftime("%Y%m%d"))
-                        
-                        #iterate through the values left in the line and
-                        #use the headings above to interpret them
+
+                        # iterate through the values left in the line and
+                        # use the headings above to interpret them
                         swe = MISSING
                         tmax = MISSING
                         tmin = MISSING
                         tavg = MISSING
                         prec = MISSING
                         prcp = MISSING
-                        
+
                         for x in rnghead:
-                            
+
                             start = x * VAL_SHIFT + VAL_STR
                             end = x * VAL_SHIFT + VAL_END
-                            
+
                             v = line[start:end].strip()
                             if len(v) > 0 and float(v) != MISSING_HIST:
-                                
+
                                 h = headings[x]
-                                
+
                                 if h == 'pill':
-                                    swe = float(v) * 2.54 #convert inches to cm
+                                    swe = float(v) * 2.54  # convert inches to cm
                                 elif h == 'tmax':
                                     tmax = float(v)
                                 elif h == 'tmin':
@@ -614,56 +614,56 @@ def load_obs_hist(path_hist):
                                 elif h == 'tavg':
                                     tavg = float(v)
                                 elif h == 'prec':
-                                    prec = float(v) * 2.54 #convert inches to cm
+                                    prec = float(v) * 2.54  # convert inches to cm
                                 elif h == 'prcp':
-                                    prcp = float(v) * 2.54 #convert inches to cm
-                        
+                                    prcp = float(v) * 2.54  # convert inches to cm
+
                         if not obs_dict[stn_id].has_key(ymd):
-                            obs_dict[stn_id][ymd] = [ymd, MISSING, MISSING, MISSING, #TMIN,TMAX,PRCP
-                                            MISSING, MISSING, MISSING]#TAVG,PREC,PILL
-                        
+                            obs_dict[stn_id][ymd] = [ymd, MISSING, MISSING, MISSING,  # TMIN,TMAX,PRCP
+                                            MISSING, MISSING, MISSING]  # TAVG,PREC,PILL
+
                         if not obs_dict[stn_id].has_key(ymd_prev):
-                            obs_dict[stn_id][ymd_prev] = [ymd_prev, MISSING, MISSING, MISSING, #TMIN,TMAX,PRCP
-                                                  MISSING, MISSING, MISSING]#TAVG,PREC,PILL  
-                        
+                            obs_dict[stn_id][ymd_prev] = [ymd_prev, MISSING, MISSING, MISSING,  # TMIN,TMAX,PRCP
+                                                  MISSING, MISSING, MISSING]  # TAVG,PREC,PILL
+
                         obs_dict[stn_id][ymd_prev][1] = tmin
                         obs_dict[stn_id][ymd_prev][2] = tmax
                         obs_dict[stn_id][ymd][3] = prcp
                         obs_dict[stn_id][ymd_prev][4] = tavg
                         obs_dict[stn_id][ymd_prev][5] = prec
                         obs_dict[stn_id][ymd_prev][6] = swe
-                    
+
             stat_chk.increment()
-    
+
     print "SNOTEL: Done loading historical data"
-    
+
     return obs_dict
 
-def filterToLowResSnotel(stns,fpathLowRes):
-    
-    dtype = [('stn_id',"<S16"),('name',"<S30"),('lon', np.float64),('lat', np.float64),('elev', np.float64),('state',"<S2")]
+def filterToLowResSnotel(stns, fpathLowRes):
+
+    dtype = [('stn_id', "<S16"), ('name', "<S30"), ('lon', np.float64), ('lat', np.float64), ('elev', np.float64), ('state', "<S2")]
     sntLow = np.loadtxt(fpathLowRes, dtype, delimiter=",")
-    
+
     stnids = stns['stn_id'][np.char.startswith(stns['stn_id'], 'SNOTEL')]
-    
+
     for aId in stnids:
-        
+
         try:
-            i = np.nonzero(stns['stn_id']==aId)[0][0]
-            x = np.nonzero(sntLow['stn_id']==aId)[0][0]
-        
+            i = np.nonzero(stns['stn_id'] == aId)[0][0]
+            x = np.nonzero(sntLow['stn_id'] == aId)[0][0]
+
             stns[i]['lon'] = sntLow[x]['lon']
             stns[i]['lat'] = sntLow[x]['lat']
             stns[i]['elev'] = sntLow[x]['elev']
-    
+
         except IndexError:
-            i = np.nonzero(stns['stn_id']==aId)[0][0]
-            print "".join(["Could not find low res metadata for ",str(stns[i])])
-    
-    return stns  
+            i = np.nonzero(stns['stn_id'] == aId)[0][0]
+            print "".join(["Could not find low res metadata for ", str(stns[i])])
+
+    return stns
 
 if __name__ == '__main__':
-    
+
 #    write_stn_metadata('/projects/daymet2/station_data/snotel/historical/',
 #                       "/projects/daymet2/station_data/snotel/locations/2011-03-31-WCC-high-resolution-snotel.csv",
 #                       "/projects/daymet2/station_data/snotel/cleaned/")
@@ -675,5 +675,5 @@ if __name__ == '__main__':
                   '/projects/daymet2/station_data/snotel/current/ftp.wcc.nrcs.usda.gov/data/snow/snotel/cards/',
                   '/projects/daymet2/station_data/snotel/cleaned/snotel_stns.csv',
                   '/projects/daymet2/station_data/snotel/cleaned/')
-    
+
 
