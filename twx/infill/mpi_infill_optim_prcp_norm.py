@@ -9,12 +9,12 @@ of years of data artificially set to missing. Infilled values are then compared 
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_ncdb
+from twx.db.station_data import StationDataDb
 from twx.utils.status_check import status_check
 from netCDF4 import Dataset
 import netCDF4
 from twx.infill.infill_normals import build_mth_masks,infill_prcp_norm,MTH_BUFFER
-from twx.db.all_create_db import dbDataset
+from twx.db.create_db_all_stations import dbDataset
 from random_xval_stations import build_xval_masks,get_random_xval_stns
 
 TAG_DOWORK = 1
@@ -53,7 +53,7 @@ sys.stdout=Unbuffered(sys.stdout)
 def proc_work(params,rank):
     
     status = MPI.Status()
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     days = stn_da.days
     mth_masks = build_mth_masks(days)
     mthbuf_masks = build_mth_masks(days,MTH_BUFFER)
@@ -101,7 +101,7 @@ def proc_write(params,nwrkers):
     status = MPI.Status()
     nwrkrs_done = 0
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     days = stn_da.days
     
     bcast_msg = None
@@ -146,7 +146,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     
     if params[P_INCLUDE_STNIDS] is None:
         

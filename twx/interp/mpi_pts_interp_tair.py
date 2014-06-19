@@ -6,7 +6,7 @@ A MPI driver for interpolating tair to a specified grid using interp.interp_tair
 
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,LON,LAT,NEON,ELEV,TDI,LST,VCF,LC,BAD,\
+from twx.db.station_data import StationSerialDataDb,LON,LAT,NEON,ELEV,TDI,LST,VCF,LC,BAD,\
     MASK, OPTIM_NNGH, OPTIM_NNGH_ANOM
 import twx.interp.interp_tair as it
 from twx.interp.station_select import station_select
@@ -16,7 +16,7 @@ import netCDF4
 from collections import deque
 import tiling as tl
 import numpy as np
-from twx.db.all_create_db import dbDataset
+from twx.db.create_db_all_stations import dbDataset
 import twx.utils.util_dates as utld
 from datetime import datetime
 from httplib import HTTPException

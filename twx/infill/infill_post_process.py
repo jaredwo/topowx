@@ -3,8 +3,8 @@ Methods to create final serially complete station time series datasets for input
 
 @author: jared.oyler
 '''
-from twx.db.all_create_db import dbDataset
-from twx.db.station_data import build_stn_struct,STN_ID,DATE,LON,LAT,ELEV,station_data_infill,DTYPE_STN_DFLT,DTYPE_STN_BASIC,station_data_ncdb,\
+from twx.db.create_db_all_stations import dbDataset
+from twx.db.station_data import build_stn_struct,STN_ID,DATE,LON,LAT,ELEV,StationSerialDataDb,DTYPE_STN_DFLT,DTYPE_STN_BASIC,StationDataDb,\
     NEON, MASK, BAD, OPTIM_NNGH, OPTIM_NNGH_ANOM, MEAN_TMIN,MEAN_TMAX
 from twx.db.reanalysis import NNRds
 from netCDF4 import num2date,Dataset,date2num
@@ -129,7 +129,7 @@ def update_raster_stn_locs(rasts,ndata_vals,ds_path,varname,log_path,rm_stns=[])
     fout = open(log_path,"w")
     fout.write(",".join(["STN_ID","LON", "LAT","LON_NEW","LAT_NEW","DIST\n"]))
         
-    stn_da = station_data_infill(ds_path, varname,stn_dtype=DTYPE_STN_BASIC)
+    stn_da = StationSerialDataDb(ds_path, varname,stn_dtype=DTYPE_STN_BASIC)
     stns = stn_da.stns
     stn_da.ds.close()
     stn_da = None
@@ -233,7 +233,7 @@ def update_waterlc_stn_locs(lc_fpath,ds_path,varname,log_path):
     #fout = open(log_path,"w")
     #fout.write(",".join(["STN_ID","LON", "LAT","LON_NEW","LAT_NEW","DIST","LC\n"]))
         
-    stn_da = station_data_infill(ds_path, varname,stn_dtype=DTYPE_STN_BASIC)
+    stn_da = StationSerialDataDb(ds_path, varname,stn_dtype=DTYPE_STN_BASIC)
     stns = stn_da.stns
     stn_da.ds.close()
     stn_da = None
@@ -331,7 +331,7 @@ def update_waterlc_stn_locs(lc_fpath,ds_path,varname,log_path):
 
 def reset_stn_locs(fpath_db,fpath_ds):
     
-    stn_da = station_data_ncdb(fpath_db)
+    stn_da = StationDataDb(fpath_db)
 
     ds = Dataset(fpath_ds,'r+')
     stn_ids = ds.variables['stn_id'][:].astype("<S16")
@@ -713,7 +713,7 @@ def find_nn_data(a_data,a_rast,x,y):
 
 def output_dup_stns(fpath_infilldb,tair_var,fpath_out,mode="w"):
     
-    stn_da = station_data_infill(fpath_infilldb,tair_var,stn_dtype=DTYPE_STN_BASIC)
+    stn_da = StationSerialDataDb(fpath_infilldb,tair_var,stn_dtype=DTYPE_STN_BASIC)
     dup_stnids = []
     fout = open(fpath_out,mode)
     
@@ -798,7 +798,7 @@ def set_rm_bad_stations(bad_ids,fpath_ds):
     
 def set_optim_nnghs(dspath,varname_tair,min_nghs,varname=OPTIM_NNGH,longname=None):
         
-    stn_da = station_data_infill(dspath,varname_tair)
+    stn_da = StationSerialDataDb(dspath,varname_tair)
     
     rgns = stn_da.ds.variables['neon'][:]
     rgns = np.unique(rgns.data[np.logical_not(rgns.mask)])
@@ -873,7 +873,7 @@ def updateImputeDaily():
     runUpdate = True
     tair_mask = None
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     stn_masks = {}
     stn_masks['tmin'] = np.isfinite(stn_da.stns[MEAN_TMIN])
     stn_masks['tmax'] = np.isfinite(stn_da.stns[MEAN_TMAX])
@@ -954,8 +954,8 @@ def analyzeBadImpsVarChgPt():
     for stnid in stnids:
         print stnid
     
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc','tmax_imp',stn_dtype=DTYPE_STN_BASIC)
-    stnda2 = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc','tmax',stn_dtype=DTYPE_STN_BASIC)
+    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc','tmax_imp',stn_dtype=DTYPE_STN_BASIC)
+    stnda2 = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc','tmax',stn_dtype=DTYPE_STN_BASIC)
     
     
     stnsBadImp = stnda.stns[np.in1d(stnda.stn_ids, stnids, True)] 
@@ -1037,8 +1037,8 @@ def analyzeBadImpsHighMAE():
         print stnid
     print stnids.size
     
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc','tmax_imp',stn_dtype=DTYPE_STN_BASIC)
-    stnda2 = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc','tmax',stn_dtype=DTYPE_STN_BASIC)
+    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc','tmax_imp',stn_dtype=DTYPE_STN_BASIC)
+    stnda2 = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/infill_tmax.nc','tmax',stn_dtype=DTYPE_STN_BASIC)
     
     
     stnsBadImp = stnda.stns[np.in1d(stnda.stn_ids, stnids, True)] 
@@ -1092,7 +1092,7 @@ def analyzeBadImpsHighMAE():
 
 def add_monthly_means(dsPath,varName):
     
-    stnda = station_data_infill(dsPath, varName)
+    stnda = StationSerialDataDb(dsPath, varName)
     tagg = ushcn.TairAggregate(stnda.days)
     minDate = stnda.days[DATE][0]
     stns = stnda.stns
@@ -1134,7 +1134,7 @@ def add_monthly_means(dsPath,varName):
 
 def add_monthly_norms(dsPath,varName,startYr,endYr):
     
-    stnda = station_data_infill(dsPath, varName,stn_dtype=DTYPE_STN_BASIC)
+    stnda = StationSerialDataDb(dsPath, varName,stn_dtype=DTYPE_STN_BASIC)
     tagg = ushcn.TairAggregate(stnda.days)
 
     stns = stnda.stns
@@ -1176,7 +1176,7 @@ def add_monthly_norms(dsPath,varName,startYr,endYr):
 
 def add_ann_means(dsPath,varName):
     
-    stnda = station_data_infill(dsPath, varName)
+    stnda = StationSerialDataDb(dsPath, varName)
     tagg = ushcn.TairAggregate(stnda.days)
     minDate = stnda.days[DATE][0]
     stns = stnda.stns
@@ -1256,8 +1256,8 @@ if __name__ == '__main__':
 #    ds_path_tmin = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmin.nc'
 #    ds_path_tmax = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc'
 #    
-#    stnda_tmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
-#    stnda_tmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
+#    stnda_tmin = StationSerialDataDb('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
+#    stnda_tmax = StationSerialDataDb('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
 #    
 #    rm_ids = np.concatenate((stnda_tmin.stn_ids[np.isfinite(stnda_tmin.stns[BAD])],stnda_tmax.stn_ids[np.isfinite(stnda_tmax.stns[BAD])]))
 #    rm_ids = np.unique(rm_ids)

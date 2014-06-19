@@ -3,7 +3,7 @@ Created on Feb 18, 2013
 
 @author: jared.oyler
 '''
-from twx.db.station_data import station_data_ncdb,LON,LAT
+from twx.db.station_data import StationDataDb,LON,LAT
 from twx.utils.timezone import TZGeonamesClient,GeonamesError
 from twx.infill.obs_por import load_por_csv,build_valid_por_masks
 import numpy as np
@@ -13,7 +13,7 @@ import time
 
 if __name__ == '__main__':
     
-    db = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc',mode='r+')
+    db = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc',mode='r+')
     varutc = db.add_stn_variable("utc_offset","utc offset","hours","i2")
     utc_off = np.ma.filled(varutc[:].astype(np.float),np.nan)
     

@@ -2,7 +2,7 @@
 Classes and functions for performing prcp interpolation
 '''
 import numpy as np
-from twx.db.station_data import LON,LAT,ELEV,YMD,PRCP,station_data_infill,STN_ID
+from twx.db.station_data import LON,LAT,ELEV,YMD,PRCP,StationSerialDataDb,STN_ID
 import matplotlib.mlab as mlab
 from twx.interp.clibs import clib_wxTopo
 from twx.interp.station_select import StationSelect
@@ -21,7 +21,7 @@ MIN_PRCP_AMT = 0.01 #min amt in cm
 def quick_interp_prcp(lon,lat,elev,ngh=38,sigma=0.02507643,df=17585.,
                       path_prcp='/projects/daymet2/station_data/infill/old_infill/infill_prcp.nc'):
     
-    stn_da = station_data_infill(path_prcp, 'prcp')
+    stn_da = StationSerialDataDb(path_prcp, 'prcp')
     
     mod = modeler_clib_prcp()
     prcp_interper = interp_prcp(mod)

@@ -18,7 +18,7 @@ from scipy import stats
 from twx.utils.status_check import status_check
 from modis.clip_raster import resample_to_grd1,mask_to_rastmask
 from datetime import datetime
-from twx.db.station_data import BAD,LON,LAT,ELEV,BAD,LST,TDI,MASK,NEON,OPTIM_NNGH,VARIO_RNG,VARIO_NUG,VARIO_PSILL,OPTIM_NNGH_ANOM,station_data_ncdb,DTYPE_STN_BASIC,YMD,STN_ID
+from twx.db.station_data import BAD,LON,LAT,ELEV,BAD,LST,TDI,MASK,NEON,OPTIM_NNGH,VARIO_RNG,VARIO_NUG,VARIO_PSILL,OPTIM_NNGH_ANOM,StationDataDb,DTYPE_STN_BASIC,YMD,STN_ID
 from twx.utils.input_raster import RasterDataset
 from twx.utils.util_ncdf import NcdfRaster
 import twx.interp.interp_tair as it
@@ -688,7 +688,7 @@ class GlacStnValidate():
     
     def __init__(self,pathDsGlac,daysIn):
 
-        self.stnda = station_data_ncdb(pathDsGlac,stnDtype=DTYPE_STN_BASIC)
+        self.stnda = StationDataDb(pathDsGlac,stnDtype=DTYPE_STN_BASIC)
         self.ymdMaskIn = np.in1d(daysIn[YMD], self.stnda.days[YMD], True)
         self.ymdMaskGlac = np.in1d(self.stnda.days[YMD], daysIn[YMD], True)
         self.stnsGlac = self.stnda.stns[np.logical_and(np.char.startswith(self.stnda.stn_ids, 'GLAC'),

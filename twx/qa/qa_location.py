@@ -7,7 +7,7 @@ is correct, but lon/lat are either imprecise or incorrect.
 
 import urllib, urllib2
 from xml.dom import minidom
-from twx.db.station_data import STN_ID, STATE, LON, LAT, ELEV,station_data_ncdb
+from twx.db.station_data import STN_ID, STATE, LON, LAT, ELEV,StationDataDb
 import numpy as np
 import time
 import twx.infill.obs_por as obs_por
@@ -354,7 +354,7 @@ def qa_stn_locs(path_db,path_locqa,path_out,path_obspor):
     The headers of the file are: ["STN_ID", "ST", "LON", "LAT", "ELEV", "DEM", "DIF","LON_NEW","LAT_NEW","ELEV_NEW","\n"]
     '''
     
-    stn_da = station_data_ncdb(path_db)
+    stn_da = StationDataDb(path_db)
     stns = stn_da.stns
     stn_da = None
     

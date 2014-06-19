@@ -6,7 +6,7 @@ Created on Nov 19, 2013
 import numpy as np
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
-from twx.db.station_data import DTYPE_STN_BASIC,STN_NAME,STN_ID,LON,LAT,ELEV,STATE,station_data_infill,NEON,MASK,BAD
+from twx.db.station_data import DTYPE_STN_BASIC,STN_NAME,STN_ID,LON,LAT,ELEV,STATE,StationSerialDataDb,NEON,MASK,BAD
 from twx.utils.input_raster import RasterDataset,OutsideExtent
 from copy import copy
 import twx.interp.interp_tair as it
@@ -71,8 +71,8 @@ def testStnObsMatch():
 def saveNpyNormStns():
     
     stnfile = open('/projects/daymet2/station_data/ncdc_normals/temp-inventory.txt')
-    stnda_tmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc','tmin')
-    stnda_tmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc','tmax')
+    stnda_tmin = StationSerialDataDb('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc','tmin')
+    stnda_tmax = StationSerialDataDb('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc','tmax')
     stnIds = []
     lon = []
     lat = []
@@ -315,8 +315,8 @@ def buildPrismNorms():
     np.save('/projects/daymet2/ds_compare/normals/all_stns_prism_norms_tmin.npy', tminNorms)
 
 def get_twx_stns():
-    stndaTmax = station_data_infill(PATH_STNDB_SERIAL_TMAX, 'tmax')
-    stndaTmin = station_data_infill(PATH_STNDB_SERIAL_TMIN, 'tmin')
+    stndaTmax = StationSerialDataDb(PATH_STNDB_SERIAL_TMAX, 'tmax')
+    stndaTmin = StationSerialDataDb(PATH_STNDB_SERIAL_TMIN, 'tmin')
     
     stnsTmin = stndaTmin.stns[np.logical_and(np.logical_and(np.isfinite(stndaTmin.stns[MASK]),np.isnan(stndaTmin.stns[BAD])),stndaTmin.stns[LON]<=-103) ]
     stnsTmax = stndaTmax.stns[np.logical_and(np.logical_and(np.isfinite(stndaTmax.stns[MASK]),np.isnan(stndaTmax.stns[BAD])),stndaTmax.stns[LON]<=-103) ]
@@ -357,8 +357,8 @@ if __name__ == '__main__':
     
 #    stns = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
 #    
-#    dbTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
-#    dbTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
+#    dbTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
+#    dbTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
 #    
 #    maskTmin = np.in1d(stns[STN_ID], dbTmin.stns[STN_ID], True)
 #    maskTmax = np.in1d(stns[STN_ID], dbTmax.stns[STN_ID], True)

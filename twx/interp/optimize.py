@@ -5,7 +5,7 @@ Created on Sep 25, 2013
 '''
 
 import numpy as np
-from twx.db.station_data import station_data_infill,STN_ID,BAD,get_norm_varname,LAT,LON,\
+from twx.db.station_data import StationSerialDataDb,STN_ID,BAD,get_norm_varname,LAT,LON,\
     get_optim_varname, get_optim_anom_varname, get_lst_varname,DTYPE_STN_BASIC,MASK,TDI,BAD,NEON,DTYPE_NORMS,DTYPE_LST,\
     DTYPE_INTERP_OPTIM, DTYPE_INTERP_OPTIM_ALL, DTYPE_INTERP
 from twx.interp.station_select import StationSelect
@@ -24,7 +24,7 @@ class OptimKrigBwNstns(object):
 
     def __init__(self,pathDb,tairVar):
                 
-        stn_da = station_data_infill(pathDb, tairVar,stn_dtype=DTYPE_INTERP)
+        stn_da = StationSerialDataDb(pathDb, tairVar,stn_dtype=DTYPE_INTERP)
         mask_stns = np.isnan(stn_da.stns[BAD])         
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
                      
@@ -52,7 +52,7 @@ class OptimGwrNormBwNstns(object):
 
     def __init__(self,pathDb,tairVar):
                 
-        stn_da = station_data_infill(pathDb, tairVar)
+        stn_da = StationSerialDataDb(pathDb, tairVar)
         mask_stns = np.isnan(stn_da.stns[BAD])         
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
                      
@@ -179,7 +179,7 @@ class OptimKrigParams(object):
 
     def __init__(self,pathDb,tairVar):
         
-        stn_da = station_data_infill(pathDb, tairVar,stn_dtype=DTYPE_INTERP_OPTIM)
+        stn_da = StationSerialDataDb(pathDb, tairVar,stn_dtype=DTYPE_INTERP_OPTIM)
         mask_stns = np.isnan(stn_da.stns[BAD])
                 
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=False) 
@@ -210,7 +210,7 @@ class OptimTairAnom(object):
 
     def __init__(self,pathDb,tairVar):
         
-        stn_da = station_data_infill(pathDb, tairVar,vcc_size=470560000*2)
+        stn_da = StationSerialDataDb(pathDb, tairVar,vcc_size=470560000*2)
         mask_stns = np.isnan(stn_da.stns[BAD]) 
             
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns,rm_zero_dist_stns=True)
@@ -265,7 +265,7 @@ class XvalTairOverall():
     
     def __init__(self,pathDb,tairVar):
         
-        stn_da = station_data_infill(pathDb, tairVar,stn_dtype=DTYPE_INTERP_OPTIM_ALL,vcc_size=470560000*2)
+        stn_da = StationSerialDataDb(pathDb, tairVar,stn_dtype=DTYPE_INTERP_OPTIM_ALL,vcc_size=470560000*2)
         mask_stns = np.isnan(stn_da.stns[BAD])       
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
                       
@@ -330,7 +330,7 @@ class XvalGwrNormOverall(object):
 
     def __init__(self,pathDb,tairVar):
                 
-        stn_da = station_data_infill(pathDb, tairVar)
+        stn_da = StationSerialDataDb(pathDb, tairVar)
         mask_stns = np.isnan(stn_da.stns[BAD])         
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
                      
@@ -514,8 +514,8 @@ def analyze_xval_overall():
 
 def perfPtInterpTair():
     
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
    
     
     #stndaTmin = it.StationDataWrkChk('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')

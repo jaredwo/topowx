@@ -7,7 +7,7 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,MEAN_OBS,MASK,BAD,DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO
+from twx.db.station_data import StationSerialDataDb,STN_ID,MEAN_OBS,MASK,BAD,DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO
 from twx.interp.station_select import station_select
 from twx.utils.status_check import status_check
 import twx.interp.interp_tair as it
@@ -87,7 +87,7 @@ def proc_write(params,nwrkers):
     status = MPI.Status()
     nwrkrs_done = 0
         
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME],stn_dtype=DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO)
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME],stn_dtype=DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO)
     stn_ids = stn_da.stn_ids
     stn_mask = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD]))    
     stns = stn_da.stns[stn_mask]
@@ -140,7 +140,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     stn_mask = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD]))    
     stns = stn_da.stns[stn_mask]
             

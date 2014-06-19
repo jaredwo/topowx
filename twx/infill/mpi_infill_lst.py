@@ -6,7 +6,7 @@ A MPI driver for interpolating tair to a specified grid using interp.interp_tair
 
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,DTYPE_STN_BASIC
+from twx.db.station_data import StationSerialDataDb,DTYPE_STN_BASIC
 from twx.utils.status_check import status_check
 from netCDF4 import Dataset,num2date
 import os
@@ -74,7 +74,7 @@ sys.stdout=Unbuffered(sys.stdout)
 #
 #    status = MPI.Status()
 #    
-#    stnda = station_data_infill(params[P_PATH_STNDB], params[P_TAIR_VAR],stn_dtype=DTYPE_STN_BASIC)
+#    stnda = StationSerialDataDb(params[P_PATH_STNDB], params[P_TAIR_VAR],stn_dtype=DTYPE_STN_BASIC)
 #    
 #    impLST = ImputeLST(stnda, params[P_TAIR_VAR])
 #            
@@ -117,7 +117,7 @@ def proc_work(params,rank):
 
     status = MPI.Status()
     
-    stnda = station_data_infill(params[P_PATH_STNDB], params[P_TAIR_VAR],stn_dtype=DTYPE_STN_BASIC)
+    stnda = StationSerialDataDb(params[P_PATH_STNDB], params[P_TAIR_VAR],stn_dtype=DTYPE_STN_BASIC)
     
     timeVarsSet = False
     

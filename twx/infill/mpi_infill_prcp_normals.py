@@ -8,14 +8,14 @@ using the methods of obs_infill_normal.
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_ncdb,STN_ID,YEAR,DATE,STN_NAME,ELEV,LON,LAT,STATE
+from twx.db.station_data import StationDataDb,STN_ID,YEAR,DATE,STN_NAME,ELEV,LON,LAT,STATE
 from twx.infill.obs_por import load_por_csv,build_valid_por_masks
 from twx.utils.status_check import status_check
 from netCDF4 import Dataset,date2num
 import netCDF4
 import datetime
 from twx.infill.infill_normals import infill_prcp_norm,build_mth_masks,MTH_BUFFER
-from twx.db.all_create_db import dbDataset
+from twx.db.create_db_all_stations import dbDataset
 
 LAST_VAR_WRITTEN = 'err_amt'
 
@@ -52,7 +52,7 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     days = stn_da.days
     
     mth_masks = build_mth_masks(days)
@@ -91,7 +91,7 @@ def proc_work(params,rank):
 def proc_write(params,nwrkers):
 
     status = MPI.Status()
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     days = stn_da.days
     nwrkrs_done = 0
     
@@ -144,7 +144,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     
     #Load the period-of-record datafile
     por = load_por_csv(params[P_PATH_POR])

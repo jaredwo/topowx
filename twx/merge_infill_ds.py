@@ -3,7 +3,7 @@ Created on Apr 1, 2013
 
 @author: jared.oyler
 '''
-from twx.db.station_data import station_data_ncdb,STN_ID
+from twx.db.station_data import StationDataDb,STN_ID
 from twx.db.reanalysis import NNRNghData
 from twx.interp.clibs import clib_wxTopo
 from twx.infill.infill_daily import ImputeMatrixPCA,source_r
@@ -12,7 +12,7 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import netCDF4
-from twx.db.all_create_db import dbDataset
+from twx.db.create_db_all_stations import dbDataset
 from twx.utils.status_check import status_check
 
 NCDF_CHK_COLS = 50
@@ -21,7 +21,7 @@ def update_single_infill(stn_id,var,npcs,path_out):
     
     source_r('/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/pca_infill.R')
     
-    stn_da = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc',
+    stn_da = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc',
                                (19480101,20121231))
         
     ds_nnr = NNRNghData('/projects/daymet2/reanalysis_data/conus_subset/', (19480101,20121231))
@@ -154,7 +154,7 @@ def create_new_ds():
     stnids_tmin = np.unique(np.concatenate((stnids_tmin,stnids_catmin)))
     stnids_tmax = np.unique(np.concatenate((stnids_tmax,stnids_catmax)))
     
-    stn_da = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc',(19480101,20121231))
+    stn_da = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc',(19480101,20121231))
 
     stns_tmin = stn_da.stns[np.in1d(stn_da.stns[STN_ID], stnids_tmin, assume_unique=True)]
     stns_tmax = stn_da.stns[np.in1d(stn_da.stns[STN_ID], stnids_tmax, assume_unique=True)]

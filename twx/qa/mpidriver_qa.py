@@ -8,7 +8,7 @@ from mpi4py import MPI
 import qa_prcp
 import qa_temp
 import numpy as np
-from twx.db.station_data import station_data_ncdb, STN_ID, TMIN, TMAX, PRCP, YMD, TMIN_FLAG, TMAX_FLAG, PRCP_FLAG,STATE
+from twx.db.station_data import StationDataDb, STN_ID, TMIN, TMAX, PRCP, YMD, TMIN_FLAG, TMAX_FLAG, PRCP_FLAG,STATE
 from netCDF4 import Dataset, date2num
 import twx.utils.util_dates as utld
 from twx.utils.util_misc import Unbuffered
@@ -161,7 +161,7 @@ class iter_multi_flag_update:
 def proc_work(params,rank):
     
     status = MPI.Status()
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     
     while 1:
         
@@ -284,7 +284,7 @@ def proc_write(params,nwrkers):
 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     stns = stn_da.stns[params[P_STN_MASK]]
     
     cnt = 0
@@ -320,7 +320,7 @@ if __name__ == '__main__':
     params[P_START_YMD] = None
     params[P_END_YMD] = None
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     params[P_STN_MASK] = np.ones(stn_da.stn_ids.size, dtype=np.bool)
     
 #    sntl_mask = np.logical_and(np.char.startswith(stn_da.stn_ids,"SNOTEL"),stn_da.stns[STATE] != "AK")#np.char.startswith(stn_da.stn_ids,"SNOTEL")

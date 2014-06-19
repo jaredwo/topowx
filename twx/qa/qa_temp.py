@@ -13,7 +13,7 @@ from datetime import datetime
 import calendar as cal
 import twx.utils.util_geo as utlg
 from twx.db.station_data import LON, LAT, STN_ID, YEAR, DATE, MONTH, TMIN, TMAX, YMD, DAY, YDAY,\
-    station_data_ncdb
+    StationDataDb
 from datetime import timedelta
 from scipy import stats
 

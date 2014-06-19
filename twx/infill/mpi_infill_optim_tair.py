@@ -9,7 +9,7 @@ of years of data artificially set to missing. Infilled values are then compared 
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_ncdb,STN_ID,LON,LAT,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX
+from twx.db.station_data import StationDataDb,STN_ID,LON,LAT,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX
 from infill_daily import pca_matrix,source_r,gwrpca_matrix
 from twx.infill.obs_por import load_por_csv,POR_DTYPE,build_valid_por_masks
 
@@ -81,7 +81,7 @@ sys.stdout=Unbuffered(sys.stdout)
 def proc_work(params,rank):
     
     status = MPI.Status()
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     
     for path in params[P_PATH_R_FUNCS]:    
         source_r(path)
@@ -242,7 +242,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord_hcn(params,nwrkers):
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     days = stn_da.days
     
     #The number of observations that should not be set to nan
@@ -423,7 +423,7 @@ def proc_coord_hcn(params,nwrkers):
 
 def proc_coord_sntl_raws(params,nwrkers):
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     
     #Load the period-of-record datafile
     por = load_por_csv(params[P_PATH_POR])

@@ -5,7 +5,7 @@ Created on Sep 4, 2013
 '''
 import infill.obs_por as op
 import numpy as np
-from twx.db.station_data import station_data_ncdb, LON, LAT,CLIMDIV, station_data_infill,VARIO_NUG,NEON,BAD,YEAR,\
+from twx.db.station_data import StationDataDb, LON, LAT,CLIMDIV, StationSerialDataDb,VARIO_NUG,NEON,BAD,YEAR,\
     STN_ID,DTYPE_STN_BASIC, MASK, DATE, YMD,DTYPE_STN_MEAN_LST_TDI,BAD, MEAN_OBS
 import twx.db.station_data as stnData
 import twx.utils.util_geo as utlg
@@ -38,8 +38,8 @@ def plotStns():
     
     #Load the climate division Line Collections for matplotlib
     lineCollect = np.array(pickle.load(open('/projects/daymet2/dem/climate_divisions/ClimDivLineCollections.pickle')))
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
     
     stns = stndaTmax.stns
     stnsTmin = stndaTmin.stns[~np.in1d(stndaTmin.stns[STN_ID], stns[STN_ID], True)]
@@ -333,8 +333,8 @@ def plotInterpErrorMaps():
     stndtype.append(('xval_overall_mae',np.float64))
     stndtype.append(('xval_overall_r2',np.float64))
     
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax',stn_dtype=stndtype)
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin',stn_dtype=stndtype)
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax',stn_dtype=stndtype)
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin',stn_dtype=stndtype)
     climDivs = np.concatenate((stndaTmax.stns[NEON],stndaTmin.stns[NEON]))
     climDivs = np.unique(climDivs[np.isfinite(climDivs)])[2:]
     

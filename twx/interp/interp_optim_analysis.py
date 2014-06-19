@@ -7,7 +7,7 @@ import numpy as np
 from netCDF4 import Dataset
 import netCDF4
 import matplotlib.pyplot as plt
-from twx.db.station_data import station_data_infill,OPTIM_NNGH,OPTIM_NNGH_ANOM,NEON,MASK,BAD,LON,LAT,ELEV,TDI,NEON,MEAN_OBS,LST
+from twx.db.station_data import StationSerialDataDb,OPTIM_NNGH,OPTIM_NNGH_ANOM,NEON,MASK,BAD,LON,LAT,ELEV,TDI,NEON,MEAN_OBS,LST
 import twx.interp.interp_tair as it
 from twx.interp.interp_tair import LST_TMIN,LST_TMAX
 import twx.db.ushcn as ushcn
@@ -15,7 +15,7 @@ import twx.db.ushcn as ushcn
 
 def set_optim_nnghs(fpathSerialDb,varTair,optimStats,optimVar=OPTIM_NNGH,longname=None):
         
-    stn_da = station_data_infill(fpathSerialDb,varTair)
+    stn_da = StationSerialDataDb(fpathSerialDb,varTair)
     stn_rgn = stn_da.stns[NEON]
     stn_mask = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD]))
     stn_da.ds.close()
@@ -186,6 +186,6 @@ if __name__ == '__main__':
     set_optim_nnghs('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin', 
                     optimStats, OPTIM_NNGH_ANOM, "optimal number of neighbors for Tair anomaly interpolation")
 
-#    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
+#    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
 #    print xvalStns(stnda.stn_ids[np.logical_and(stnda.stns[NEON]==2502,np.isnan(stnda.stns[BAD]))],'tmax')
     

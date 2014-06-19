@@ -7,8 +7,8 @@ A MPI driver for infilling/extending station observation records using the metho
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.all_create_db import dbDataset
-from twx.db.station_data import station_data_ncdb,STN_ID,DATE,MEAN_TMIN,MEAN_TMAX
+from twx.db.create_db_all_stations import dbDataset
+from twx.db.station_data import StationDataDb,STN_ID,DATE,MEAN_TMIN,MEAN_TMAX
 from twx.utils.status_check import status_check
 from netCDF4 import Dataset
 import netCDF4
@@ -74,7 +74,7 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     days = stn_da.days
     ndays = float(days.size)
     
@@ -134,7 +134,7 @@ def proc_work(params,rank):
 def proc_write(params,nwrkers):
 
     status = MPI.Status()
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     days = stn_da.days
     nwrkrs_done = 0
     
@@ -218,7 +218,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
         
     mask_tmin = np.isfinite(stn_da.stns[MEAN_TMIN])
     mask_tmax = np.isfinite(stn_da.stns[MEAN_TMAX])

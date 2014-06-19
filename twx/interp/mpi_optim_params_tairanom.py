@@ -7,10 +7,10 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,NEON,MASK,BAD
+from twx.db.station_data import StationSerialDataDb,STN_ID,NEON,MASK,BAD
 from twx.utils.status_check import status_check
 import netCDF4
-from twx.db.all_create_db import dbDataset
+from twx.db.create_db_all_stations import dbDataset
 from netCDF4 import Dataset
 from twx.interp.optimize import OptimTairAnom, setOptimTairAnomParams
 
@@ -87,7 +87,7 @@ def proc_write(params,nwrkers):
     stn_ids = bcast_msg
     print "Writer: Received broadcast msg"
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     stn_mask = np.in1d(stn_da.stn_ids,stn_ids,True)
     stns = stn_da.stns[stn_mask]
     
@@ -152,7 +152,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD])) 
     stns = stn_da.stns[mask_stns]
         

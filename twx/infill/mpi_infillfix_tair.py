@@ -7,7 +7,7 @@ A MPI driver for trying different nnghs on stations that had an Tair infilling M
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_ncdb
+from twx.db.station_data import StationDataDb
 from twx.utils.status_check import status_check
 from netCDF4 import Dataset
 import netCDF4
@@ -68,7 +68,7 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     days = stn_da.days
     ndays = float(days.size)
     

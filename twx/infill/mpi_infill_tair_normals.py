@@ -8,7 +8,7 @@ using the methods of obs_infill_normal.
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_ncdb,STN_ID,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX
+from twx.db.station_data import StationDataDb,STN_ID,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX
 from twx.infill.obs_por import load_por_csv,build_valid_por_masks
 from twx.utils.status_check import status_check
 import netCDF4
@@ -50,7 +50,7 @@ sys.stdout=Unbuffered(sys.stdout)
 def proc_work(params,rank):
     
     status = MPI.Status()
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     
     bcast_msg = None
     bcast_msg = MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)
@@ -101,7 +101,7 @@ def proc_write(params,nwrkers):
 
     status = MPI.Status()
     nwrkrs_done = 0
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]),mode="r+")
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]),mode="r+")
     var_meantmin = stn_da.add_stn_variable(MEAN_TMIN,MEAN_TMIN,"C",'f8')
     var_meantmax = stn_da.add_stn_variable(MEAN_TMAX,MEAN_TMAX,"C",'f8')
     var_vartmin = stn_da.add_stn_variable(VAR_TMIN,VAR_TMIN,"C**2",'f8')

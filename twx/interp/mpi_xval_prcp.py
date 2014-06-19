@@ -7,7 +7,7 @@ A MPI driver for performing "leave one out" cross-validation of prcp interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,LON,LAT,ELEV
+from twx.db.station_data import StationSerialDataDb,STN_ID,LON,LAT,ELEV
 from twx.interp.station_select import station_select
 from twx.utils.status_check import status_check
 import twx.utils.util_geo as utlg
@@ -94,7 +94,7 @@ def calc_hss(obs_po, mod_po):
 def proc_work(params,rank):
     
     status = MPI.Status()
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     
     mod = ip.modeler_clib_prcp(thres=params[P_PO_THRES])
     prcp_interper = ip.interp_prcp(mod)
@@ -235,7 +235,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     
     if params[P_INCLUDE_STNIDS] is None:
         
@@ -409,7 +409,7 @@ if __name__ == '__main__':
     
     if rank == RANK_COORD:
         
-        stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+        stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
         
         #U.S. only mask
         mask_us = np.logical_and(np.char.find(stn_da.stns[STN_ID],'GHCN_CA')==-1,np.char.find(stn_da.stns[STN_ID],'GHCN_MX')==-1)

@@ -5,7 +5,7 @@ Created on Apr 5, 2013
 '''
 import infill.obs_por as op
 import numpy as np
-from twx.db.station_data import station_data_ncdb, LON, LAT,CLIMDIV, station_data_infill,VARIO_NUG,NEON,BAD,YEAR,\
+from twx.db.station_data import StationDataDb, LON, LAT,CLIMDIV, StationSerialDataDb,VARIO_NUG,NEON,BAD,YEAR,\
     STN_ID,DTYPE_STN_BASIC, MASK, DATE, YMD,DTYPE_STN_MEAN_LST_TDI,BAD, MEAN_OBS,get_norm_varname,\
     ELEV,get_lst_varname, STN_NAME, LST,TDI, MONTH, DTYPE_INTERP, DTYPE_OPTIM,\
     get_optim_varname
@@ -92,7 +92,7 @@ TRANSECT_CCE_LAT = (47.78,47.78)
 
 def potential_stn_cnt(nYrsOfData):
     
-    db = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc')
+    db = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc')
     stns = db.stns
     stn_ids = db.stn_ids
     
@@ -114,7 +114,7 @@ def potential_stn_cnt(nYrsOfData):
 
 def get_nValid_obs(stn_prefix,tair_var):
     
-    db = station_data_ncdb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc')
+    db = StationDataDb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc')
     stns = db.stns
     db.ds.close()
     db = None
@@ -127,7 +127,7 @@ def get_nValid_obs(stn_prefix,tair_var):
 
 def qa_flag_cnts(stn_prefix,tair_var):
     
-    db = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc')
+    db = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc')
     stns = db.stns
     stn_ids = db.stn_ids
     db.ds.close()
@@ -339,7 +339,7 @@ def qa_loc_cnts(path_locqa):
 def plotClimDivStnDensity():
     
     #Load station counts per climate division into dictionary
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
+    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
     stns = stnda.stns
     #stns = stnda.stns[np.char.startswith(stnda.stns[STN_ID], 'GHCN')]
     climDivs = np.unique(stnda.stns[NEON][np.isfinite(stnda.stns[NEON])])[2:]
@@ -398,8 +398,8 @@ def plotStns():
     
     #Load the climate division Line Collections for matplotlib
     lineCollect = np.array(pickle.load(open('/projects/daymet2/dem/climate_divisions/ClimDivLineCollections.pickle')))
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
     
     stns = stndaTmax.stns
     stnsTmin = stndaTmin.stns[~np.in1d(stndaTmin.stns[STN_ID], stns[STN_ID], True)]
@@ -441,7 +441,7 @@ def plotStns():
 
 def plotImpExample():
 
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/infill_tmax.nc', 'tmax',stn_dtype=stnData.DTYPE_STN_BASIC)
+    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/infill_tmax.nc', 'tmax',stn_dtype=stnData.DTYPE_STN_BASIC)
     x = np.nonzero(stnda.stn_ids=='SNOTEL_13C01S')[0][0]#'SNOTEL_13C01S'
     tair = stnda.ds.variables['tmax'][:,x]
     impFlg = stnda.ds.variables['flag_impute'][:,x].astype(np.bool)
@@ -476,7 +476,7 @@ def plotmaeVsStdErr():
     stndtype.append(('xval_overall_mae',np.float64))
     stndtype.append(('xval_stderr',np.float64))
     
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin',stn_dtype=stndtype)
+    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin',stn_dtype=stndtype)
     climDivs = stnda.stns[NEON]
     climDivs = np.unique(climDivs[np.isfinite(climDivs)])[2:]
     
@@ -519,8 +519,8 @@ def plotBiasMaps():
     stndtype = copy(stnData.DTYPE_STN_DFLT)
     stndtype.append((errVar,np.float64))
     
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmin.nc', 'tmin',stn_dtype=stndtype)
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc', 'tmax',stn_dtype=stndtype)
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmin.nc', 'tmin',stn_dtype=stndtype)
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc', 'tmax',stn_dtype=stndtype)
     climDivs = stndaTmin.stns[NEON]
     climDivs = np.unique(climDivs[np.isfinite(climDivs)])[2:]
     
@@ -626,8 +626,8 @@ def plotMabMaps():
     stndtype = copy(stnData.DTYPE_STN_DFLT)
     stndtype.append((errVar,np.float64))
     
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmin.nc', 'tmin',stn_dtype=stndtype)
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc', 'tmax',stn_dtype=stndtype)
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmin.nc', 'tmin',stn_dtype=stndtype)
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc', 'tmax',stn_dtype=stndtype)
     climDivs = stndaTmin.stns[NEON]
     climDivs = np.unique(climDivs[np.isfinite(climDivs)])[2:]
     
@@ -778,8 +778,8 @@ def analyzeInterpErr():
     stndtype.append(('xval_overall_mae',np.float64))
     stndtype.append(('xval_overall_r2',np.float64))
     
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax',stn_dtype=stndtype)
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin',stn_dtype=stndtype)
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax',stn_dtype=stndtype)
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin',stn_dtype=stndtype)
     climDivs = np.concatenate((stndaTmax.stns[NEON],stndaTmin.stns[NEON]))
     climDivs = np.unique(climDivs[np.isfinite(climDivs)])[2:]
     
@@ -1732,8 +1732,8 @@ def plotInterpErrorMaps():
     
     fontsize=12
     
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
     climDivs = np.concatenate((stndaTmax.stns[NEON],stndaTmin.stns[NEON]))
     climDivs = np.unique(climDivs[np.isfinite(climDivs)])[2:]
     
@@ -1837,8 +1837,8 @@ def plotInterpErrorMaps2():
     
     fontsize=12
     
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
     climDivs = np.concatenate((stndaTmax.stns[NEON],stndaTmin.stns[NEON]))
     climDivs = np.unique(climDivs[np.isfinite(climDivs)])[2:]
     
@@ -2083,8 +2083,8 @@ def plotInterpErrorMapsNcdcNormsTest():
     
     fontsize=12
     
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
     climDivs = np.concatenate((stndaTmax.stns[NEON],stndaTmin.stns[NEON]))
     climDivs = np.unique(climDivs[np.isfinite(climDivs)])[2:]
     
@@ -2376,7 +2376,7 @@ def plotKrigParams():
     #Load station counts per climate division into dictionary
     stndtype = copy(stnData.DTYPE_STN_DFLT)
     stndtype.append(('xval_overall_mae',np.float64))
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc', 'tmax',stn_dtype=stndtype)
+    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc', 'tmax',stn_dtype=stndtype)
     climDivs = np.unique(stnda.stns[NEON][np.isfinite(stnda.stns[NEON])])[2:]
     krigParams = []
     for div in climDivs:
@@ -2462,8 +2462,8 @@ def runningMean(a,n=5):
       
 def plotSntlHomogDifs():
     tairVar = 'tmax'
-    stndaHomog = station_data_ncdb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
-    stndaRaw = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc')
+    stndaHomog = StationDataDb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
+    stndaRaw = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc')
     
     sntlIds = np.loadtxt('/projects/daymet2/docs/final_writeup/stnsForHomogDifPlot/tminSNTL.txt', dtype=np.str)
     
@@ -2524,8 +2524,8 @@ def plotSntlHomogDifs():
 
 def rawVsHomogTrends():
     tairVar = 'tmax'
-    stndaHomog = station_data_ncdb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
-    stndaRaw = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc')
+    stndaHomog = StationDataDb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
+    stndaRaw = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc')
     stndaUS = ushcn.StationDataUSHCN('/projects/daymet2/station_data/ushcn/ushcn.nc')
     
     ghcnIds = np.loadtxt('/projects/daymet2/docs/final_writeup/stnsForHomogDifPlot/tmaxGHCN.txt', dtype=np.str)
@@ -2616,8 +2616,8 @@ def rawVsHomogTrends():
 
 def plotHomogDifs():
     tairVar = 'tmin'
-    stndaHomog = station_data_ncdb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
-    stndaRaw = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc')
+    stndaHomog = StationDataDb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
+    stndaRaw = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc')
     stndaUS = ushcn.StationDataUSHCN('/projects/daymet2/station_data/ushcn/ushcn.nc')
     
     ghcnIds = np.loadtxt('/projects/daymet2/docs/final_writeup/stnsForHomogDifPlot/tminGHCN.txt', dtype=np.str)
@@ -2724,8 +2724,8 @@ def topoWxVsUSHCN():
     stndaUS = ushcn.StationDataUSHCN('/projects/daymet2/station_data/ushcn/ushcn.nc')
     stnsUS = stndaUS.stns
         
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmin.nc','tmin',stn_dtype=DTYPE_STN_BASIC)
-    stndaRAW = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serial_tmin.nc','tmin',stn_dtype=DTYPE_STN_BASIC)
+    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmin.nc','tmin',stn_dtype=DTYPE_STN_BASIC)
+    stndaRAW = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serial_tmin.nc','tmin',stn_dtype=DTYPE_STN_BASIC)
     uYrs = np.unique(stnda.days[YEAR])
     hcnMask = ushcn.buildGhcnUShcnMask(stnda.stn_ids,'/projects/daymet2/station_data/ghcn/ghcnd-stations.txt')
     stnsG = stnda.stns[hcnMask]
@@ -2834,7 +2834,7 @@ def anomalyMap():
         anomRaw[:,x] = obsRaw
         
     ###########################################
-    stndaTWX = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc')
+    stndaTWX = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc')
     maskHCN = ushcn.buildGhcnUShcnMask(stndaTWX.stns[STN_ID],'/projects/daymet2/station_data/ghcn/ghcnd-stations.txt')
     stnsTWX = stndaTWX.stns[maskHCN]
     
@@ -2851,7 +2851,7 @@ def anomalyMap():
         anomTWX[:,x] = obsTWX
     ###########################################
         
-#    stndaTWX = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc','tmax')
+#    stndaTWX = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc','tmax')
 #    obsTWX = stndaTWX.ds.variables['tmax_ann'][:]
 #    anomTWX = obsTWX - np.mean(obsTWX,axis=0)
 #    
@@ -3078,8 +3078,8 @@ def plotPCIAccuracy():
 #    stndtype.append(('xval_err',np.float64))
 #    stndtype.append(('xval_stderr',np.float64))
 #    
-#    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin',stn_dtype=stndtype)
-#    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax',stn_dtype=stndtype)
+#    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin',stn_dtype=stndtype)
+#    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax',stn_dtype=stndtype)
 #    
     dsTmin = Dataset('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc')
     dsTmax = Dataset('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc')
@@ -3211,7 +3211,7 @@ def anomalyMapHCNvsTopoWx():
         anomFLs[:,x] = obsFLs
  
     ###########################################
-    stndaTWX = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax',stn_dtype=DTYPE_STN_MEAN_LST_TDI)
+    stndaTWX = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax',stn_dtype=DTYPE_STN_MEAN_LST_TDI)
     stnsTwxMask = np.logical_and(np.isnan(stndaTWX.stns[BAD]),np.isfinite(stndaTWX.stns[MASK]))
     stnsTWX = stndaTWX.stns[stnsTwxMask]
     stnsTwxIdx = np.nonzero(stnsTwxMask)[0]
@@ -3319,8 +3319,8 @@ def anomalyMapHCNvsTopoWx():
 #    plt.show()
 
 def avgAnnDifsHomog():
-    stndaH = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc','tmax')
-    stndaS = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serial_tmax.nc','tmax',stn_dtype=DTYPE_STN_BASIC)
+    stndaH = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serialhomog_tmax.nc','tmax')
+    stndaS = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serial_tmax.nc','tmax',stn_dtype=DTYPE_STN_BASIC)
     
     mask_stns1 = np.logical_and(np.isfinite(stndaH.stns[MASK]),np.isnan(stndaH.stns[BAD]))
     
@@ -4443,7 +4443,7 @@ def plotConusTrends():
 
 def calcConusTrendsTopoWx():
     
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
+    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
     stns = stnda.stns
     stn_mask = np.nonzero(np.isnan(stns[BAD]))[0]
     stns = stns[stn_mask]
@@ -4694,7 +4694,7 @@ def plotLSTvsAir():
 
 
 def caCoast_grtPlns_MaeVsSE():
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
+    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
     
     climDivsGP = np.sort(np.array([1407,1404,1401,3401,2508,2507,2502,2501,3201,3204,3207]))
     stn_maskGP = np.nonzero(np.logical_and(np.in1d(stnda.stns[NEON], climDivsGP, False),np.isnan(stnda.stns[BAD])))[0]   
@@ -4918,10 +4918,10 @@ def plotCcePredictorR2():
 
         return stns[cceStnMask]
     
-    stnDaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
+    stnDaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
     stnsCceTmin = maskStnsToCCE(stnDaTmin)
     
-    stnDaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
+    stnDaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
     stnsCceTmax = maskStnsToCCE(stnDaTmax)
     
     def getR2(stns):
@@ -5001,10 +5001,10 @@ def cceMae():
 
         return np.logical_and(cceStnMask,np.isnan(stnDa.stns[BAD]))#stns[cceStnMask]
     
-    stnDaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
+    stnDaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
     stnsCceTminMask = maskStnsToCCE(stnDaTmin)
     
-    stnDaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
+    stnDaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
     stnsCceTmaxMask = maskStnsToCCE(stnDaTmax)
     
     print np.sum(stnsCceTminMask),np.sum(stnsCceTmaxMask)
@@ -5065,12 +5065,12 @@ def cceMae():
 
 def cceBiasVs():
     
-    dbHomog = station_data_ncdb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',startend_ymd=(19810101,20101231))
-    dbRaw = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc',startend_ymd=(19810101,20101231))
+    dbHomog = StationDataDb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',startend_ymd=(19810101,20101231))
+    dbRaw = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc',startend_ymd=(19810101,20101231))
     
-    stnDaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
+    stnDaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
     stnsTmin = stnDaTmin.stns[maskStnsToCCE(stnDaTmin)]
-    stnDaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
+    stnDaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
     stnsTmax = stnDaTmax.stns[maskStnsToCCE(stnDaTmax)]
     
     delStns = np.array(['GHCN_USC00241202','GHCN_USC00242576','GHCN_USC00242812','GHCN_USC00245038','GHCN_USC00245164','GHCN_USC00246302','GHCN_USC00246307','GHCN_USC00244563'])
@@ -5349,9 +5349,9 @@ def maskStnsToCCE(stnDa):
 
 def cceXvalStats():
     
-    stnDaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
+    stnDaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
     stnsCceTminMask = maskStnsToCCE(stnDaTmin)
-    stnDaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
+    stnDaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
     stnsCceTmaxMask = maskStnsToCCE(stnDaTmax)
     
     biasTminXval = np.mean(stnDaTmin.ds.variables['xvalfnl_bias_norm'][:,stnsCceTminMask],axis=1)
@@ -6085,10 +6085,10 @@ def outputCceStnsToCsv():
 
         return stns[cceStnMask]
     
-    stnDaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
+    stnDaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
     stnsCceTmin = maskStnsToCCE(stnDaTmin)
     
-    stnDaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
+    stnDaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
     stnsCceTmax = maskStnsToCCE(stnDaTmax)
     
     def outputCsv(pathOut,stns):
@@ -6161,8 +6161,8 @@ def plotRelImp():
     plt.show()
 
 def flatheadLake():
-    dbTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
-    dbTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
+    dbTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc','tmin')
+    dbTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc','tmax')
  
     xTmin = np.nonzero(dbTmin.stn_ids=='GHCN_USC00240755')[0][0]
     xTmax = np.nonzero(dbTmax.stn_ids=='GHCN_USC00240755')[0][0]
@@ -6386,7 +6386,7 @@ def plotOptimNnghsKriging():
     
     dtypeStns = copy(DTYPE_INTERP)
     dtypeStns.extend(DTYPE_OPTIM)
-    db = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax',stn_dtype=dtypeStns)
+    db = StationSerialDataDb('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax',stn_dtype=dtypeStns)
     stns = db.stns[np.isnan(db.stns[BAD])]
     m = Basemap(resolution='i',projection='aea', llcrnrlat=22,urcrnrlat=49,llcrnrlon=-119,urcrnrlon=-64,
                 lat_1=29.5,lat_2=45.5,lon_0=-96.0,lat_0=37.5,area_thresh= 10000)
@@ -6513,7 +6513,7 @@ if __name__ == '__main__':
     #impResiduals()
     
     #Homogenization Stats
-#    stnda = station_data_ncdb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc')
+#    stnda = StationDataDb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc')
 #    ds = stnda.ds
 #    stnIdsToChk = ds.variables['stn_id'][:].astype("<S16")
 #    stnIdsToChk = stnIdsToChk[np.char.startswith(stnIdsToChk, 'SNOTEL')]

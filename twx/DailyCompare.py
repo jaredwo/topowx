@@ -3,7 +3,7 @@ Created on Dec 3, 2013
 
 @author: jared.oyler
 '''
-from twx.db.station_data import station_data_ncdb, station_data_infill, STN_ID, STN_NAME, LON, LAT, MONTH, NEON, DATE, YMD, YEAR, TMIN, TMAX, ELEV, TDI
+from twx.db.station_data import StationDataDb, StationSerialDataDb, STN_ID, STN_NAME, LON, LAT, MONTH, NEON, DATE, YMD, YEAR, TMIN, TMAX, ELEV, TDI
 import numpy as np
 from multiprocessing import Pool
 import twx.interp.interp_tair as it
@@ -44,8 +44,8 @@ def stnMetaToDaymetExtract():
     
 def normStnDataToNpy():
     
-    dbHomog = station_data_ncdb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',startend_ymd=(19810101,20101231))
-    dbRaw = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc',startend_ymd=(19810101,20101231))
+    dbHomog = StationDataDb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',startend_ymd=(19810101,20101231))
+    dbRaw = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc',startend_ymd=(19810101,20101231))
     
     stnsNorms = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
     stnsNorms = stnsNorms[np.in1d(stnsNorms[STN_ID], dbHomog.stn_ids)]
@@ -69,8 +69,8 @@ def normStnDataToNpy():
     
 def stnDataToNpy():
     
-    dbHomog = station_data_ncdb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',startend_ymd=(19810101,20101231))
-    dbRaw = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc',startend_ymd=(19810101,20101231))
+    dbHomog = StationDataDb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',startend_ymd=(19810101,20101231))
+    dbRaw = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc',startend_ymd=(19810101,20101231))
     
     stnsNorms = np.load('/projects/daymet2/station_data/ncdc_normals/norm_stns.npy')
     stnsNorms = stnsNorms[np.in1d(stnsNorms[STN_ID], dbHomog.stn_ids)]
@@ -127,8 +127,8 @@ def runInterp(x):
 
 def buildConusStations():
 
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
     climDivs = np.concatenate((stndaTmax.stns[NEON],stndaTmin.stns[NEON]))
     climDivs = np.unique(climDivs[np.isfinite(climDivs)])[2:]
     
@@ -377,8 +377,8 @@ def ptErrorStats(interpTair,obsTair,days,stn):
 def calcErrStats():
     stns = np.load('/projects/daymet2/ds_compare/daily/topowx_stns.npy')
     
-    dbHomog = station_data_ncdb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',startend_ymd=(19810101,20121231))
-    #dbRaw = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc',startend_ymd=(19810101,20121231))
+    dbHomog = StationDataDb('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc',startend_ymd=(19810101,20121231))
+    #dbRaw = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc',startend_ymd=(19810101,20121231))
     
     days = utld.get_days_metadata(datetime(1981,1,1), datetime(2012,12,31))
     

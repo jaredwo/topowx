@@ -5,7 +5,7 @@ Created on Feb 20, 2013
 '''
 import numpy as np
 import twx.utils.util_geo as utlg
-from twx.db.station_data import station_data_ncdb, STN_ID, LON, LAT,UTC_OFFSET,YMD,YEAR
+from twx.db.station_data import StationDataDb, STN_ID, LON, LAT,UTC_OFFSET,YMD,YEAR
 from twx.utils.util_dates import MONTH, MTH_SRT_END_DATES, DAY
 from datetime import timedelta
 from scipy import stats
@@ -186,7 +186,7 @@ class NghMatrix(object):
         '''
         
         @param stn_id: the stn_id of the target
-        @param stn_da: a station_data_ncdb object
+        @param stn_da: a StationDataDb object
         @param tair_var: the tair variable (tmin, tmax)
         @param min_dist: the min distance for which to search for neighbors (exclusive)
         @param max_dist: the max distance for which to search for neighbors (inclusive)
@@ -673,7 +673,7 @@ class ChgPtMthly(object):
         
 def update_qa_flags(fpath_db,fpath_chgpts):
 
-    stn_da = station_data_ncdb(fpath_db,mode="r+")
+    stn_da = StationDataDb(fpath_db,mode="r+")
     ymd_start = stn_da.days[YMD][0]
     ymd_end = stn_da.days[YMD][-1]
 
@@ -716,7 +716,7 @@ def update_qa_flags(fpath_db,fpath_chgpts):
 
 def reset_qa_flags(fpath_db,fpath_chgpts):
     
-    stn_da = station_data_ncdb(fpath_db,mode="r+")
+    stn_da = StationDataDb(fpath_db,mode="r+")
 
     chgpts = np.loadtxt(fpath_chgpts, dtype=DTYPE_CHGPTS, delimiter=",",skiprows=1)
     

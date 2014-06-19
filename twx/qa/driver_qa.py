@@ -7,7 +7,7 @@ Driver for running quality assurance procedures in multiprocessing mode.
 import qa_prcp
 import qa_temp
 import numpy as np
-from twx.db.station_data import station_data_ncdb, STN_ID, STATE, TMIN, TMAX, STN_NAME, LON, LAT, ELEV, PRCP, YMD, TMIN_FLAG, TMAX_FLAG, PRCP_FLAG
+from twx.db.station_data import StationDataDb, STN_ID, STATE, TMIN, TMAX, STN_NAME, LON, LAT, ELEV, PRCP, YMD, TMIN_FLAG, TMAX_FLAG, PRCP_FLAG
 from twx.utils.multiprocess import multiprocess_config, multiprocess, worker
 from netCDF4 import Dataset, date2num
 import twx.utils.util_dates as utld
@@ -164,7 +164,7 @@ class worker_qa(worker):
     
     def init_stn_db_conns(self):
 
-        stn_da = station_data_ncdb(self.stn_db_path)
+        stn_da = StationDataDb(self.stn_db_path)
         self.stn_da = stn_da
         self.init_db = True
     
@@ -275,7 +275,7 @@ def run_qa_multiproc(spatial_qa, dp_path, nwrkrs=15):
     np.seterr(all='raise')
     np.seterr(under='ignore')
     
-    stn_da = station_data_ncdb(dp_path)
+    stn_da = StationDataDb(dp_path)
     stns = stn_da.stns
     stn_da.ds.close()
     stn_da = None

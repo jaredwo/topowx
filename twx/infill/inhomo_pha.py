@@ -3,8 +3,8 @@ Created on May 15, 2013
 
 @author: jared.oyler
 '''
-from twx.db.station_data import STN_ID,LON,LAT,BAD,station_data_infill,STATE,STN_NAME,ELEV,\
-    station_data_ncdb,YMD,DATE,DAY,DTYPE_STN_BASIC
+from twx.db.station_data import STN_ID,LON,LAT,BAD,StationSerialDataDb,STATE,STN_NAME,ELEV,\
+    StationDataDb,YMD,DATE,DAY,DTYPE_STN_BASIC
 import numpy as np
 from twx.utils.util_dates import YEAR,MONTH
 from twx.utils.status_check import status_check
@@ -13,7 +13,7 @@ from netCDF4 import Dataset
 import obs_por as por
 import twx.utils.util_dates as utld
 from datetime import datetime
-import twx.db.all_create_db as createDB
+import twx.db.create_db_all_stations as createDB
 import twx.db.ushcn as ushcn
 from netCDF4 import date2num
 import netCDF4
@@ -560,7 +560,7 @@ def addMthlyMeansTobsDs(dsPathRaw,dsPathTobs,varName):
     ds = Dataset(dsPathTobs,'r+')
     stnids = ds.variables['stn_id'][:].astype("<S16")
     
-    stnda = station_data_ncdb(dsPathRaw)
+    stnda = StationDataDb(dsPathRaw)
     tagg = ushcn.TairAggregate(stnda.days)
     minDate = stnda.days[DATE][0]
     stns = stnda.stns[np.in1d(stnda.stn_ids, stnids, True)]
@@ -627,7 +627,7 @@ if __name__ == '__main__':
     
     ###############################
 #    valsAdj = parsePhaAdj('/projects/daymet2/inhomo_software/pha_v52i_tmax/data/benchmark/world1/output/PhaAdjTmax.log')
-##    stn_da = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serial_tmin.nc', 'tmin',
+##    stn_da = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serial_tmin.nc', 'tmin',
 ##                                 stn_dtype=[(STN_ID, "<S16"), (STATE, "<S2"), (STN_NAME, "<S30"),
 ##                                            (LON, np.float64), (LAT, np.float64), (ELEV, np.float64),(BAD, np.float64)])
 ##    
@@ -666,7 +666,7 @@ if __name__ == '__main__':
 #############################################################
 #Update daily values to match homogenized monthly values 
 #############################################################
-#    stn_da = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serial_tmax.nc', 'tmax',
+#    stn_da = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serial_tmax.nc', 'tmax',
 #                                 stn_dtype=[(STN_ID, "<S16"), (STATE, "<S2"), (STN_NAME, "<S30"),
 #                                            (LON, np.float64), (LAT, np.float64), (ELEV, np.float64),(BAD, np.float64)])
 #    homog = HomogDaily(stn_da,'/projects/daymet2/inhomo_software/pha_v52i_tmax/data/benchmark/world1/monthly/FLs.r00/', 'tmax')
@@ -679,7 +679,7 @@ if __name__ == '__main__':
 #############################################################
 #Look at homogenization updates to a single station
 #############################################################
-#    stn_da = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serial_tmax.nc', 'tmax',
+#    stn_da = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serial_tmax.nc', 'tmax',
 #                                 stn_dtype=[(STN_ID, "<S16"), (STATE, "<S2"), (STN_NAME, "<S30"),
 #                                            (LON, np.float64), (LAT, np.float64), (ELEV, np.float64),(BAD, np.float64)])
 #    homog = HomogDaily(stn_da,'/projects/daymet2/inhomo_software/pha_v52i_tmax/data/benchmark/world1/monthly/FLs.r00/', 'tmax')
@@ -712,7 +712,7 @@ if __name__ == '__main__':
 #############################################################
 #Output station data to Ghcn format for input to the PHA Fortran program
 #############################################################
-#    stn_da = station_data_infill('/projects/daymet2/station_data/infill/infill_20130518/serial_tmax.nc', 'tmax',
+#    stn_da = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130518/serial_tmax.nc', 'tmax',
 #                                 stn_dtype=[(STN_ID, "<S16"), (STATE, "<S2"), (STN_NAME, "<S30"),
 #                                            (LON, np.float64), (LAT, np.float64), (ELEV, np.float64),(BAD, np.float64)])
 #    maskBad = np.isnan(stn_da.stns[BAD])
@@ -727,7 +727,7 @@ if __name__ == '__main__':
 #############################################################
 #Output RAW station data to Ghcn format for input to the PHA Fortran program
 #############################################################
-#    stn_da = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc')
+#    stn_da = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc')
 #    dsTobs = Dataset('/projects/daymet2/station_data/all/tairTobs_1948_2012.nc')
 #    
 #    porData = por.load_por_csv('/projects/daymet2/station_data/all/all_por_1948_2012.csv')
@@ -752,11 +752,11 @@ if __name__ == '__main__':
 #############################################################
 
     
-#    stn_da = station_data_ncdb('/projects/daymet2/station_data/all/tairTobs_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
+#    stn_da = StationDataDb('/projects/daymet2/station_data/all/tairTobs_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
 #    homog = HomogRawDaily(stn_da,'/projects/daymet2/inhomo_software/pha_v52i_tmin/data/benchmark/world1/monthly/FLs.r00/', 
 #                          '/projects/daymet2/inhomo_software/pha_v52i_tmin/data/benchmark/world1/output/PhaAdjTmin.log','tmin')
     
-    stn_da = station_data_ncdb('/projects/daymet2/station_data/all/tairTobs_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
+    stn_da = StationDataDb('/projects/daymet2/station_data/all/tairTobs_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
     homog = HomogRawDaily(stn_da,'/projects/daymet2/inhomo_software/pha_v52i_tmin/data/benchmark/world1/monthly/FLs.r00/', 
                           '/projects/daymet2/inhomo_software/pha_v52i_tmin/data/benchmark/world1/output/PhaAdjTmin.log','tmin')
                   
@@ -793,7 +793,7 @@ if __name__ == '__main__':
 #############################################################
 #Create modified time-of-obs database
 #############################################################
-#    stnda = station_data_ncdb('/projects/daymet2/station_data/all/all_1948_2012.nc')
+#    stnda = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc')
 #    iTobs = insert_tobs(stnda,'/projects/daymet2/station_data/ghcn/ghcn_yrly/AllTobsTmax.nc',
 #                        '/projects/daymet2/station_data/all/all_por_1948_2012.csv')
 #    
@@ -808,7 +808,7 @@ if __name__ == '__main__':
 #############################################################
 #Create homog database
 #############################################################
-#    stnda = station_data_ncdb('/projects/daymet2/station_data/all/tairTobs_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
+#    stnda = StationDataDb('/projects/daymet2/station_data/all/tairTobs_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
 #    homogTmin = HomogRawDaily(stnda,'/projects/daymet2/inhomo_software/pha_v52i_tmin/data/benchmark/world1/monthly/FLs.r00/', 
 #                              '/projects/daymet2/inhomo_software/pha_v52i_tmin/data/benchmark/world1/output/PhaAdjTmin.log','tmin')
 #    homogTmax = HomogRawDaily(stnda,'/projects/daymet2/inhomo_software/pha_v52i_tmax/data/benchmark/world1/monthly/FLs.r00/', 

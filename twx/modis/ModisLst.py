@@ -22,9 +22,9 @@ from netCDF4 import Dataset,date2num,num2date
 import netCDF4
 import datetime
 from twx.utils.status_check import status_check
-from twx.db.station_data import station_data_ncdb, station_data_infill,BAD,STN_ID,YEAR,LON,LAT,\
+from twx.db.station_data import StationDataDb, StationSerialDataDb,BAD,STN_ID,YEAR,LON,LAT,\
     DTYPE_STN_BASIC,DATE,MONTH
-from twx.db.all_create_db import dbDataset
+from twx.db.create_db_all_stations import dbDataset
 import twx.utils.util_dates as utld
 from twx.db.ushcn import TairAggregate
 import twx.utils.util_geo as utlg
@@ -1045,7 +1045,7 @@ def create8dayStnDb():
     var_name = 'tmax'
     dbout_path = '/projects/daymet2/station_data/infill/infill_20130725/serial_tmax_8day.nc'
     
-    dbin = station_data_infill(dbin_path, var_name)    
+    dbin = StationSerialDataDb(dbin_path, var_name)    
     mask_stns = np.isnan(dbin.stns[BAD])
     stns = dbin.stns[mask_stns] 
 
@@ -1536,7 +1536,7 @@ def testImputeLstNormFnl():
     yStart = 900
     yEnd = 1000
     
-    stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin_8day.nc', 'tmin',stn_dtype=DTYPE_STN_BASIC)
+    stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin_8day.nc', 'tmin',stn_dtype=DTYPE_STN_BASIC)
     lstData = LstData('/projects/daymet2/climate_office/modis/MYD11A2/nc_stacks/', 'h10v04','LST_Night_1km','tmin',stnda)
     lstData.set_lst_chk(yStart, yEnd, xStart, xEnd)
     
@@ -1871,7 +1871,7 @@ if __name__ == '__main__':
     #examineLst()
     #lstMthMeans()
 
-    #stnda = station_data_infill('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin_8day.nc', 'tmin',stn_dtype=DTYPE_STN_BASIC)
+    #stnda = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin_8day.nc', 'tmin',stn_dtype=DTYPE_STN_BASIC)
     #impLst = ImputeLST(stnda, 'tmin')
     #impute_ncstack('/projects/daymet2/climate_office/modis/MYD11A2/nc_stacks/LST_Night_1km.h11v05.nc', 'LST_Night_1km', stnda,impLst)
 

@@ -9,7 +9,7 @@ from twx.utils.output_raster import output_raster
 from mpi4py import MPI
 import sys
 from twx.utils.status_check import status_check
-from twx.db.station_data import station_data_infill, MASK,VARIO_NUG,\
+from twx.db.station_data import StationSerialDataDb, MASK,VARIO_NUG,\
     VARIO_PSILL, VARIO_RNG
 from twx.interp.station_select import station_select
 
@@ -38,7 +38,7 @@ def work_proc(params,rank):
     
     rDEM = input_raster(params[P_PATH_DEM])
     
-    stn_da = station_data_infill('/projects/daymet2/station_data/infill/infill_fnl/serial_tmin.nc', 'tmin')
+    stn_da = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_fnl/serial_tmin.nc', 'tmin')
     stn_mask = np.isfinite(stn_da.stns[VARIO_NUG])
     stn_slct = station_select(stn_da, stn_mask)
     stn_slct.set_params(100, 100)

@@ -3,7 +3,7 @@ Classes and functions for performing Tair interpolation
 '''
 import numpy as np
 from twx.db.station_data import LON,LAT,ELEV,TDI,LST,MEAN_OBS,NEON,OPTIM_NNGH,\
-    VARIO_NUG, VARIO_PSILL, VARIO_RNG, OPTIM_NNGH_ANOM, BAD, MASK, station_data_infill,STN_ID,MONTH,get_norm_varname,\
+    VARIO_NUG, VARIO_PSILL, VARIO_RNG, OPTIM_NNGH_ANOM, BAD, MASK, StationSerialDataDb,STN_ID,MONTH,get_norm_varname,\
     get_optim_varname, get_krigparam_varname, get_lst_varname,\
     get_optim_anom_varname, DTYPE_NORMS, DTYPE_OPTIM, DTYPE_LST,DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO_OPTIMNNGHANOM,DTYPE_ANOM_OPTIM,YEAR,\
     DTYPE_INTERP_OPTIM_ALL
@@ -712,14 +712,14 @@ class GwrTairNorm(object):
         
         return tair_mean,tair_var
 
-class StationDataWrkChk(station_data_infill):
+class StationDataWrkChk(StationSerialDataDb):
     '''
     A station_data class for accessing stations and observations from a single variable infilled netcdf weather station database.
     '''
     
     def __init__(self, nc_path, var_name,vcc_size=None,vcc_nelems=None,vcc_preemption=None,stn_dtype=DTYPE_INTERP_OPTIM_ALL):
         
-        station_data_infill.__init__(self, nc_path, var_name, vcc_size, vcc_nelems, vcc_preemption, stn_dtype)
+        StationSerialDataDb.__init__(self, nc_path, var_name, vcc_size, vcc_nelems, vcc_preemption, stn_dtype)
         self.chkStnIds = None
         self.chkObs = None
         self.chkDegBuf = None
@@ -750,7 +750,7 @@ class StationDataWrkChk(station_data_infill):
     def load_obs(self, stn_ids, mth = None):
         
         if mth == None:
-            return station_data_infill.load_obs(self, stn_ids, mth)
+            return StationSerialDataDb.load_obs(self, stn_ids, mth)
         else:
             mask = np.nonzero(np.in1d(self.chkStnIds, stn_ids, assume_unique=True))[0]
             
@@ -769,14 +769,14 @@ class StationDataWrkChk(station_data_infill):
 
 def buildDefaultPtInterp(norms_only=False):
     #Normal
-    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
-    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
+    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
+    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc', 'tmax')
     #No LST
-#    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/serial_nolst/serial_tmin.nc', 'tmin')
-#    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/serial_nolst/serial_tmax.nc', 'tmax')
+#    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/serial_nolst/serial_tmin.nc', 'tmin')
+#    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/serial_nolst/serial_tmax.nc', 'tmax')
     #No homogenization
-#    stndaTmin = station_data_infill('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmin.nc', 'tmin')
-#    stndaTmax = station_data_infill('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc', 'tmax')
+#    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmin.nc', 'tmin')
+#    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc', 'tmax')
     
     gridPath = '/projects/daymet2/dem/interp_grids/conus/ncdf/'
     auxFpaths = ["".join([gridPath,'fnl_elev.nc']),

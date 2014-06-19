@@ -123,7 +123,7 @@ def snotel_write_stn_metadata(path_hist, fpath_highres, path_out):
         File path to precise SNOTEL location information. Precise SNOTEL
         location information is restricted and must be obtained from NRCS.
     path_out: str
-        Path to which the station metadata file should be written
+        Path to which the snotel_stns.csv station metadata file should be written
     '''
 
     stns = _build_stn_metadata(path_hist, fpath_highres)

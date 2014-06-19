@@ -7,13 +7,13 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,MEAN_OBS,NEON
+from twx.db.station_data import StationSerialDataDb,STN_ID,MEAN_OBS,NEON
 from twx.interp.station_select import station_select
 from twx.utils.status_check import status_check
 import twx.interp.interp_tair as it
 import netCDF4
 from twx.interp_constants import *
-from twx.db.all_create_db import dbDataset
+from twx.db.create_db_all_stations import dbDataset
 import rpy2.robjects as robjects
 import time
 r = robjects.r
@@ -54,8 +54,8 @@ def proc_work(params,rank):
     
     status = MPI.Status()
 
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
-    stn_da_xval = station_data_infill(params[P_PATH_DB_XVAL], params[P_VARNAME_XVAL])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
+    stn_da_xval = StationSerialDataDb(params[P_PATH_DB_XVAL], params[P_VARNAME_XVAL])
     mask_stns = it.build_stn_mask(stn_da.stn_ids, params[P_PATH_RMSTNS])    
     stn_slct = station_select(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
     
@@ -141,7 +141,7 @@ def proc_write(params,nwrkers):
     stn_ids = bcast_msg
     print "Writer: Received broadcast msg"
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     stn_mask = np.in1d(stn_da.stn_ids,stn_ids,True)
     stns = stn_da.stns[stn_mask]
     
@@ -185,7 +185,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     mask_stns = it.build_stn_mask(stn_da.stn_ids,params[P_PATH_RMSTNS])
     stns = stn_da.stns[np.logical_and(mask_stns,np.isfinite(stn_da.stns[NEON]))]
         

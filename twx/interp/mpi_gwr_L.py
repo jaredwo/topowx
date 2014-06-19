@@ -13,7 +13,7 @@ This is used for estimating prediction confidence intervals.
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,LON,LAT,ELEV
+from twx.db.station_data import StationSerialDataDb,STN_ID,LON,LAT,ELEV
 from twx.interp.station_select import station_select
 from twx.utils.status_check import status_check
 
@@ -49,7 +49,7 @@ sys.stdout=Unbuffered(sys.stdout)
 def proc_work(params,rank):
     
     status = MPI.Status()
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     min_ngh = params[P_NNGH]
     
     bcast_msg = None
@@ -94,7 +94,7 @@ def proc_write(params,nwrkers):
 
     status = MPI.Status()
     nwrkrs_done = 0
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     
     bcast_msg = None
     bcast_msg = MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)
@@ -128,7 +128,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     
     #U.S. only mask
     mask_us = np.logical_and(np.char.find(stn_da.stns[STN_ID],'GHCN_CA')==-1,np.char.find(stn_da.stns[STN_ID],'GHCN_MX')==-1)

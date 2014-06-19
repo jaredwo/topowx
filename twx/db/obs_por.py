@@ -1,13 +1,12 @@
 '''
-Utilities for analyzing and producing data on station period-of-record for TMIN,TMAX, and PRCP
-
-@author: jared.oyler
+Utilities for analyzing and producing station period-of-record information.
 '''
-from twx.db.station_data import STN_ID,PRCP,TMIN,TMAX,STATE,STN_NAME,LON,LAT,ELEV,MONTH,DAY,YMD,station_data_ncdb
+
+from station_data import STN_ID,PRCP,TMIN,TMAX,STATE,STN_NAME,LON,LAT,ELEV,MONTH,DAY,YMD,StationDataDb
 import numpy as np
 from datetime import timedelta,datetime
 import matplotlib.mlab as mlab
-from twx.utils.status_check import status_check
+from twx.utils import status_check
 
 
 MONTHS = np.arange(1,13)
@@ -83,33 +82,29 @@ STN_CHK_SIZE = 250
 
 CONUS_US_BOUNDS = (-126.0,-64.0,22.0,53.0)
 
-def get_str_end_ymd(obs,days,clim_vars=[TMIN,TMAX,PRCP]):
-    '''
-    Provides the start/end ymd for a station's period-of-record for a specific variable(s)
-    @param obs: a dictionary of station observations (obs[clim_var] = clim_var numpy time series)
-    @param days: a days object produced by utils.util_dates.get_days_metadata
-    @param clim_vars: a list of variables that should be considered
-    
-    @return str_end_ymd: a dict containing the start/end ymds (str_end_ymd[clim_var] = (start,end)) 
-    '''
-    
-    str_end_ymd = {}
-    for var in clim_vars:
-        mask_finite = np.isfinite(obs[var])
-        str_end_ymd[var] = (days[YMD][mask_finite][0],days[YMD][mask_finite][-1])
-    return str_end_ymd
 
-def get_mth_num_obs(obs,days,mth_buffer=0,clim_vars=[TMIN,TMAX,PRCP]):
+def _get_mth_num_obs(obs,days,mth_buffer=0,clim_vars=[TMIN,TMAX,PRCP]):
     '''
     Calculates the number of observations for a variable for each month
     
-    @param obs: a dictionary of station observations (obs[clim_var] = clim_var numpy time series)
-    @param days: a days object produced by utils.util_dates.get_days_metadata
-    @param mth_buffer: the number of days at which the tails of much should be expanded when calculating
-    the number of observations
-    @param clim_vars: a list of variables that should be considered
-    
-    @return num_obs: a dict containing the # of obs in each month (num_obs[clim_var][mth] = # of obs) 
+    Parameters
+    ----------
+    obs : dict
+        A dictionary of station observations 
+        (obs[clim_var] = clim_var numpy time series).
+    days : structured array
+        A days array produced by twx.utils.get_days_metadata
+    mth_buffer : int, optional
+        The number of days the tails should be expanded when calculating
+        the number of observations.
+    clim_vars : sequence
+        A list of variables that should be considered.
+        
+    Returns
+    -------
+    num_obs : dict
+        A dict containing the # of obs in each month 
+        (num_obs[clim_var][mth] = # of obs). 
     '''
     
     num_obs = {}
@@ -136,12 +131,26 @@ def get_mth_num_obs(obs,days,mth_buffer=0,clim_vars=[TMIN,TMAX,PRCP]):
 
 def output_por_csv(stn_da,stns,path):
     '''
-    Produces an output csv file summarizing period-of-record information for each station and variable
-    @param stn_da: a station_data_ncdb object
-    @param stns: a structured array of stations produced by station_data_ncdb.load_stns 
-    (can be subset of all stations in database)
-    @param path: the file path for the output csv file
+    Produce an output csv file summarizing Tmin and Tmax observation 
+    period-of-record information for a set of stations. TODO: Fully 
+    remove prcp. This function used to return prcp period-of-record information. 
+    It no longer does, but prcp columns are still written, so existing
+    code is not broken. The prcp columns are just Tmin period-of-record.
+    
+    Parameters
+    ----------
+    stn_da : twx.db.StationDataDb
+        A StationDataDb for the netCDF4 dataset containing
+        the observations.
+    stns : structured ndarray
+        A structured array of stations from twx.db.StationDataDb.
+        (can be a subset of all stations in dataset).
+    set_flagged_nan : bool
+        If true, any QA-flagged observations will be set to nan
+    path : str
+        The file path for the output csv file
     '''
+    
     print "building period of records..."
     
     por_results = np.recarray(stns.size,dtype=POR_DTYPE)
@@ -171,7 +180,7 @@ def output_por_csv(stn_da,stns,path):
             stn_name = stn[STN_NAME]
             stn_name = stn_name.replace(","," ")
             
-            num_obs = get_mth_num_obs(stn_obs, stn_da.days)
+            num_obs = _get_mth_num_obs(stn_obs, stn_da.days)
             por_results[x+i] = (stn[STN_ID],stn[STATE],stn_name,stn[LON],stn[LAT],stn[ELEV],
                               num_obs[TMIN][0],num_obs[TMIN][1],num_obs[TMIN][2],num_obs[TMIN][3],
                               num_obs[TMIN][4],num_obs[TMIN][5],num_obs[TMIN][6],num_obs[TMIN][7],
@@ -189,15 +198,29 @@ def output_por_csv(stn_da,stns,path):
 
 def build_valid_por_masks(por_results,min_por=MIN_POR,loc_bounds=CONUS_US_BOUNDS):
     '''
-    Builds masks of stations that have minimum required of years of observations for TMIN, TMAX, and PRCP
-    in each month.
+    Build masks of stations that have minimum required of years of observations 
+    for Tmin and Tmax in each month.
     
-    @param por_results: period-of-record information loaded for a summary csv file produced by output_por_csv
-    @param min_por: The minimum period of record in years. The functions tests whether the station has at least
-    min_por years of data in each month.
-    
-    @return mask_por_tmin,mask_por_tmax,mask_por_prcp: the station masks. TRUE = period of record meets minimum
-    requirement 
+    Parameters
+    ----------
+    por_results : structured ndarray
+        Period-of-record information from load_por_csv.
+    min_por : int, optional
+        The minimum period of record in years. The function tests
+        whether a station has at least min_por years of data in each month.
+    loc_bounds : tuple of 4 floats, optional
+        The lat/lon bounds for stations that should be considered. If a station is
+        outside the bounds, it will be marked has not meeting the period-of-record
+        requirements. Bounds = (min lon, max lon, min lat, max lat)
+        
+    Returns
+    -------
+    mask_por_tmin : bool ndarray
+        A station mask for Tmin. TRUE = period of record 
+        meets minimum requirement.
+    mask_por_tmax : bool ndarray
+        A station mask for Tmax. TRUE = period of record 
+        meets minimum requirement.  
     '''
     
     min_por1 = MONTH_NUM_DAYS[1]*min_por
@@ -229,16 +252,18 @@ def build_valid_por_masks(por_results,min_por=MIN_POR,loc_bounds=CONUS_US_BOUNDS
     eleven_twelve = np.logical_and(por_results[POR_TMAX_11]>=min_por11,por_results[POR_TMAX_12]>=min_por12)
     mask_por_tmax = np.logical_and(np.logical_and(np.logical_and(np.logical_and(np.logical_and(one_two,three_four),five_six),seven_eight),nine_ten),eleven_twelve)
     
-    one_two = np.logical_and(por_results[POR_PRCP_1]>=min_por1,por_results[POR_PRCP_2]>=min_por2)
-    three_four = np.logical_and(por_results[POR_PRCP_3]>=min_por3,por_results[POR_PRCP_4]>=min_por4)
-    five_six = np.logical_and(por_results[POR_PRCP_5]>=min_por5,por_results[POR_PRCP_6]>=min_por6)
-    seven_eight = np.logical_and(por_results[POR_PRCP_7]>=min_por7,por_results[POR_PRCP_8]>=min_por8)
-    nine_ten = np.logical_and(por_results[POR_PRCP_9]>=min_por9,por_results[POR_PRCP_10]>=min_por10)
-    eleven_twelve = np.logical_and(por_results[POR_PRCP_11]>=min_por11,por_results[POR_PRCP_12]>=min_por12)
-    mask_por_prcp = np.logical_and(np.logical_and(np.logical_and(np.logical_and(np.logical_and(one_two,three_four),five_six),seven_eight),nine_ten),eleven_twelve)
+#     one_two = np.logical_and(por_results[POR_PRCP_1]>=min_por1,por_results[POR_PRCP_2]>=min_por2)
+#     three_four = np.logical_and(por_results[POR_PRCP_3]>=min_por3,por_results[POR_PRCP_4]>=min_por4)
+#     five_six = np.logical_and(por_results[POR_PRCP_5]>=min_por5,por_results[POR_PRCP_6]>=min_por6)
+#     seven_eight = np.logical_and(por_results[POR_PRCP_7]>=min_por7,por_results[POR_PRCP_8]>=min_por8)
+#     nine_ten = np.logical_and(por_results[POR_PRCP_9]>=min_por9,por_results[POR_PRCP_10]>=min_por10)
+#     eleven_twelve = np.logical_and(por_results[POR_PRCP_11]>=min_por11,por_results[POR_PRCP_12]>=min_por12)
+#     mask_por_prcp = np.logical_and(np.logical_and(np.logical_and(np.logical_and(np.logical_and(one_two,three_four),five_six),seven_eight),nine_ten),eleven_twelve)
     
     #Temporary hack to not include SNOTEL AK stations, and non-GHCN Canada and Mexico stations
-    mask_stnids = np.logical_and(por_results[STATE] != 'AK',np.logical_and(np.logical_not(np.char.startswith(por_results[STN_ID], prefix="CA_")),np.logical_not(np.char.startswith(por_results[STN_ID], prefix="MX_"))))
+    mask_stnids = np.logical_and(por_results[STATE] != 'AK',
+                                 np.logical_and(np.logical_not(np.char.startswith(por_results[STN_ID], prefix="CA_")),
+                                                np.logical_not(np.char.startswith(por_results[STN_ID], prefix="MX_"))))
     
     if loc_bounds is not None:
         mask_loc = np.logical_and(np.logical_and(por_results[LON] >= loc_bounds[0], por_results[LON] <= loc_bounds[1]),np.logical_and(por_results[LAT] >= loc_bounds[2], por_results[LAT] <= loc_bounds[3])) 
@@ -249,10 +274,10 @@ def build_valid_por_masks(por_results,min_por=MIN_POR,loc_bounds=CONUS_US_BOUNDS
     mask_por_tmax = np.logical_and(np.logical_and(mask_por_tmax,mask_stnids),mask_loc)
     
     #For now mask out RAWS stations for prcp due to possible freezing tipping bucket issues in winter
-    mask_raws = np.logical_not(np.char.startswith(por_results[STN_ID], prefix="RAWS_"))
-    mask_por_prcp = np.logical_and(np.logical_and(np.logical_and(mask_por_prcp,mask_stnids),mask_loc),mask_raws)
+    #mask_raws = np.logical_not(np.char.startswith(por_results[STN_ID], prefix="RAWS_"))
+    #mask_por_prcp = np.logical_and(np.logical_and(np.logical_and(mask_por_prcp,mask_stnids),mask_loc),mask_raws)
     
-    return mask_por_tmin,mask_por_tmax,mask_por_prcp
+    return mask_por_tmin,mask_por_tmax#,mask_por_prcp
 
 def load_por_csv(path):
     '''
@@ -268,7 +293,7 @@ def load_por_csv(path):
 if __name__ == '__main__':
     
     outpath = "/projects/daymet2/station_data/all/tairHomog_por_1948_2012.csv"
-    stn_da = station_data_ncdb("/projects/daymet2/station_data/all/tairHomog_1948_2012.nc",
+    stn_da = StationDataDb("/projects/daymet2/station_data/all/tairHomog_1948_2012.nc",
                                startend_ymd=(19480101,20121231))
     stns = stn_da.stns
 

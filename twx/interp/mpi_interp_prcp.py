@@ -7,7 +7,7 @@ A MPI driver for interpolating prcp to a specified grid using interp.interp_prcp
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,DATE,LON,LAT,YMD
+from twx.db.station_data import StationSerialDataDb,STN_ID,DATE,LON,LAT,YMD
 import twx.interp.interp_prcp as ip
 from twx.interp.station_select import station_select
 from twx.utils.status_check import status_check
@@ -70,7 +70,7 @@ sys.stdout=Unbuffered(sys.stdout)
 def proc_work(params,rank):
 
     status = MPI.Status()
-    stn_da = station_data_infill(params[P_PATH_DB], 'prcp')
+    stn_da = StationSerialDataDb(params[P_PATH_DB], 'prcp')
     days = stn_da.days
     
     stn_slct = station_select(stn_da.stns,params[P_MINSTNS],params[P_MINSTNS]+10)

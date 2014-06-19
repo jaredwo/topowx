@@ -7,7 +7,7 @@ A MPI driver for performing "leave one out" cross-validation of po interpolation
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,LON,LAT
+from twx.db.station_data import StationSerialDataDb,STN_ID,LON,LAT
 from twx.interp.station_select import station_select
 from twx.utils.status_check import status_check
 import twx.utils.util_geo as utlg
@@ -92,7 +92,7 @@ def calc_hss(obs_po, mod_po):
 def proc_work(params,rank):
     
     status = MPI.Status()
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     
     mod = ip.modeler_clib_po()
     po_interper = ip.interp_po(mod)
@@ -188,7 +188,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     
     if params[P_INCLUDE_STNIDS] is None:
         
@@ -339,7 +339,7 @@ if __name__ == '__main__':
     if rank == RANK_COORD:
         
         params[P_EXCLUDE_STNIDS] = np.array([])
-        stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+        stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
         
         #U.S. only mask
         mask_us = np.logical_and(np.char.find(stn_da.stns[STN_ID],'GHCN_CA')==-1,np.char.find(stn_da.stns[STN_ID],'GHCN_MX')==-1)

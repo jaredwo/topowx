@@ -6,7 +6,7 @@ A MPI driver for calculating monthly optimized prcp. occurrence thresholds for i
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,LON,LAT
+from twx.db.station_data import StationSerialDataDb,STN_ID,LON,LAT
 from twx.interp.station_select import station_select
 from twx.utils.status_check import status_check
 import twx.utils.util_geo as utlg
@@ -46,7 +46,7 @@ sys.stdout=Unbuffered(sys.stdout)
 def proc_work(params,rank):
     
     status = MPI.Status()
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     
     mod = ip.modeler_clib()
     po_interper = ip.interp_po(mod)
@@ -160,7 +160,7 @@ def proc_write(params,nwrkers):
                 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     stn_ids = stn_da.stn_ids
     
     #Send stn ids to all processes

@@ -7,7 +7,7 @@ This is mainly used to get a better mean value estimate (i.e.--"normal") over a 
 '''
 import numpy as np
 import twx.utils.util_geo as utlg
-from twx.db.station_data import station_data_ncdb, STN_ID, LON, LAT,UTC_OFFSET
+from twx.db.station_data import StationDataDb, STN_ID, LON, LAT,UTC_OFFSET
 from twx.utils.util_dates import MONTH, MTH_SRT_END_DATES, DAY
 from datetime import timedelta
 from scipy import stats
@@ -465,7 +465,7 @@ class ImputeMatrix(object):
         '''
         
         @param stn_id: the stn_id of the target
-        @param stn_da: a station_data_ncdb object
+        @param stn_da: a StationDataDb object
         @param tair_var: the tair variable (tmin, tmax)
         @param min_dist: the min distance for which to search for neighbors (exclusive)
         @param max_dist: the max distance for which to search for neighbors (inclusive)
@@ -828,7 +828,7 @@ class ngh_matrix(object):
         '''
         
         @param stn_id: the stn_id of the target
-        @param stn_da: a station_data_ncdb object
+        @param stn_da: a StationDataDb object
         @param tair_var: the tair variable (tmin, tmax)
         @param min_dist: the min distance for which to search for neighbors (exclusive)
         @param max_dist: the max distance for which to search for neighbors (inclusive)
@@ -1021,7 +1021,7 @@ def infill_tair(stn_id, stn_da, days, tair_var,stns_mask, mth_masks, mthbuf_mask
     The main method for infilling missing target station values using a regression-based approach 
     similar to Durre et al. 2010 Appendix B.
     @param stn_id: the stn_id of the target
-    @param stn_da: a station_data_ncdb object
+    @param stn_da: a StationDataDb object
     @param days: a days object from twx.utils.util_dates.get_days_metadata representing the time series to infill/expand
     @param tair_var: the tair variable (tmin, tmax)
     @param mthbuf_mask: a mask of months (from build_mth_masks) over the time series of interest with a user-defined buffer at the end/beginning of each month
@@ -1080,7 +1080,7 @@ def infill_prcp_norm(stn_id, stn_da, days,mth_masks, mthbuf_masks, use_prcp_only
     The main method for infilling missing target station prcp amount values using a weighted average-based approach 
     similar to Durre et al. 2010 Appendix B.
     @param stn_id: the stn_id of the target
-    @param stn_da: a station_data_ncdb object
+    @param stn_da: a StationDataDb object
     @param days: a days object from twx.utils.util_dates.get_days_metadata representing the time series to infill/expand
     @param mthbuf_mask: a mask of months (from build_mth_masks) over the time series of interest with a user-defined buffer at the end/beginning of each month
     @param mth_mask: a mask of months (from build_mth_masks) over the time series of interest
@@ -1169,7 +1169,7 @@ class prcp_norm_results(object):
            
 if __name__ == '__main__':
     
-    stn_da = station_data_ncdb("/projects/daymet2/station_data/all/all.nc")
+    stn_da = StationDataDb("/projects/daymet2/station_data/all/all.nc")
     stn_da.set_day_mask(19480101, 20111231)
     days = stn_da.days[stn_da.day_mask]
     stn_id = 'GHCN_CA007090960'

@@ -7,7 +7,7 @@ A MPI driver for performing GWR interpolation of Tair
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import station_data_infill,STN_ID,MASK,BAD, LAT, LON,\
+from twx.db.station_data import StationSerialDataDb,STN_ID,MASK,BAD, LAT, LON,\
     get_lst_varname, get_optim_varname, get_optim_anom_varname, NEON
 from twx.utils.status_check import status_check
 import netCDF4
@@ -55,7 +55,7 @@ def proc_work(params,rank):
     interp_tair = np.zeros(4)
     pt = build_empty_pt()
     
-    stnda = station_data_infill(params[P_PATH_DB], params[P_VARNAME])
+    stnda = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
     stns = stnda.stns[np.logical_and(np.isfinite(stnda.stns[MASK]),np.isnan(stnda.stns[BAD]))]
     rgn_nnghs = get_rgn_nnghs_dict(stns)
     varname = params[P_VARNAME]

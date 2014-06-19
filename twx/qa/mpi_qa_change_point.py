@@ -6,7 +6,7 @@ MPI driver for running quality assurance procedures.
 
 from mpi4py import MPI
 import numpy as np
-from twx.db.station_data import station_data_ncdb,STATE
+from twx.db.station_data import StationDataDb,STATE
 from netCDF4 import Dataset
 from twx.utils.util_misc import Unbuffered
 import sys
@@ -39,7 +39,7 @@ sys.stdout=Unbuffered(sys.stdout)
 def proc_work(params,rank):
     
     status = MPI.Status()
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     stn_mask,mask_por_tmin,mask_por_tmax = params[P_STN_MASKS]
     
     #chg_pt = qcp.ChgPtMthly(stn_da, mask_por_tmin, mask_por_tmax)
@@ -71,7 +71,7 @@ def proc_write(params,nwrkers):
     status = MPI.Status()
     nwrkrs_done = 0
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     stn_mask,mask_por_tmin,mask_por_tmax = params[P_STN_MASKS]
         
     dims_tair = {'tmin':0,'tmax':1}
@@ -102,7 +102,7 @@ def proc_write(params,nwrkers):
 
 def proc_coord(params,nwrkers):
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     
     stn_mask,mask_por_tmin,mask_por_tmax = params[P_STN_MASKS]
     
@@ -182,7 +182,7 @@ if __name__ == '__main__':
     params[P_START_YMD] = 19480101
     params[P_END_YMD] = 20121231
     
-    stn_da = station_data_ncdb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
     stn_mask = np.ones(stn_da.stn_ids.size,dtype=np.bool)
     #sntl_mask = np.logical_and(np.char.startswith(stn_da.stn_ids,"SNOTEL"),stn_da.stns[STATE] != "AK")
     #raws_mask = np.char.startswith(stn_da.stn_ids,"RAWS")
