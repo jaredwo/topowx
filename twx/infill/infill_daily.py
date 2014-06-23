@@ -191,7 +191,7 @@ class ioapca_matrix(object):
             
             overlap_mask = np.logical_and(valid_tair_mask, valid_ngh_mask)
                 
-            ioa[x] = calc_ioa(tair_target[overlap_mask], tair_ngh[:, x][overlap_mask])
+            ioa[x] = _calc_ioa(tair_target[overlap_mask], tair_ngh[:, x][overlap_mask])
                   
         return ioa
     
@@ -639,7 +639,7 @@ class impute_matrix(object):
             if nlap >= nthres_all and nlap_stn >= nthres_target_por:
             #if nlap_stn >= nthres_target_por:
                 
-                ioa[x] = calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
+                ioa[x] = _calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
                 overlap_mask_tair[x] = True
         
         ioa = ioa[overlap_mask_tair]
@@ -855,7 +855,7 @@ class pca_matrix(object):
             if nlap >= nthres_all and nlap_stn >= nthres_target_por:
             #if nlap_stn >= nthres_target_por:
                 
-                ioa[x] = calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
+                ioa[x] = _calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
                 overlap_mask_tair[x] = True
         
         ioa = ioa[overlap_mask_tair]
@@ -1093,12 +1093,12 @@ class ImputeMatrixPCA(object):
             if nlap >= nthres_all and nlap_stn >= nthres_target_por:
             #if nlap_stn >= nthres_target_por:
                 
-                ioa[x] = calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
+                ioa[x] = _calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
                 overlap_mask_tair[x] = True
             
             elif nlap_stn >= nthres_target_por and add_bestngh:
                 
-                aioa = calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
+                aioa = _calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
                 
                 if aioa > best_ioa:
                     
@@ -1931,7 +1931,7 @@ class prcp_infill_results(object):
         print " ".join([self.stn_id,"VARIANCE OBS|MODELED: %.4f|%.4f"%(self.var_obs,self.var_fit)])
         print " ".join([self.stn_id,"MONTHLY COR: %.4f"%(self.mth_cor,)])
             
-def calc_ioa(x, y):
+def _calc_ioa(x, y):
     '''
     Calculate the index of agreement (Durre et al. 2010; Legates and McCabe 1999) between x and y
     '''
@@ -1940,7 +1940,7 @@ def calc_ioa(x, y):
     d = np.sum(np.abs(x - y_mean) + np.abs(y - y_mean))
     
     if d == 0.0:
-        print "|".join(["WARNING: calc_ioa: x, y identical"])
+        print "|".join(["WARNING: _calc_ioa: x, y identical"])
         #The x and y series are exactly the same
         #Return a perfect ioa
         return 1.0
@@ -1948,7 +1948,7 @@ def calc_ioa(x, y):
     ioa = 1.0 - (np.sum(np.abs(y - x)) / d)
     
 #    if ioa == 0:
-#        print "|".join(["WARNING: calc_ioa: ioa == 0"])
+#        print "|".join(["WARNING: _calc_ioa: ioa == 0"])
 #        #Means all ys are the same or only one observation.
 #        #This could possibly happen with prcp in arid regions
 #        #Add on an extra observation to the time series that has same difference as x[0] and y[0]

@@ -1129,7 +1129,7 @@ class modis_sin_latlon_transform():
         self.trans_sin_to_lcc = osr.CoordinateTransformation(self.sr_sin,self.sr_lcc)
         self.trans_wgs84_to_lcc = osr.CoordinateTransformation(self.sr_wgs84,self.sr_lcc)
 
-def calc_ioa(x, y):
+def _calc_ioa(x, y):
     '''
     Calculate the index of agreement (Durre et al. 2010; Legates and McCabe 1999) between x and y
     '''
@@ -1138,7 +1138,7 @@ def calc_ioa(x, y):
     d = np.sum(np.abs(x - y_mean) + np.abs(y - y_mean))
     
     if d == 0.0:
-        print "|".join(["WARNING: calc_ioa: x, y identical"])
+        print "|".join(["WARNING: _calc_ioa: x, y identical"])
         #The x and y series are exactly the same
         #Return a perfect ioa
         return 1.0
@@ -1146,7 +1146,7 @@ def calc_ioa(x, y):
     ioa = 1.0 - (np.sum(np.abs(y - x)) / d)
     
 #    if ioa == 0:
-#        print "|".join(["WARNING: calc_ioa: ioa == 0"])
+#        print "|".join(["WARNING: _calc_ioa: ioa == 0"])
 #        #Means all ys are the same or only one observation.
 #        #This could possibly happen with prcp in arid regions
 #        #Add on an extra observation to the time series that has same difference as x[0] and y[0]
@@ -1168,7 +1168,7 @@ def calc_ioa2(x, y):
     d = np.sum(np.abs(x - y_mean) + np.abs(y - y_mean),axis=0)
     
 #    if d == 0.0:
-#        print "|".join(["WARNING: calc_ioa: x, y identical"])
+#        print "|".join(["WARNING: _calc_ioa: x, y identical"])
 #        #The x and y series are exactly the same
 #        #Return a perfect ioa
 #        return 1.0
@@ -1176,7 +1176,7 @@ def calc_ioa2(x, y):
     ioa = 1.0 - (np.sum(np.abs(y - x),axis=0) / d)
     
 #    if ioa == 0:
-#        print "|".join(["WARNING: calc_ioa: ioa == 0"])
+#        print "|".join(["WARNING: _calc_ioa: ioa == 0"])
 #        #Means all ys are the same or only one observation.
 #        #This could possibly happen with prcp in arid regions
 #        #Add on an extra observation to the time series that has same difference as x[0] and y[0]
@@ -1217,7 +1217,7 @@ class ImputeLST():
         
         idxStns = np.arange(obsTairFin.shape[1])
         
-        #ioaStns = np.array([calc_ioa(lstFin,obsTairFin[:,y]) for y in np.arange(obsTairFin.shape[1])])
+        #ioaStns = np.array([_calc_ioa(lstFin,obsTairFin[:,y]) for y in np.arange(obsTairFin.shape[1])])
         
         ioaStns = calc_ioa2(obsTairFin, lstFin)
         lstFin = np.ravel(lstFin)

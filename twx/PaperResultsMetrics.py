@@ -38,7 +38,7 @@ import sys
 import matplotlib
 from DatasetCompare import MultiDaymetTileRaster, PrismTileRaster,\
     MultiTwxTileRaster
-from qa.qa_temp import imposs_value_mask
+from qa.qa_temp import _imposs_value_mask
 
 
 CONUS_US_BOUNDS = (-126.0,-64.0,22.0,53.0)
@@ -858,7 +858,7 @@ def plotNcdcNormsErrorMaps():
     
     maskBadNorms = np.zeros(normsTminDaymet.size,dtype=np.bool)
     for aInterpNorm in normsAll:
-        maskBadNorms = np.logical_or(maskBadNorms,imposs_value_mask(aInterpNorm))
+        maskBadNorms = np.logical_or(maskBadNorms,_imposs_value_mask(aInterpNorm))
 
     print "Removing a total of %d stations because of bad interpolated norms."%np.sum(maskBadNorms)
     normsTminTwx[maskBadNorms] = np.nan
@@ -1051,7 +1051,7 @@ def plotNcdcNormsBiasMaps():
     
     maskBadNorms = np.zeros(normsTminDaymet.size,dtype=np.bool)
     for aInterpNorm in normsAll:
-        maskBadNorms = np.logical_or(maskBadNorms,imposs_value_mask(aInterpNorm))
+        maskBadNorms = np.logical_or(maskBadNorms,_imposs_value_mask(aInterpNorm))
 
     print "Removing a total of %d stations because of bad interpolated norms."%np.sum(maskBadNorms)
     normsTminTwx[maskBadNorms] = np.nan
@@ -1257,7 +1257,7 @@ def plotNcdcNormsErrorMapsDifs():
     
     maskBadNorms = np.zeros(normsTminDaymet.size,dtype=np.bool)
     for aInterpNorm in normsAll:
-        maskBadNorms = np.logical_or(maskBadNorms,imposs_value_mask(aInterpNorm))
+        maskBadNorms = np.logical_or(maskBadNorms,_imposs_value_mask(aInterpNorm))
 
     print "Removing a total of %d stations because of bad interpolated norms."%np.sum(maskBadNorms)
     normsTminTwx[maskBadNorms] = np.nan
@@ -1503,7 +1503,7 @@ def plotNcdcNormsErrorBars():
     
         maskBadNorms = np.zeros(normsMthTminDaymet.size,dtype=np.bool)
         for aInterpNorm in normsAll:
-            maskBadNorms = np.logical_or(maskBadNorms,imposs_value_mask(aInterpNorm))
+            maskBadNorms = np.logical_or(maskBadNorms,_imposs_value_mask(aInterpNorm))
 
         normsMthTminTwx[maskBadNorms] = np.nan
         normsMthTmaxTwx[maskBadNorms]  = np.nan
@@ -1654,7 +1654,7 @@ def plotNcdcNormsBiasBars():
     
         maskBadNorms = np.zeros(normsMthTminDaymet.size,dtype=np.bool)
         for aInterpNorm in normsAll:
-            maskBadNorms = np.logical_or(maskBadNorms,imposs_value_mask(aInterpNorm))
+            maskBadNorms = np.logical_or(maskBadNorms,_imposs_value_mask(aInterpNorm))
 
         normsMthTminTwx[maskBadNorms] = np.nan
         normsMthTmaxTwx[maskBadNorms]  = np.nan
