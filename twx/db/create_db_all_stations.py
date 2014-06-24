@@ -3,8 +3,9 @@ Functions and classes for inserting station observation data from multiple sourc
 into a single database format
 '''
 
-__all__ = ['Insert','InsertGhcn','InsertRaws','InsertSnotel',
-           'create_netcdf_db', 'insert_data_netcdf_db']
+__all__ = ['Insert', 'InsertGhcn', 'InsertRaws', 'InsertSnotel',
+           'create_netcdf_db', 'insert_data_netcdf_db',
+           'MISSING', 'DTYPE_STNOBS', 'NCDF_CHK_COLS', 'add_monthly_means']
 
 import os
 import numpy as np
@@ -15,6 +16,7 @@ from netCDF4 import date2num
 import netCDF4
 from netcdftime import num2date
 from station_data import STN_NAME, ELEV, LAT, LON, STATE
+import twx
 
 MISSING = -9999.
 NCDF_CHK_COLS = 50
@@ -572,16 +574,16 @@ class InsertSnotel(Insert):
 
     def __init__(self, path_stn_file, path_clean_obs, min_date, max_date):
         '''
-            Parameters
-            ----------
-            path_stn_file : str
-                File path to the SNOTEL station metadata csv file
-            path_clean_obs : str
-                Path to SNOTEL clean observation files
-            min_date : datetime
-                The earliest observation date
-            max_date : datetime
-                The latest observation date
+        Parameters
+        ----------
+        path_stn_file : str
+            File path to the SNOTEL station metadata csv file
+        path_clean_obs : str
+            Path to SNOTEL clean observation files
+        min_date : datetime
+            The earliest observation date
+        max_date : datetime
+            The latest observation date
         '''
 
         Insert.__init__(self, min_date, max_date)
@@ -599,9 +601,9 @@ class InsertSnotel(Insert):
             A list of tuples. Each tuple is of format:
             (STN_ID,LATITUDE,LONGITUDE,ELEVATION,STATE,NAME)
         '''
-        
+
         print "SNOTEL: Building list of stations"
-        
+
         f_in = open(self.path_stn_file)
         f_in.readline()
 
@@ -613,9 +615,9 @@ class InsertSnotel(Insert):
 
             # Change to (STN_ID,LATITUDE,LONGITUDE,ELEVATION,STATE,NAME)
             stns.append(("".join(["SNOTEL_", vals[0]]).upper(), float(vals[4]), float(vals[5]), float(vals[6]), vals[2], vals[1]))
-        
+
         print "SNOTEL: Done building stations. Number of stns: %d" % (len(stns),)
-        
+
         return stns
 
     def parse_stn_obs(self, stn_id):
@@ -739,21 +741,21 @@ class InsertGhcn(Insert):
                 lon = float(line[21:30].strip())
                 elev = float(line[31:37].strip())
                 state = line[38:40].strip().upper()
-                name = unicode(line[41:71].strip(),errors='ignore')
+                name = unicode(line[41:71].strip(), errors='ignore')
 
                 if state not in self.RM_STATES and network_id not in self.RM_NETWORK_CODES:
-                    
+
                     insert_stn = True
-                    
+
                     if self.check_obs_exist:
-                    
+
                         if  not os.path.exists(os.path.join(self.path_obs_files, "%s.dly" % (stn_id_orig,))):
-                            
-                            insert_stn = False                            
+
+                            insert_stn = False
                             print "".join([stn_id_orig, " in GHCN station list but no observations."])
-                    
+
                     if insert_stn:
-                    
+
                         stns.append((stn_id, lat, lon, elev, state, name))
 
         print "GHCN: Done building stations. Number of stns: %d" % (len(stns),)
@@ -967,71 +969,87 @@ class InsertRaws(Insert):
 
         return obs
 
+def add_monthly_means(ds_path, var_name, max_miss=9):
+    '''
+    Calculate and add monthly temperature means to a
+    netCDF station database. The new monthly temperature
+    variable will be [var_name]_mth.
+    
+    Parameters
+    ----------
+    ds_path : str
+        File path to a netCDF station database
+    var_name : str
+        The daily temperature variable name (eg- tmin, tmax)
+    max_miss : int, optional
+        The maximum # of missing daily observations in a month
+        for a monthly mean to be calculated. If # of missing 
+        observations for a month is > max_miss, the month's mean
+        will be marked as missing. Set max_miss to None if there
+        should not be a max_miss threshold.
+    '''
 
-# def add_monthly_means(dsPath,varName):
-#
-#     stnda = StationDataDb(dsPath)
-#     tagg = ushcn.TairAggregate(stnda.days)
-#     minDate = stnda.days[DATE][0]
-#     stns = stnda.stns
-#     stnda.ds.close()
-#     stnda = None
-#     ds = Dataset(dsPath,'r+')
-#
-#     if 'time_mth' not in ds.variables.keys():
-#
-#         ds.createDimension('time_mth',tagg.yrMths.size)
-#         times = ds.createVariable('time_mth','f8',('time_mth',),fill_value=False)
-#         times.units = "".join(["days since ",str(minDate.year),"-",str(minDate.month),"-",str(minDate.day)," 0:0:0"])
-#         times.standard_name = "time"
-#         times.calendar = "standard"
-#         times[:] = date2num(tagg.yrMths[DATE],times.units)
-#
-#     varMthlyName = "_".join([varName,"mth"])
-#     if varMthlyName not in ds.variables.keys():
-#         varMthly = ds.createVariable(varMthlyName,'f4',('time_mth','stn_id'),fill_value=netCDF4.default_fillvals['f4'])
-#     else:
-#         varMthly = ds.variables[varMthlyName]
-#
-#     varMissName = "_".join([varName,"mthmiss"])
-#     if varMissName not in ds.variables.keys():
-#         varMiss = ds.createVariable(varMissName,'i2',('time_mth','stn_id'),fill_value=netCDF4.default_fillvals['i2'])
-#     else:
-#         varMiss = ds.variables[varMissName]
-#
-#     varDly = ds.variables[varName]
-#     varDlyQA = ds.variables["_".join(["qflag",varName])]
-#     chkSize = 50
-#
-#     stchk = status_check(np.int(np.round(stns.size/np.float(chkSize))), 10)
-#     for i in np.arange(0,stns.size,chkSize):
-#
-#         if i + chkSize < stns.size:
-#             nStns = chkSize
-#         else:
-#             nStns = stns.size - i
-#
-#         dlyVals = varDly[:,i:i+nStns]
-#         dlyValsQA = varDlyQA[:,i:i+nStns]
-#
-#         if np.ma.isMA(dlyVals):
-#             dlyVals[np.logical_not(dlyValsQA.mask)] = np.ma.masked
-#         else:
-#             dlyVals = np.ma.masked_array(dlyVals,mask=np.logical_not(dlyValsQA.mask))
-#
-#         mthVals,nMiss = tagg.dailyToMthly(dlyVals,maxMiss=9)
-#
-#         if np.ma.isMA(mthVals):
-#             tmthVals = mthVals.data
-#             tmthVals[mthVals.mask] = varMthly._FillValue
-#             mthVals = tmthVals
-#
-#         #varMthly[:,i:i+nStns] = mthVals
-#         varMiss[:,i:i+nStns] = nMiss
-#         ds.sync()
-#         stchk.increment()
+    stnda = twx.db.StationDataDb(ds_path)
+    tagg = twx.utils.TairAggregate(stnda.days)
+    min_date = stnda.days[DATE][0]
+    stns = stnda.stns
+    stnda.ds.close()
+    stnda = None
+    ds = Dataset(ds_path, 'r+')
 
-#if __name__ == '__main__':
+    if 'time_mth' not in ds.variables.keys():
+
+        ds.createDimension('time_mth', tagg.yr_mths.size)
+        times = ds.createVariable('time_mth', 'f8', ('time_mth',), fill_value=False)
+        times.units = "".join(["days since ", str(min_date.year), "-", str(min_date.month), "-", str(min_date.day), " 0:0:0"])
+        times.standard_name = "time"
+        times.calendar = "standard"
+        times[:] = date2num(tagg.yr_mths[DATE], times.units)
+
+    var_mthly_name = "_".join([var_name, "mth"])
+
+    if var_mthly_name not in ds.variables.keys():
+
+        var_mthly = ds.createVariable(var_mthly_name, 'f4', ('time_mth', 'stn_id'),
+                                     fill_value=netCDF4.default_fillvals['f4'])
+
+    else:
+
+        var_mthly = ds.variables[var_mthly_name]
+
+    var_dly = ds.variables[var_name]
+    var_dly_qa = ds.variables["_".join(["qflag", var_name])]
+    chk_size = 50
+
+    stchk = status_check(np.int(np.round(stns.size / np.float(chk_size))), 10)
+    for i in np.arange(0, stns.size, chk_size):
+
+        if i + chk_size < stns.size:
+            n_stns = chk_size
+        else:
+            n_stns = stns.size - i
+
+        dly_vals = var_dly[:, i:i + n_stns]
+        dly_vals_qa = var_dly_qa[:, i:i + n_stns]
+
+        if np.ma.isMA(dly_vals):
+            dly_vals[np.logical_not(dly_vals_qa.mask)] = np.ma.masked
+        else:
+            dly_vals = np.ma.masked_array(dly_vals, mask=np.logical_not(dly_vals_qa.mask))
+
+        mth_vals = tagg.daily_to_mthly(dly_vals, max_miss=max_miss)
+
+        if np.ma.isMA(mth_vals):
+
+            tmth_vals = mth_vals.data
+            tmth_vals[mth_vals.mask] = var_mthly._FillValue
+            mth_vals = tmth_vals
+
+        var_mthly[:, i:i + n_stns] = mth_vals
+        ds.sync()
+        stchk.increment()
+
+# if __name__ == '__main__':
 
     # add_monthly_means("/projects/daymet2/station_data/all/all_1948_2012.nc", 'tmin')
     # add_monthly_means("/projects/daymet2/station_data/all/all_1948_2012.nc", 'tmax')

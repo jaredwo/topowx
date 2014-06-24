@@ -38,6 +38,10 @@ if __name__ == '__main__':
 
     # Insert all data
     twx.db.insert_data_netcdf_db(fpath_db, inserts)
+    
+    #Calculate and add monthly data to database
+    twx.db.add_monthly_means(fpath_db, 'tmin')
+    twx.db.add_monthly_means(fpath_db, 'tmax')
 
     # Create a period-of-record file for the database
     fpath_por_out = os.path.join(FPATH_STNDATA, 'all', 'all_por_1948_2012.csv')

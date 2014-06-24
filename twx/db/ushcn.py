@@ -89,15 +89,15 @@ class TairAggregate():
                     self.yrModis8dayMasks.append(np.logical_and(np.logical_and(days[YEAR]==aYr,days[YDAY]>=self.MODIS_8DAY[x]),days[YDAY]<self.MODIS_8DAY[x+1]))
         
         self.days = days
-        self.yrMths = utld.get_mth_metadata(uYrs[0],uYrs[-1])
+        self.yr_mths = utld.get_mth_metadata(uYrs[0],uYrs[-1])
         
         self.yrMasks = []
         
         for aYr in uYrs:
             
-            self.yrMasks.append(np.nonzero(self.yrMths[YEAR]==aYr)[0])
+            self.yrMasks.append(np.nonzero(self.yr_mths[YEAR]==aYr)[0])
         
-        self.uYrs = uYrs
+        self.u_yrs = uYrs
     
     def dailyToModis8Day(self,tair):
         
@@ -113,7 +113,7 @@ class TairAggregate():
     def dailyToMthlyNorms(self,tair,startYear=1981,endYear=2010,yrMask=None):
         
         if yrMask == None:
-            yrMask = np.nonzero(np.logical_and(self.yrMths[YEAR] >= startYear,self.yrMths[YEAR] <= endYear))[0]   
+            yrMask = np.nonzero(np.logical_and(self.yr_mths[YEAR] >= startYear,self.yr_mths[YEAR] <= endYear))[0]   
         tairMth = self.dailyToMthly(tair, -1)[0]
         
         if len(tairMth.shape) == 1:
@@ -123,7 +123,7 @@ class TairAggregate():
         elif len(tairMth.shape) == 3:
             tairMth = np.take(tairMth, yrMask,axis=0)
         
-        mths = np.take(self.yrMths[MONTH], yrMask)
+        mths = np.take(self.yr_mths[MONTH], yrMask)
         
         normShp = list(tairMth.shape)
         normShp[0] = 12
@@ -147,7 +147,7 @@ class TairAggregate():
     def mthlyToMthlyNorms(self,tairMth,startYear=1981,endYear=2010,yrMask=None):
         
         if yrMask == None:
-            yrMask = np.nonzero(np.logical_and(self.yrMths[YEAR] >= startYear,self.yrMths[YEAR] <= endYear))[0]   
+            yrMask = np.nonzero(np.logical_and(self.yr_mths[YEAR] >= startYear,self.yr_mths[YEAR] <= endYear))[0]   
         
         if len(tairMth.shape) == 1:
             tairMth = np.take(tairMth, yrMask)
@@ -156,7 +156,7 @@ class TairAggregate():
         elif len(tairMth.shape) == 3:
             tairMth = np.take(tairMth, yrMask,axis=0)
         
-        mths = np.take(self.yrMths[MONTH], yrMask)
+        mths = np.take(self.yr_mths[MONTH], yrMask)
         
         normShp = list(tairMth.shape)
         normShp[0] = 12

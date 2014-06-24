@@ -368,7 +368,7 @@ class PtInterpTair(object):
         daysNorm = self.days[self.daysNormMask]
         
         uYrs = np.unique(daysNorm[YEAR])
-        self.yrMths = utld.get_mth_metadata(uYrs[0],uYrs[-1])
+        self.yr_mths = utld.get_mth_metadata(uYrs[0],uYrs[-1])
         
         self.yrMthsMasks = []
         for aYr in uYrs:
@@ -377,7 +377,7 @@ class PtInterpTair(object):
         
         self.mthMasks = []
         for mth in np.arange(1,13):
-            self.mthMasks.append(np.nonzero(self.yrMths[MONTH]==mth)[0])
+            self.mthMasks.append(np.nonzero(self.yr_mths[MONTH]==mth)[0])
         
         mask_stns_tmin = np.isnan(stn_da_tmin.stns[BAD]) 
         mask_stns_tmax = np.isnan(stn_da_tmax.stns[BAD])

@@ -1198,7 +1198,7 @@ class ImputeLST():
         self.sinTrans = modis_sin_latlon_transform()
         
         self.mthMasks = []
-        self.uYrs = np.unique(self.stnda.days[YEAR])
+        self.u_yrs = np.unique(self.stnda.days[YEAR])
         
             
         for mth in np.arange(1,13):
@@ -1292,7 +1292,7 @@ def lstMthMeans():
     tagg = TairAggregate(days)
     lst = tagg.dailyToMthly(lst, -1)[0]
 
-    plt.imshow(np.mean(lst[tagg.yrMths[MONTH]==4,:,:],axis=0))
+    plt.imshow(np.mean(lst[tagg.yr_mths[MONTH]==4,:,:],axis=0))
     plt.colorbar()
     plt.show()
 

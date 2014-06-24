@@ -1090,32 +1090,32 @@ def analyzeBadImpsHighMAE():
         
         plt.show()
 
-def add_monthly_means(dsPath,varName):
+def add_monthly_means(ds_path,var_name):
     
-    stnda = StationSerialDataDb(dsPath, varName)
+    stnda = StationSerialDataDb(ds_path, var_name)
     tagg = ushcn.TairAggregate(stnda.days)
     minDate = stnda.days[DATE][0]
     stns = stnda.stns
     stnda.ds.close()
     stnda = None
-    ds = Dataset(dsPath,'r+')
+    ds = Dataset(ds_path,'r+')
     
     if 'time_mth' not in ds.variables.keys():
         
-        ds.createDimension('time_mth',tagg.yrMths.size)
+        ds.createDimension('time_mth',tagg.yr_mths.size)
         times = ds.createVariable('time_mth','f8',('time_mth',),fill_value=False)
         times.units = "".join(["days since ",str(minDate.year),"-",str(minDate.month),"-",str(minDate.day)," 0:0:0"])
         times.standard_name = "time"
         times.calendar = "standard"
-        times[:] = date2num(tagg.yrMths[DATE],times.units)
+        times[:] = date2num(tagg.yr_mths[DATE],times.units)
         
-        varMthly = ds.createVariable("_".join([varName,"mth"]),'f4',('time_mth','stn_id'),fill_value=netCDF4.default_fillvals['f4'])
+        varMthly = ds.createVariable("_".join([var_name,"mth"]),'f4',('time_mth','stn_id'),fill_value=netCDF4.default_fillvals['f4'])
     
     else:
         
-        varMthly = ds.variables["_".join([varName,"mth"])]
+        varMthly = ds.variables["_".join([var_name,"mth"])]
         
-    varDly = ds.variables[varName]
+    varDly = ds.variables[var_name]
     chkSize = 50
     
     stchk = status_check(np.int(np.round(stns.size/np.float(chkSize))), 10)
@@ -1186,12 +1186,12 @@ def add_ann_means(dsPath,varName):
     
     if 'time_ann' not in ds.variables.keys():
         
-        ds.createDimension('time_ann',tagg.uYrs.size)
+        ds.createDimension('time_ann',tagg.u_yrs.size)
         times = ds.createVariable('time_ann','f8',('time_ann',),fill_value=False)
         times.units = "".join(["days since ",str(minDate.year),"-",str(minDate.month),"-",str(minDate.day)," 0:0:0"])
         times.standard_name = "time"
         times.calendar = "standard"
-        times[:] = date2num([datetime(yr,1,1) for yr in tagg.uYrs],times.units)
+        times[:] = date2num([datetime(yr,1,1) for yr in tagg.u_yrs],times.units)
         
         varAnn = ds.createVariable("_".join([varName,"ann"]),'f4',('time_ann','stn_id'),fill_value=netCDF4.default_fillvals['f4'])
     

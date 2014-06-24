@@ -40,36 +40,36 @@ class insert_homog(createDB.insert):
         
         fmtIds = np.array([formatStnId(stnId) for stnId in stnda.stn_ids])
                 
-        self.stnsTmin = stnda.stns[np.logical_and(np.logical_and(mask_por_tmin,np.logical_not(np.in1d(fmtIds, unuseTminIds, True))),
+        self.stns_tmin = stnda.stns[np.logical_and(np.logical_and(mask_por_tmin,np.logical_not(np.in1d(fmtIds, unuseTminIds, True))),
                                    np.in1d(fmtIds,np.unique(homogTmin.chgPtAdj['stn_id']),True))]
-        self.stnsTmax = stnda.stns[np.logical_and(np.logical_and(mask_por_tmax,np.logical_not(np.in1d(fmtIds, unuseTmaxIds, True))),
+        self.stns_tmax = stnda.stns[np.logical_and(np.logical_and(mask_por_tmax,np.logical_not(np.in1d(fmtIds, unuseTmaxIds, True))),
                                    np.in1d(fmtIds,np.unique(homogTmax.chgPtAdj['stn_id']),True))]
         
-        uniqIds = np.unique(np.concatenate((self.stnsTmin[STN_ID],self.stnsTmax[STN_ID])))
+        uniqIds = np.unique(np.concatenate((self.stns_tmin[STN_ID],self.stns_tmax[STN_ID])))
         
-        self.stnsAll = stnda.stns[np.in1d(stnda.stn_ids, uniqIds, True)]
+        self.stns_all = stnda.stns[np.in1d(stnda.stn_ids, uniqIds, True)]
         
-        self.stnList = [(stn[STN_ID],stn[LAT],stn[LON],stn[ELEV],stn[STATE],stn[STN_NAME]) for stn in self.stnsAll]
+        self.stn_list = [(stn[STN_ID],stn[LAT],stn[LON],stn[ELEV],stn[STATE],stn[STN_NAME]) for stn in self.stns_all]
         
-        self.emptyObs = np.ones(stnda.days.size)*createDB.MISSING
-        self.emptyQA = np.zeros(stnda.days.size,dtype=np.str)
+        self.empty_obs = np.ones(stnda.days.size)*createDB.MISSING
+        self.empty_qa = np.zeros(stnda.days.size,dtype=np.str)
     
     def get_stns(self):
-        return self.stnList
+        return self.stn_list
                             
     def parse_stn_obs(self,stn_id):
         
-        if stn_id in self.stnsTmin[STN_ID]:
+        if stn_id in self.stns_tmin[STN_ID]:
             tminHomog = self.homogTmin.homogStn(stn_id)[2]
             tminHomog = np.ma.filled(tminHomog, createDB.MISSING)
         else:
-            tminHomog = self.emptyObs
+            tminHomog = self.empty_obs
         
-        if stn_id in self.stnsTmax[STN_ID]:
+        if stn_id in self.stns_tmax[STN_ID]:
             tmaxHomog = self.homogTmax.homogStn(stn_id)[2]
             tmaxHomog = np.ma.filled(tmaxHomog, createDB.MISSING)
         else:
-            tmaxHomog = self.emptyObs
+            tmaxHomog = self.empty_obs
                 
         obs = np.empty(self.stnda.days.size, dtype=createDB.DTYPE_STNOBS)                
         obs['year'] = self.stnda.days[YEAR]
@@ -78,11 +78,11 @@ class insert_homog(createDB.insert):
         obs['ymd'] = self.stnda.days[YMD]
         obs['tmin'] = tminHomog
         obs['tmax'] = tmaxHomog
-        obs['prcp'] = self.emptyObs
-        obs['swe'] = self.emptyObs
-        obs['qflag_tmin'] = self.emptyQA
-        obs['qflag_tmax'] = self.emptyQA
-        obs['qflag_prcp'] = self.emptyQA
+        obs['prcp'] = self.empty_obs
+        obs['swe'] = self.empty_obs
+        obs['qflag_tmin'] = self.empty_qa
+        obs['qflag_tmax'] = self.empty_qa
+        obs['qflag_prcp'] = self.empty_qa
                 
         return obs
 
@@ -114,7 +114,7 @@ class insert_tobs(createDB.insert):
     Class for inserting stations observations that have been modified for time-of-observation
     '''
     
-    def __init__(self,stnda,fpathTobsDs,fpathPor):
+    def __init__(self,stnda,fpath_tobs_ds,fpathPor):
         
         createDB.insert.__init__(self,stnda.days[DATE][0],stnda.days[DATE][-1])
         self.stnda = stnda
@@ -122,42 +122,42 @@ class insert_tobs(createDB.insert):
         porData = por.load_por_csv(fpathPor)
         mask_por_tmin, mask_por_tmax, mask_por_prcp = por.build_valid_por_masks(porData)
                 
-        self.stnsTmin = stnda.stns[mask_por_tmin]
-        self.stnsTmax = stnda.stns[mask_por_tmax]
+        self.stns_tmin = stnda.stns[mask_por_tmin]
+        self.stns_tmax = stnda.stns[mask_por_tmax]
         
-        uniqIds = np.unique(np.concatenate((self.stnsTmin[STN_ID],self.stnsTmax[STN_ID])))
+        uniqIds = np.unique(np.concatenate((self.stns_tmin[STN_ID],self.stns_tmax[STN_ID])))
         
-        self.stnsAll = stnda.stns[np.in1d(stnda.stn_ids, uniqIds, True)]
+        self.stns_all = stnda.stns[np.in1d(stnda.stn_ids, uniqIds, True)]
         
-        self.stnList = [(stn[STN_ID],stn[LAT],stn[LON],stn[ELEV],stn[STATE],stn[STN_NAME]) for stn in self.stnsAll]
+        self.stn_list = [(stn[STN_ID],stn[LAT],stn[LON],stn[ELEV],stn[STATE],stn[STN_NAME]) for stn in self.stns_all]
         
-        self.dsTobs = Dataset(fpathTobsDs)
-        self.dsTobsStnIds = self.dsTobs.variables['stn_id'][:].astype("<S16")
+        self.ds_tobs = Dataset(fpath_tobs_ds)
+        self.ds_tobs_stnids = self.ds_tobs.variables['stn_id'][:].astype("<S16")
         
-        self.emptyObs = np.ones(stnda.days.size)*createDB.MISSING
-        self.emptyQA = np.zeros(stnda.days.size,dtype=np.str)
+        self.empty_obs = np.ones(stnda.days.size)*createDB.MISSING
+        self.empty_qa = np.zeros(stnda.days.size,dtype=np.str)
     
     def get_stns(self):
-        return self.stnList
+        return self.stn_list
                             
     def parse_stn_obs(self,stn_id):
         
-        if stn_id in self.stnsTmin[STN_ID]:
+        if stn_id in self.stns_tmin[STN_ID]:
             tmin = self.stnda.load_all_stn_obs_var(stn_id,'tmin')[0]
             tmin[np.isnan(tmin)] = createDB.MISSING
         else:
-            tmin = self.emptyObs
+            tmin = self.empty_obs
         
-        if stn_id in self.stnsTmax[STN_ID]:
+        if stn_id in self.stns_tmax[STN_ID]:
 
             tmax = self.stnda.load_all_stn_obs_var(stn_id,'tmax')[0]
-            tobs = self.dsTobs.variables['tobs'][:,np.nonzero(self.dsTobsStnIds==stn_id)[0][0]]
+            tobs = self.ds_tobs.variables['tobs'][:,np.nonzero(self.ds_tobs_stnids==stn_id)[0][0]]
             tmax = tobsShiftTmax(tmax, tobs)
             tmax[np.isnan(tmax)] = createDB.MISSING
             
         else:
             
-            tmax = self.emptyObs
+            tmax = self.empty_obs
                                 
         obs = np.empty(self.stnda.days.size, dtype=createDB.DTYPE_STNOBS)                
         obs['year'] = self.stnda.days[YEAR]
@@ -166,11 +166,11 @@ class insert_tobs(createDB.insert):
         obs['ymd'] = self.stnda.days[YMD]
         obs['tmin'] = tmin
         obs['tmax'] = tmax
-        obs['prcp'] = self.emptyObs
-        obs['swe'] = self.emptyObs
-        obs['qflag_tmin'] = self.emptyQA
-        obs['qflag_tmax'] = self.emptyQA
-        obs['qflag_prcp'] = self.emptyQA
+        obs['prcp'] = self.empty_obs
+        obs['swe'] = self.empty_obs
+        obs['qflag_tmin'] = self.empty_qa
+        obs['qflag_tmax'] = self.empty_qa
+        obs['qflag_prcp'] = self.empty_qa
                 
         return obs
 
@@ -569,12 +569,12 @@ def addMthlyMeansTobsDs(dsPathRaw,dsPathTobs,varName):
     
     if 'time_mth' not in ds.variables.keys():
         
-        ds.createDimension('time_mth',tagg.yrMths.size)
+        ds.createDimension('time_mth',tagg.yr_mths.size)
         times = ds.createVariable('time_mth','f8',('time_mth',),fill_value=False)
         times.units = "".join(["days since ",str(minDate.year),"-",str(minDate.month),"-",str(minDate.day)," 0:0:0"])
         times.standard_name = "time"
         times.calendar = "standard"
-        times[:] = date2num(tagg.yrMths[DATE],times.units)
+        times[:] = date2num(tagg.yr_mths[DATE],times.units)
     
     varMthlyName = "_".join([varName,"mth"])
     if varMthlyName not in ds.variables.keys(): 
@@ -728,17 +728,17 @@ if __name__ == '__main__':
 #Output RAW station data to Ghcn format for input to the PHA Fortran program
 #############################################################
 #    stn_da = StationDataDb('/projects/daymet2/station_data/all/all_1948_2012.nc')
-#    dsTobs = Dataset('/projects/daymet2/station_data/all/tairTobs_1948_2012.nc')
+#    ds_tobs = Dataset('/projects/daymet2/station_data/all/tairTobs_1948_2012.nc')
 #    
 #    porData = por.load_por_csv('/projects/daymet2/station_data/all/all_por_1948_2012.csv')
 #    mask_por_tmin, mask_por_tmax, mask_por_prcp = por.build_valid_por_masks(porData)
 #    
-#    stnids = dsTobs.variables['stn_id'][:].astype("<S16")
+#    stnids = ds_tobs.variables['stn_id'][:].astype("<S16")
 #    maskIds = np.in1d(stnids,stn_da.stn_ids[mask_por_tmin])
 #    stnids = stnids[maskIds]
 #    stns = stn_da.stns[np.in1d(stn_da.stn_ids, stnids, True)]
 #    
-#    tairMth = dsTobs.variables['tmin_mth'][:,maskIds]
+#    tairMth = ds_tobs.variables['tmin_mth'][:,maskIds]
 #
 #    print stnids.size,stns.size,tairMth.shape
 #    print stnids[6000],stns[6000]

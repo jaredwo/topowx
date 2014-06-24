@@ -159,8 +159,8 @@ def runInterp(x):
     if error:
         tmin_norms = np.ones(12)*np.nan
         tmax_norms = np.ones(12)*np.nan
-        #tmin_mthly = np.ones(tagg.yrMths.size)*np.nan
-        #tmax_mthly = np.ones(tagg.yrMths.size)*np.nan
+        #tmin_mthly = np.ones(tagg.yr_mths.size)*np.nan
+        #tmax_mthly = np.ones(tagg.yr_mths.size)*np.nan
         
     
     return x,tmin_norms,tmax_norms#,tmin_mthly,tmax_mthly
@@ -184,8 +184,8 @@ def runTwxInterps():
     
     tminNorms = np.zeros((12,astns.size))*np.nan
     tmaxNorms = np.zeros((12,astns.size))*np.nan
-    #tminMthly = np.zeros((aTagg.yrMths.size,astns.size))*np.nan
-    #tmaxMthly = np.zeros((aTagg.yrMths.size,astns.size))*np.nan
+    #tminMthly = np.zeros((aTagg.yr_mths.size,astns.size))*np.nan
+    #tmaxMthly = np.zeros((aTagg.yr_mths.size,astns.size))*np.nan
     
     sck = status_check(astns.size, 100)
     chksize = 100
@@ -229,8 +229,8 @@ def buildDaymetNorms():
     stns = get_twx_stns()
         
     #tmaxNorms = np.zeros((12,stns.size))
-    tmaxMthly = np.zeros((tagg.yrMths.size,stns.size))
-    #tmaxMthly = np.zeros((tagg.yrMths.size,stns.size))
+    tmaxMthly = np.zeros((tagg.yr_mths.size,stns.size))
+    #tmaxMthly = np.zeros((tagg.yr_mths.size,stns.size))
     
     sck = status_check(stns.size*np.arange(1980,2013).size, 10)
     
@@ -244,7 +244,7 @@ def buildDaymetNorms():
     
     for yr in np.arange(1980,2013):
         
-        yrMask = tagg.yrMths[YEAR] == yr
+        yrMask = tagg.yr_mths[YEAR] == yr
         
         print "Loading data for year "+str(yr)
         for j in np.arange(len(mthNames)):
