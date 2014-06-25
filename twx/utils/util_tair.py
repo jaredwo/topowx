@@ -65,12 +65,16 @@ class TairAggregate():
         tair_mthly : MaskedArray
             Time series of monthly temperature for time period of 
             interest. Missing values are masked.
+        n_miss : ndarray
+            Number of missing daily observations in each month
         '''
 
         tair_mthly = np.ma.array([np.ma.mean(np.ma.take(tair, a_mask, axis=0), axis=0, dtype=np.float) for a_mask in self.yr_mths_masks])
 
+        n_miss = np.array([np.sum(np.ma.take(tair.mask, a_mask, axis=0), axis=0) for a_mask in self.yr_mths_masks])
+
         if max_miss is not None:
-            n_miss = np.array([np.sum(np.ma.take(tair.mask, a_mask, axis=0), axis=0) for a_mask in self.yr_mths_masks])
+
             tair_mthly[n_miss > max_miss] = np.ma.masked
 
-        return tair_mthly
+        return tair_mthly, n_miss

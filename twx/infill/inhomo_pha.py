@@ -24,12 +24,12 @@ class insert_homog(createDB.insert):
     Class for inserting homogenized stations and observations
     '''
     
-    def __init__(self,stnda,homogTmin,homogTmax,fpathPor,fpathUnusableTmin,fpathUnusableTmax ):
+    def __init__(self,stnda,homog_dly_tmin,homog_dly_tmax,fpathPor,fpathUnusableTmin,fpathUnusableTmax ):
         
         createDB.insert.__init__(self,stnda.days[DATE][0],stnda.days[DATE][-1])
         
-        self.homogTmin = homogTmin
-        self.homogTmax = homogTmax
+        self.homog_tmin = homog_dly_tmin
+        self.homog_tmax = homog_dly_tmax
         self.stnda = stnda
         
         porData = por.load_por_csv(fpathPor)
@@ -41,9 +41,9 @@ class insert_homog(createDB.insert):
         fmtIds = np.array([formatStnId(stnId) for stnId in stnda.stn_ids])
                 
         self.stns_tmin = stnda.stns[np.logical_and(np.logical_and(mask_por_tmin,np.logical_not(np.in1d(fmtIds, unuseTminIds, True))),
-                                   np.in1d(fmtIds,np.unique(homogTmin.chgPtAdj['stn_id']),True))]
+                                   np.in1d(fmtIds,np.unique(homog_dly_tmin.pha_adjs['stn_id']),True))]
         self.stns_tmax = stnda.stns[np.logical_and(np.logical_and(mask_por_tmax,np.logical_not(np.in1d(fmtIds, unuseTmaxIds, True))),
-                                   np.in1d(fmtIds,np.unique(homogTmax.chgPtAdj['stn_id']),True))]
+                                   np.in1d(fmtIds,np.unique(homog_dly_tmax.pha_adjs['stn_id']),True))]
         
         uniqIds = np.unique(np.concatenate((self.stns_tmin[STN_ID],self.stns_tmax[STN_ID])))
         
@@ -60,13 +60,13 @@ class insert_homog(createDB.insert):
     def parse_stn_obs(self,stn_id):
         
         if stn_id in self.stns_tmin[STN_ID]:
-            tminHomog = self.homogTmin.homogStn(stn_id)[2]
+            tminHomog = self.homog_tmin.homog_stn(stn_id)[2]
             tminHomog = np.ma.filled(tminHomog, createDB.MISSING)
         else:
             tminHomog = self.empty_obs
         
         if stn_id in self.stns_tmax[STN_ID]:
-            tmaxHomog = self.homogTmax.homogStn(stn_id)[2]
+            tmaxHomog = self.homog_tmax.homog_stn(stn_id)[2]
             tmaxHomog = np.ma.filled(tmaxHomog, createDB.MISSING)
         else:
             tmaxHomog = self.empty_obs
@@ -287,37 +287,37 @@ class HomogRawDaily():
     def __init__(self,stnda,homogDfilesPath,adjLogPath,varname):
         
         self.stnda = stnda
-        self.mthlyData = self.stnda.ds.variables['_'.join([varname,'mth'])][:]
-        self.missData = self.stnda.ds.variables['_'.join([varname,'mthmiss'])][:]
+        self.mthly_data = self.stnda.ds.variables['_'.join([varname,'mth'])][:]
+        self.miss_data = self.stnda.ds.variables['_'.join([varname,'mthmiss'])][:]
         
-        self.chgPtAdj = parsePhaAdj(adjLogPath)
+        self.pha_adjs = parsePhaAdj(adjLogPath)
         
-        self.dpath = homogDfilesPath
+        self.path_FLs_data = homogDfilesPath
         self.varname = varname
         self.mths = utld.get_mth_metadata(self.stnda.days[YEAR][0], self.stnda.days[YEAR][-1])
         
-        self.dlyYrMthMasks = []
+        self.dly_yrmth_masks = []
         yrs = np.unique(self.stnda.days[YEAR])
         
         for yr in yrs:
         
             for mth in np.arange(1,13):
                 
-                self.dlyYrMthMasks.append(np.logical_and(stnda.days[YEAR]==yr,stnda.days[MONTH]==mth))
+                self.dly_yrmth_masks.append(np.logical_and(stnda.days[YEAR]==yr,stnda.days[MONTH]==mth))
         
-        self.nDaysPerMth = np.zeros(len(self.dlyYrMthMasks))
+        self.ndays_per_mth = np.zeros(len(self.dly_yrmth_masks))
         
-        for x in np.arange(self.nDaysPerMth.size):
-            self.nDaysPerMth[x] = np.sum(self.dlyYrMthMasks[x])
+        for x in np.arange(self.ndays_per_mth.size):
+            self.ndays_per_mth[x] = np.sum(self.dly_yrmth_masks[x])
         
-        self.mthlyYrMasks = {}
+        self.mthly_yr_masks = {}
         for yr in yrs:
-            self.mthlyYrMasks[yr] = self.mths[YEAR] == yr
+            self.mthly_yr_masks[yr] = self.mths[YEAR] == yr
     
     def getFLs(self,stnId):
         
         fstnId = formatStnId(stnId)
-        fileHomogMth = open("".join([self.dpath,fstnId,'.FLs.r00.',self.varname]))        
+        fileHomogMth = open("".join([self.path_FLs_data,fstnId,'.FLs.r00.',self.varname]))        
         mthvalsHomog = np.ones(self.mths.size)*-9999
         
         for aline in fileHomogMth.readlines():
@@ -327,20 +327,20 @@ class HomogRawDaily():
                        aline[53:53+5],aline[62:62+5],aline[71:71+5],aline[80:80+5],
                        aline[89:89+5],aline[98:98+5],aline[107:107+5],aline[116:116+5]],dtype=np.float)
             
-            mthvalsHomog[self.mthlyYrMasks[yr]] = yrmthvals
+            mthvalsHomog[self.mthly_yr_masks[yr]] = yrmthvals
         
         if np.sum(mthvalsHomog == -9999) > 0:
-            print 'Warning: incomplete station record: '+"".join([self.dpath,fstnId,'.FLs.r00.',self.varname])
+            print 'Warning: incomplete station record: '+"".join([self.path_FLs_data,fstnId,'.FLs.r00.',self.varname])
         mthvalsHomog = np.ma.masked_array(mthvalsHomog,mask=mthvalsHomog == -9999)
         mthvalsHomog = mthvalsHomog/100.0
         return mthvalsHomog
        
-    def homogStn(self,stnId):
+    def homog_stn(self,stn_id):
         
-        fstnId = formatStnId(stnId)
-        fileHomogMth = open("".join([self.dpath,fstnId,'.FLs.r00.',self.varname]))
+        fstnId = formatStnId(stn_id)
+        fileHomogMth = open("".join([self.path_FLs_data,fstnId,'.FLs.r00.',self.varname]))
         
-        #print "".join([self.dpath,fstnId,'.FLs.r00.',self.varname])
+        #print "".join([self.path_FLs_data,fstnId,'.FLs.r00.',self.varname])
         
         mthvalsHomog = np.ones(self.mths.size,dtype=np.float)*-9999
         
@@ -351,19 +351,19 @@ class HomogRawDaily():
                        aline[53:53+5],aline[62:62+5],aline[71:71+5],aline[80:80+5],
                        aline[89:89+5],aline[98:98+5],aline[107:107+5],aline[116:116+5]],dtype=np.float)
             
-            mthvalsHomog[self.mthlyYrMasks[yr]] = yrmthvals
+            mthvalsHomog[self.mthly_yr_masks[yr]] = yrmthvals
         
         mthvalsHomog = np.ma.masked_array(mthvalsHomog,mthvalsHomog==-9999)
         mthvalsHomog = mthvalsHomog/100.0
         mthvalsHomog = np.round(mthvalsHomog,2)
 
-        dlyVals = self.stnda.load_all_stn_obs_var(stnId,self.varname)[0].astype(np.float64)
+        dlyVals = self.stnda.load_all_stn_obs_var(stn_id,self.varname)[0].astype(np.float64)
         dlyVals = np.ma.masked_array(dlyVals,np.isnan(dlyVals))        
-        mthVals = np.ma.round(self.mthlyData[:,self.stnda.stn_idxs[stnId]].astype(np.float64),2)
-        missCnts = self.missData[:,self.stnda.stn_idxs[stnId]]
+        mthVals = np.ma.round(self.mthly_data[:,self.stnda.stn_idxs[stn_id]].astype(np.float64),2)
+        missCnts = self.miss_data[:,self.stnda.stn_idxs[stn_id]]
         dlyValsHomog = np.copy(dlyVals)
         
-        stnChgPt = self.chgPtAdj[self.chgPtAdj['stn_id']==fstnId]
+        stnChgPt = self.pha_adjs[self.pha_adjs['stn_id']==fstnId]
         stnChgPt = stnChgPt[np.argsort(stnChgPt['ymdStr'])]
         
         difCnt = 0
@@ -377,11 +377,11 @@ class HomogRawDaily():
                     delta = mthvalsHomog[x] - mthVals[x]                    
                     #print self.mths[YMD][x],delta
                     
-                    #dlyValsHomog[self.dlyYrMthMasks[x]] = (dlyValsHomog[self.dlyYrMthMasks[x]]-np.round(mthVals[x],2))+mthvalsHomog[x]
-                    dlyValsHomog[self.dlyYrMthMasks[x]] = dlyValsHomog[self.dlyYrMthMasks[x]] + delta
+                    #dlyValsHomog[self.dly_yrmth_masks[x]] = (dlyValsHomog[self.dly_yrmth_masks[x]]-np.round(mthVals[x],2))+mthvalsHomog[x]
+                    dlyValsHomog[self.dly_yrmth_masks[x]] = dlyValsHomog[self.dly_yrmth_masks[x]] + delta
                     difCnt+=1
             
-            elif missCnts[x] < self.nDaysPerMth[x] and not np.ma.is_masked(mthvalsHomog[x]):
+            elif missCnts[x] < self.ndays_per_mth[x] and not np.ma.is_masked(mthvalsHomog[x]):
                 
                 ymd = self.mths[YMD][x]
                 
@@ -401,7 +401,7 @@ class HomogRawDaily():
                     else:
                         raise Exception("Falls within more than one change point")
                         
-                dlyValsHomog[self.dlyYrMthMasks[x]] = dlyValsHomog[self.dlyYrMthMasks[x]] + np.round(delta,2)
+                dlyValsHomog[self.dly_yrmth_masks[x]] = dlyValsHomog[self.dly_yrmth_masks[x]] + np.round(delta,2)
                             
         return mthvalsHomog,mthVals,dlyValsHomog,dlyVals,difCnt
         
@@ -410,7 +410,7 @@ class HomogDaily():
     def __init__(self,stnda,homogDfilesPath,varname):
         
         self.stnda = stnda
-        self.dpath = homogDfilesPath
+        self.path_FLs_data = homogDfilesPath
         self.varname = varname
         
         self.yrmthMasks = []
@@ -422,10 +422,10 @@ class HomogDaily():
                 
                 self.yrmthMasks.append(np.logical_and(stnda.days[YEAR]==yr,stnda.days[MONTH]==mth))
         
-    def homogStn(self,stnId):
+    def homog_stn(self,stn_id):
         
-        fstnId = formatStnId(stnId)
-        fileHomogMth = open("".join([self.dpath,fstnId,'.FLs.r00.',self.varname]))
+        fstnId = formatStnId(stn_id)
+        fileHomogMth = open("".join([self.path_FLs_data,fstnId,'.FLs.r00.',self.varname]))
         #print fileHomogMth
         mthvalsHomog = np.array([])
         
@@ -437,7 +437,7 @@ class HomogDaily():
             
             mthvalsHomog = np.concatenate((mthvalsHomog,yrmthvals))
         
-        dlyVals = self.stnda.load_obs(stnId).astype(np.float64)
+        dlyVals = self.stnda.load_obs(stn_id).astype(np.float64)
         mthVals = self.getMthVals(dlyVals)
         dlyValsHomog = np.copy(dlyVals)
         
@@ -482,7 +482,7 @@ def updateHomogStns(stns,homogDly,dsout):
     for stn in stns:
         
         try:
-            hTair,difCnt = homogDly.homogStn(stn[STN_ID])
+            hTair,difCnt = homogDly.homog_stn(stn[STN_ID])
         except IOError:
             difCnt = 0
             idx = np.nonzero(stnids==stn[STN_ID])[0][0]
@@ -685,7 +685,7 @@ if __name__ == '__main__':
 #    homog = HomogDaily(stn_da,'/projects/daymet2/inhomo_software/pha_v52i_tmax/data/benchmark/world1/monthly/FLs.r00/', 'tmax')
 #    stnId = 'GHCN_USC00013160'#'SNOTEL_13C01S'#SNOTEL_19K08S SNOTEL_07K13S
 #    print stn_da.stns[stn_da.stn_ids==stnId][0]
-#    hTair,difCnt = homog.homogStn(stnId)
+#    hTair,difCnt = homog.homog_stn(stnId)
 #    print "".join([stnId,": # of adjusted months: ",str(difCnt)])
 #    tair = stn_da.load_obs(stnId)
 #    
@@ -762,7 +762,7 @@ if __name__ == '__main__':
                   
     stnId = 'GHCN_USC00244328'#'SNOTEL_13C01S'#SNOTEL_19K08S SNOTEL_07K13S
     print stn_da.stns[stn_da.stn_ids==stnId][0]
-    mthvalsHomog,mthVals,dlyValsHomog,dlyVals,difCnt = homog.homogStn(stnId)
+    mthvalsHomog,mthVals,dlyValsHomog,dlyVals,difCnt = homog.homog_stn(stnId)
     print "".join([stnId,": # of adjusted months: ",str(difCnt)])
     tair = stn_da.load_all_stn_obs_var(stnId,'tmin')[0].astype(np.float64)
     
@@ -809,14 +809,14 @@ if __name__ == '__main__':
 #Create homog database
 #############################################################
 #    stnda = StationDataDb('/projects/daymet2/station_data/all/tairTobs_1948_2012.nc',stnDtype=DTYPE_STN_BASIC)
-#    homogTmin = HomogRawDaily(stnda,'/projects/daymet2/inhomo_software/pha_v52i_tmin/data/benchmark/world1/monthly/FLs.r00/', 
+#    homog_tmin = HomogRawDaily(stnda,'/projects/daymet2/inhomo_software/pha_v52i_tmin/data/benchmark/world1/monthly/FLs.r00/', 
 #                              '/projects/daymet2/inhomo_software/pha_v52i_tmin/data/benchmark/world1/output/PhaAdjTmin.log','tmin')
-#    homogTmax = HomogRawDaily(stnda,'/projects/daymet2/inhomo_software/pha_v52i_tmax/data/benchmark/world1/monthly/FLs.r00/', 
+#    homog_tmax = HomogRawDaily(stnda,'/projects/daymet2/inhomo_software/pha_v52i_tmax/data/benchmark/world1/monthly/FLs.r00/', 
 #                              '/projects/daymet2/inhomo_software/pha_v52i_tmax/data/benchmark/world1/output/PhaAdjTmax.log','tmax')
 #    fpathPor = '/projects/daymet2/station_data/all/tairTobs_por_1948_2012.csv'
 #    fpathUnusableTmin = '/projects/daymet2/inhomo_software/pha_v52i_tmin/data/benchmark/world1/corr/meta.world1.tmin.r00.1307231630.1.input_not_stnlist'
 #    fpathUnusableTmax = '/projects/daymet2/inhomo_software/pha_v52i_tmax/data/benchmark/world1/corr/meta.world1.tmax.r00.1307231609.1.input_not_stnlist'
 #    
-#    iHomog = insert_homog(stnda, homogTmin, homogTmax, fpathPor, fpathUnusableTmin, fpathUnusableTmax)
+#    iHomog = insert_homog(stnda, homog_tmin, homog_tmax, fpathPor, fpathUnusableTmin, fpathUnusableTmax)
 #    createDB.create_db_ncdf('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc', stnda.days[DATE][0], stnda.days[DATE][-1], (iHomog,))
 #    createDB.insert_data_ncdf('/projects/daymet2/station_data/all/tairHomog_1948_2012.nc', (iHomog,))

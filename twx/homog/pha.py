@@ -5,13 +5,16 @@ Menne, M.J., and C.N. Williams, Jr., 2009: Homogenization of temperature series
 via pairwise comparisons. J. Climate, 22, 1700-1717.
 
 '''
-__all__ = ['setup_pha', 'run_pha']
+__all__ = ['setup_pha', 'run_pha', 'HomogDaily', 'InsertHomog']
 
 import numpy as np
 import subprocess
 import os
 import glob
-from twx.db import LON, LAT, STN_ID
+from twx.db import LON, LAT, STN_ID, ELEV, STATE, STN_NAME, MISSING, DTYPE_STNOBS
+from datetime import datetime
+from twx.utils import get_mth_metadata, YEAR, MONTH, YMD, DATE, DAY
+import twx
 
 INCL_LINE_BEGIN_YR = '        parameter (begyr = 1895)\n'
 INCL_LINE_END_YR = '        parameter (endyr = 2015)\n'
@@ -19,6 +22,8 @@ INCL_LINE_N_STNS = '        parameter (maxstns = 7720)\n'
 CONF_LINE_END_YR = 'endyr=1999\n'
 CONF_LINE_MAX_YRS = 'maxyrs=500000\n'
 CONF_LINE_ELEMS = 'elems="tavg"\n'
+
+DTYPE_PHA_ADJ = [(STN_ID, "<S16"), ('ymd_start',np.int),('ymd_end',np.int),('adj', np.float64)]
 
 
 def setup_pha(fpath_pha_tar, path_out_src, path_out_run, yr_begin, yr_end, stns, tair, varname):
@@ -96,10 +101,11 @@ def setup_pha(fpath_pha_tar, path_out_src, path_out_run, yr_begin, yr_end, stns,
 
     print "Writing input station data ASCII files..."
     _write_input_station_data(path_out_run, varname, stns, tair, yrs)
-
+    
+    
 def run_pha(path_run, varname):
     '''
-    Run a PHA instance setup by setup_pha
+    Run a PHA instance
 
     Parameters
     ----------
@@ -112,6 +118,243 @@ def run_pha(path_run, varname):
     pha_cmd = os.path.join(path_run, 'testv52i-pha.sh') + "  world1 %s raw 0 0 P" % (varname,)
     print "Running PHA for %s..." % (varname,)
     subprocess.call(pha_cmd, shell=True)
+    
+    path_log = os.path.join(path_run,'data','benchmark','world1','output','PHAv52i.FAST.MLY.TEST.*.%s.world1.r00.out.gz'%(varname,))
+    path_out_log = os.path.join(path_run,'data','benchmark','world1','output','pha_adj_%s.log'%(varname,))
+    
+    print "Writing log of PHA adjustments: "+path_out_log
+    cmd = " ".join(["zgrep 'Adj write'",path_log,">",path_out_log])
+    subprocess.call(cmd,shell=True)
+
+
+class HomogDaily():
+    '''
+    Class for homogenizing daily station data based on monthly homogenization
+    results from a PHA run.
+    '''
+    
+    def __init__(self,stnda,path_pha_run,varname):
+        '''
+        Parameters
+        ----------
+        stnda : twx.db.StationDataDb
+            A StationDataDb object pointing to the daily netCDF database
+            that was used as input to the PHA run
+        path_run : str
+            The PHA run path from setup_pha
+        varname : str
+            Temperature variable name (tmin or tmax)
+        '''
+        
+        self.stnda = stnda
+        self.varname = varname
+        
+        self.mthly_data = self.stnda.ds.variables['_'.join([varname,'mth'])][:]
+        self.miss_data = self.stnda.ds.variables['_'.join([varname,'mthmiss'])][:]
+        
+        path_adj_log = os.path.join(path_pha_run,'data','benchmark','world1','output','pha_adj_%s.log'%(varname,))
+        self.pha_adjs = _parse_pha_adj(path_adj_log)        
+        
+        self.path_FLs_data = os.path.join(path_pha_run,'data','benchmark','world1','monthly','FLs.r00')
+        
+        self.mths = get_mth_metadata(self.stnda.days[YEAR][0], self.stnda.days[YEAR][-1])
+        
+        self.dly_yrmth_masks = []
+        
+        yrs = np.unique(self.stnda.days[YEAR])
+        
+        for yr in yrs:
+        
+            for mth in np.arange(1,13):
+                
+                self.dly_yrmth_masks.append(np.logical_and(stnda.days[YEAR]==yr,stnda.days[MONTH]==mth))
+        
+        self.ndays_per_mth = np.zeros(len(self.dly_yrmth_masks))
+        
+        for x in np.arange(self.ndays_per_mth.size):
+            self.ndays_per_mth[x] = np.sum(self.dly_yrmth_masks[x])
+        
+        self.mthly_yr_masks = {}
+        for yr in yrs:
+            self.mthly_yr_masks[yr] = self.mths[YEAR] == yr
+           
+    def homog_stn(self,stn_id):
+        '''
+        Build time series of homogenized daily temperature observations for a station
+        
+        Parameters
+        ----------
+        stn_id : str
+            The ID of the station for which to build the homogenized time series
+
+        Returns
+        -------
+        dly_vals_homog : ndarray
+            The homogenized time series of daily temperature observations for the station.
+        '''
+        
+        fstn_id = _format_stnid(stn_id)
+        
+        file_homog_mth = open(os.path.join(self.path_FLs_data,fstn_id,'.FLs.r00.',self.varname))
+                
+        mthvals_homog = np.ones(self.mths.size,dtype=np.float)*-9999
+        
+        for aline in file_homog_mth.readlines():
+            
+            yr = int(aline[12:17])
+            yrmthvals = np.array([aline[17:17+5],aline[26:26+5],aline[35:35+5],aline[44:44+5],
+                       aline[53:53+5],aline[62:62+5],aline[71:71+5],aline[80:80+5],
+                       aline[89:89+5],aline[98:98+5],aline[107:107+5],aline[116:116+5]],dtype=np.float)
+            
+            mthvals_homog[self.mthly_yr_masks[yr]] = yrmthvals
+        
+        mthvals_homog = np.ma.masked_array(mthvals_homog,mthvals_homog==-9999)
+        mthvals_homog = mthvals_homog/100.0
+        mthvals_homog = np.round(mthvals_homog,2)
+
+        dly_vals = self.stnda.load_all_stn_obs_var(stn_id,self.varname)[0].astype(np.float64)
+        dly_vals = np.ma.masked_array(dly_vals,np.isnan(dly_vals))        
+        mth_vals = np.ma.round(self.mthly_data[:,self.stnda.stn_idxs[stn_id]].astype(np.float64),2)
+        miss_cnts = self.miss_data[:,self.stnda.stn_idxs[stn_id]]
+        dly_vals_homog = np.copy(dly_vals)
+        
+        stn_pha_adj = self.pha_adjs[self.pha_adjs['stn_id']==fstn_id]
+        stn_pha_adj = stn_pha_adj[np.argsort(stn_pha_adj['ymd_start'])]
+        
+        dif_cnt = 0
+        
+        for x in np.arange(mth_vals.size):
+            
+            if not np.ma.is_masked(mth_vals[x]) and not np.ma.is_masked(mthvals_homog[x]):
+            
+                if mth_vals[x] != mthvals_homog[x]:
+
+                    delta = mthvals_homog[x] - mth_vals[x]                    
+                    dly_vals_homog[self.dly_yrmth_masks[x]] = dly_vals_homog[self.dly_yrmth_masks[x]] + delta
+                    dif_cnt+=1
+            
+            elif miss_cnts[x] < self.ndays_per_mth[x] and not np.ma.is_masked(mthvals_homog[x]):
+                
+                ymd = self.mths[YMD][x]
+                
+                if ymd < stn_pha_adj['ymd_start'][0]:
+                    #before all change points. assume it falls under the earliest change point
+                    delta = -stn_pha_adj['adj'][0]
+                else:
+                    
+                    mask_adj = np.logical_and(stn_pha_adj['ymd_start'] <= ymd, stn_pha_adj['ymd_end'] >= ymd)
+                    sum_mask = np.sum(mask_adj)
+                    
+                    if sum_mask == 0:
+                        
+                        #don't do anything. past the last change point which is theoretically 0
+                        delta = 0
+                    
+                    elif sum_mask == 1:
+                        
+                        delta = -stn_pha_adj[mask_adj]['adj'][0]
+                    
+                    else:
+                        
+                        raise Exception("Falls within more than one change point")
+                        
+                dly_vals_homog[self.dly_yrmth_masks[x]] = dly_vals_homog[self.dly_yrmth_masks[x]] + np.round(delta,2)
+                            
+        return dly_vals_homog
+
+class InsertHomog(twx.db.Insert):
+    '''
+    Class for inserting stations and observations that have been homogenized.
+    Loads stations and observations from current netCDF
+    station dataset and performs homogenization adjustments.
+    '''
+    
+    def __init__(self,stnda,homog_dly_tmin,homog_dly_tmax,path_pha_run_tmin,path_pha_run_tmax):
+        '''
+        Parameters
+        ----------
+        stnda : twx.db.StationDataDb
+            A StationDataDb object pointing to the daily netCDF database
+            that was used as input to the PHA run
+        homog_dly_tmin : HomogDaily
+            A HomogDaily object for homogenizing daily Tmin observations
+        homog_dly_tmax : HomogDaily
+            A HomogDaily object for homogenizing daily Tmax observations
+        path_pha_run_tmin : str
+            The PHA run path from setup_pha for Tmin
+        path_pha_run_tmax : str
+            The PHA run path from setup_pha for Tmax
+        '''
+        
+        twx.db.Insert.__init__(self,stnda.days[DATE][0],stnda.days[DATE][-1])
+        
+        self.homog_tmin = homog_dly_tmin
+        self.homog_tmax = homog_dly_tmax
+        self.stnda = stnda
+        
+        #Get stn_ids for which homogenization could not be conducted
+        unuse_tmin_ids = self.__load_input_not_stnlist(path_pha_run_tmin)
+        unuse_tmax_ids = self.__load_input_not_stnlist(path_pha_run_tmax)
+        
+        fmt_ids = np.array([_format_stnid(stnid) for stnid in stnda.stn_ids])
+        
+        mask_stns_tmin = ~np.in1d(fmt_ids, unuse_tmin_ids, True)
+        mask_stns_tmax = ~np.in1d(fmt_ids, unuse_tmax_ids, True)
+                
+        self.stns_tmin = stnda.stns[mask_stns_tmin]
+        self.stns_tmax = stnda.stns[mask_stns_tmax]
+        
+        uniq_ids = np.unique(np.concatenate((self.stns_tmin[STN_ID],self.stns_tmax[STN_ID])))
+        
+        self.stns_all = stnda.stns[np.in1d(stnda.stn_ids, uniq_ids, True)]
+        
+        self.stn_list = [(stn[STN_ID],stn[LAT],stn[LON],stn[ELEV],stn[STATE],stn[STN_NAME]) for stn in self.stns_all]
+        
+        self.empty_obs = np.ones(stnda.days.size)*MISSING
+        self.empty_qa = np.zeros(stnda.days.size,dtype=np.str)
+    
+    def __load_input_not_stnlist(self,run_path):
+        
+        fpath_corr = os.path.join(run_path,'data','benchmark','world1','corr')
+        fnames = np.array(os.listdir(fpath_corr))
+        fname_input_not_stnlist = fnames[np.char.endswith(fnames,'input_not_stnlist')][0]
+        fname_input_not_stnlist = os.path.join(fpath_corr,fname_input_not_stnlist)
+        
+        stn_ids = np.sort(np.loadtxt(fname_input_not_stnlist, dtype=np.str,usecols=[0]))
+        
+        return stn_ids
+        
+    def get_stns(self):
+        return self.stn_list
+                            
+    def parse_stn_obs(self,stn_id):
+        
+        if stn_id in self.stns_tmin[STN_ID]:
+            tmin_homog = self.homog_tmin.homog_stn(stn_id)[2]
+            tmin_homog = np.ma.filled(tmin_homog, MISSING)
+        else:
+            tmin_homog = self.empty_obs
+        
+        if stn_id in self.stns_tmax[STN_ID]:
+            tmax_homog = self.homog_tmax.homog_stn(stn_id)[2]
+            tmax_homog = np.ma.filled(tmax_homog, MISSING)
+        else:
+            tmax_homog = self.empty_obs
+                
+        obs = np.empty(self.stnda.days.size, dtype=DTYPE_STNOBS)                
+        obs['year'] = self.stnda.days[YEAR]
+        obs['month'] = self.stnda.days[MONTH]
+        obs['day'] = self.stnda.days[DAY]
+        obs['ymd'] = self.stnda.days[YMD]
+        obs['tmin'] = tmin_homog
+        obs['tmax'] = tmax_homog
+        obs['prcp'] = self.empty_obs
+        obs['swe'] = self.empty_obs
+        obs['qflag_tmin'] = self.empty_qa
+        obs['qflag_tmax'] = self.empty_qa
+        obs['qflag_prcp'] = self.empty_qa
+                
+        return obs
 
 def _write_conf(fpath_conf, endyr, n_stnyrs, varname):
     '''
@@ -256,3 +499,34 @@ def _write_stn_obs_files(stns, data, yrs, varname, path_out):
             fout.write(outLine)
 
         fout.close()
+
+def _parse_pha_adj(path_adj_log):
+    '''
+    Parse a log file of PHA adjustments and return as a structured array
+    with dtype DTYPE_PHA_ADJ
+    '''
+    
+    f = open(path_adj_log)
+        
+    vals_adj = []
+    
+    for aline in f.readlines():
+        
+        stnid = aline[10:21]
+        yrmth_start = aline[25:31]
+        yrmth_end = aline[45:51]
+        val_adj = np.float(aline[75:81])
+        
+        date_start = datetime(np.int(yrmth_start[0:4]),np.int(yrmth_start[-2:]),1)
+        ymd_start = np.int(datetime.strftime(date_start,"%Y%m%d"))
+        
+        date_end = datetime(np.int(yrmth_end[0:4]),np.int(yrmth_end[-2:]),1)
+        ymd_end = np.int(datetime.strftime(date_end,"%Y%m%d"))
+         
+        #if val_adj != 0.0:
+
+        vals_adj.append((stnid,ymd_start,ymd_end,val_adj))
+    
+    vals_adj = np.array(vals_adj,dtype=DTYPE_PHA_ADJ)
+    
+    return vals_adj

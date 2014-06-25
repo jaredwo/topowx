@@ -368,6 +368,9 @@ def insert_data_netcdf_db(db_path, insert_objs):
     ########################################################
     # Get and insert all station metadata ordered by stn_id
     ########################################################
+    
+    print "Inserting station metadata..."
+    
     all_stn_rows = []
     all_stn_rows_ls = []
     for insert in insert_objs:
@@ -408,6 +411,8 @@ def insert_data_netcdf_db(db_path, insert_objs):
     ########################################################
     # Get and insert all station observations
     ########################################################
+    
+    print "Inserting observations for each station..."
 
     stat_chk = status_check(stn_ids.size, 100)
 
@@ -973,7 +978,10 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
     '''
     Calculate and add monthly temperature means to a
     netCDF station database. The new monthly temperature
-    variable will be [var_name]_mth.
+    variable will be [var_name]_mth. Another new variable
+    ([var_name]_mthmiss) will also be added to keep track
+    of the number of missing daily observations in each
+    month.
     
     Parameters
     ----------
@@ -1007,7 +1015,7 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
         times[:] = date2num(tagg.yr_mths[DATE], times.units)
 
     var_mthly_name = "_".join([var_name, "mth"])
-
+    
     if var_mthly_name not in ds.variables.keys():
 
         var_mthly = ds.createVariable(var_mthly_name, 'f4', ('time_mth', 'stn_id'),
@@ -1016,6 +1024,18 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
     else:
 
         var_mthly = ds.variables[var_mthly_name]
+    
+    var_miss_name = "_".join([var_name,"mthmiss"])
+    
+    if var_miss_name not in ds.variables.keys():
+         
+        var_miss = ds.createVariable(var_miss_name,'i2',('time_mth','stn_id'),
+                                    fill_value=netCDF4.default_fillvals['i2'])
+    
+    else:
+        
+        var_miss = ds.variables[var_miss_name]
+    
 
     var_dly = ds.variables[var_name]
     var_dly_qa = ds.variables["_".join(["qflag", var_name])]
@@ -1037,7 +1057,7 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
         else:
             dly_vals = np.ma.masked_array(dly_vals, mask=np.logical_not(dly_vals_qa.mask))
 
-        mth_vals = tagg.daily_to_mthly(dly_vals, max_miss=max_miss)
+        mth_vals,n_miss = tagg.daily_to_mthly(dly_vals, max_miss=max_miss)
 
         if np.ma.isMA(mth_vals):
 
@@ -1046,6 +1066,7 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
             mth_vals = tmth_vals
 
         var_mthly[:, i:i + n_stns] = mth_vals
+        var_miss[:,i:i+n_stns] = n_miss
         ds.sync()
         stchk.increment()
 

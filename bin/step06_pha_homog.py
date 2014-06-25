@@ -6,6 +6,8 @@ via pairwise comparisons. J. Climate, 22, 1700-1717.
 '''
 import os
 import twx
+from twx.homog import HomogDaily
+from twx.utils import DATE
 
 if __name__ == '__main__':
     
@@ -33,12 +35,14 @@ if __name__ == '__main__':
     mthly_tmin = stnda.ds.variables['tmin_mth'][:]
     twx.homog.setup_pha(path_pha_tar, path_tmin_pha_src, path_tmin_pha_run, 
                         yr_begin, yr_end, stns, mthly_tmin, 'tmin')
+    #Remove monthly Tmin observations from memory
     mthly_tmin = None
     
     #Perform PHA setup for Tmax
     mthly_tmax = stnda.ds.variables['tmax_mth'][:]
     twx.homog.setup_pha(path_pha_tar, path_tmax_pha_src, path_tmax_pha_run, 
                         yr_begin, yr_end, stns, mthly_tmax, 'tmax')
+    #Remove monthly Tmax observations from memory
     mthly_tmax = None
     
     #Run PHA for Tmin
@@ -46,4 +50,14 @@ if __name__ == '__main__':
     
     #Run PHA for Tmax
     twx.homog.run_pha(path_tmax_pha_run, 'tmax')
+    
+    #Use PHA results to homogenize daily station data and insert
+    #into new homogenized database
+    homog_tmin = HomogDaily(stnda, path_tmin_pha_run, 'tmin')
+    homog_tmax = HomogDaily(stnda, path_tmax_pha_run, 'tmax')
+    
+    path_out_homog_db = os.path.join(FPATH_STNDATA, 'all', 'tair_homog_1948_2012.nc')    
+    insert_homog = twx.homog.InsertHomog(stnda, homog_tmin, homog_tmax, path_tmin_pha_run, path_tmax_pha_run)
+    twx.db.create_netcdf_db(path_out_homog_db, stnda.days[DATE][0], stnda.days[DATE][-1], [insert_homog])
+    twx.db.insert_data_netcdf_db(path_out_homog_db, [insert_homog])
     
