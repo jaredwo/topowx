@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mets:METS xmlns:mets="http://www.loc.gov/METS/" xmlns:xlink="http://www.w3.org/TR/xlink/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dim="http://www.dspace.org/xmlns/dspace/dim" OBJEDIT="/admin/item?itemID=435" OBJID="/handle/10672/285" PROFILE="DSPACE METS SIP Profile 1.0" LABEL="DSpace Item" ID="hdl:10672/285">
+<mets:dmdSec GROUPID="group_dmd_0" ID="dmd_1">
+<mets:mdWrap MDTYPE="OTHER" OTHERMDTYPE="DIM">
+<mets:xmlData>
+<dim:dim dspaceType="ITEM">
+<dim:field element="contributor" language="" mdschema="dc">Crone, James</dim:field>
+<dim:field element="contributor" qualifier="other" language="en" mdschema="dc">University of Edinburgh</dim:field>
+<dim:field element="coverage" qualifier="spatial" language="en" mdschema="dc">northlimit=83.6274;eastlimit=179.9999;southlimit=-89.9999;westlimit=-179.9999;</dim:field>
+<dim:field element="coverage" qualifier="temporal" language="" mdschema="dc">2011-06-06</dim:field>
+<dim:field element="date" qualifier="accessioned" language="" mdschema="dc">2011-09-19T11:51:38Z</dim:field>
+<dim:field element="date" qualifier="available" language="" mdschema="dc">2011-09-19T11:51:38Z</dim:field>
+<dim:field element="date" qualifier="issued" language="" mdschema="dc">2011-09-19</dim:field>
+<dim:field element="identifier" language="" mdschema="dc">http://www.sharegeo.ac.uk/bitstream/handle/10672/285/world_timezones.zip?sequence=1</dim:field>
+<dim:field element="identifier" qualifier="uri" language="" mdschema="dc">http://hdl.handle.net/10672/285</dim:field>
+<dim:field element="description" language="en" mdschema="dc">Shapefile distributed at http://efele.net/maps/tz/world/ under a public domain dedication license was downloaded. This Shapefile has a TZID attribute identifying timezone e.g. America/Chicago. Wikipedia page http://en.wikipedia.org/wiki/Zone.tab was used to add a UTC_OFFSET attribute to the Shapefile giving standard time offset in each timezone from Coordinated Universal Time. Summer time will differ from this value.</dim:field>
+<dim:field element="description" qualifier="abstract" language="en" mdschema="dc">Shapefile showing boundaries of world timezones with attributes giving the identity of each timezone and UTC offset.</dim:field>
+<dim:field element="format" language="en" mdschema="dc">ESRI Shapefile</dim:field>
+<dim:field element="language" qualifier="iso" language="en" mdschema="dc">en</dim:field>
+<dim:field element="rights" language="en" mdschema="dc">This data is made available under the Creative Commons Attribution 3.0 license whose full text can be found at http://creativecommons.org/licenses/by/3.0/legalcode</dim:field>
+<dim:field element="subject" language="en" mdschema="dc">timezones</dim:field>
+<dim:field element="subject" qualifier="classification" language="en" mdschema="dc">Boundaries</dim:field>
+<dim:field element="title" language="en" mdschema="dc">World Timezones</dim:field>
+<dim:field element="type" language="en" mdschema="dc">GIS vector data</dim:field>
+</dim:dim>
+</mets:xmlData>
+</mets:mdWrap>
+</mets:dmdSec>
+<mets:fileSec>
+<mets:fileGrp USE="CONTENT">
+<mets:file CHECKSUMTYPE="MD5" GROUPID="group_file_663" ID="file_663" MIMETYPE="application/zip" SIZE="13848576" CHECKSUM="93273f4de1413a1cd768ce03e4da8299">
+<mets:FLocat LOCTYPE="URL" xlink:title="world_timezones.zip" xlink:type="locator" xlink:href="/bitstream/handle/10672/285/world_timezones.zip?sequence=1"/>
+</mets:file>
+</mets:fileGrp>
+<mets:fileGrp USE="LICENSE">
+<mets:file CHECKSUMTYPE="MD5" GROUPID="group_file_664" ID="file_664" MIMETYPE="text/plain; charset=utf-8" SIZE="127" CHECKSUM="44d9ed4f6902860fbb92bf26df40fc3b">
+<mets:FLocat LOCTYPE="URL" xlink:title="license.txt" xlink:type="locator" xlink:href="/bitstream/handle/10672/285/license.txt?sequence=2"/>
+</mets:file>
+</mets:fileGrp>
+</mets:fileSec>
+<mets:structMap LABEL="DSpace" TYPE="LOGICAL">
+<mets:div DMDID="dmd_1" TYPE="DSpace Item">
+<mets:div ID="div_2" TYPE="DSpace Content Bitstream">
+<mets:fptr FILEID="file_663"/>
+</mets:div>
+</mets:div>
+</mets:structMap>
+</mets:METS>

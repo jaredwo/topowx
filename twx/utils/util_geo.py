@@ -3,7 +3,6 @@ Created on Mar 22, 2011
 
 @author: jared.oyler
 '''
-from math import sqrt, cos, sin, asin
 import numpy
 
 RADIAN_CONVERSION_FACTOR = 0.017453292519943295 #pi/180

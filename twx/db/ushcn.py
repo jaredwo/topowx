@@ -4,7 +4,7 @@ Created on Jun 21, 2013
 @author: jared.oyler
 '''
 import numpy as np
-from twx.db.station_data import STN_ID,STATE,STN_NAME,LON,LAT,ELEV,DTYPE_STN_BASIC,YEAR,MONTH,DATE,YDAY,build_stn_struct
+from twx.db.station_data import STN_ID,STATE,STN_NAME,LON,LAT,ELEV,YEAR,MONTH,DATE,YDAY,_build_stn_struct
 import twx.utils.util_dates as utld
 from netCDF4 import Dataset, date2num, num2date
 from twx.utils.status_check import status_check
@@ -22,7 +22,7 @@ class StationDataUSHCN(object):
         self.mths = utld.get_mth_metadata(start.year, end.year)
           
         self.stn_ids = np.array(ds.variables['stn_id'][:], dtype="<S16")
-        self.stns = build_stn_struct(ds,DTYPE_STN_BASIC)          
+        self.stns = _build_stn_struct(ds)          
         self.stn_idxs = {}
         for x in np.arange(self.stn_ids.size):
             self.stn_idxs[self.stn_ids[x]] = x

@@ -24,6 +24,7 @@ N_NON_WRKRS = 2
 P_PATH_DB = 'P_PATH_DB'
 P_PATH_POR_OUT = 'P_PATH_POR_OUT'
 P_STN_MASK = 'P_STN_MASK'
+P_QA_SPATIAL = 'P_QA_SPATIAL'
 
 sys.stdout = Unbuffered(sys.stdout)
 
@@ -135,8 +136,15 @@ def proc_work(params, rank):
 
             obs = stn_da.load_all_stn_obs(np.array([stn_id]))
             stn = stn_da.stns[stn_da.stn_ids == stn_id][0]
-
-            flags_tmin, flags_tmax = qa_temp.run_qa_all(stn, stn_da, obs[TMIN], obs[TMAX], stn_da.days)
+            
+            if params[P_QA_SPATIAL]:
+                
+                flags_tmin, flags_tmax = qa_temp.run_qa_spatial_only(stn, stn_da, obs[TMIN], obs[TMAX], stn_da.days)
+            
+            else:
+                
+                flags_tmin, flags_tmax = qa_temp.run_qa_non_spatial(obs[TMIN], obs[TMAX], stn_da.days)
+            
 
             a_iter = create_update_iter(stn, flags_tmin, flags_tmax, stn_da.days,
                                              obs[TMIN_FLAG], obs[TMAX_FLAG])
@@ -214,8 +222,12 @@ def proc_write(params, nwrkers):
 
             nwrkrs_done += 1
             if nwrkrs_done == nwrkers:
+                
+                print "Writer: updating QA flags in database..."
+                
                 iter_all.update_flags(params[P_PATH_DB])
                 
+                print "Writer: Creating new period-of-record csv file..."
                 #Create new period-of-record csv file
                 #since some stations might now fall below the minimum
                 #por requirement after QA is run
@@ -255,8 +267,11 @@ def proc_coord(params, nwrkers):
 
 if __name__ == '__main__':
 
-    PROJECT_ROOT = "/projects/topowx"
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+    #PROJECT_ROOT = "/projects/topowx"
+    #FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+
+    PROJECT_ROOT = "/projects/topowx/refactor_test"
+    FPATH_STNDATA = PROJECT_ROOT#os.path.join(PROJECT_ROOT, 'station_data')
 
     np.seterr(all='raise')
     np.seterr(under='ignore')
@@ -268,7 +283,12 @@ if __name__ == '__main__':
     params = {}
     params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'all_1948_2012.nc')
     params[P_PATH_POR_OUT] = os.path.join(FPATH_STNDATA, 'all', 'all_por_1948_2012.csv')
-
+    
+    #Need to run this QA script twice
+    #First run, only apply non-spatial QA checks (P_QA_SPATIAL = False)
+    #Send run, only apply spatial QA checks (P_QA_SPATIAL = True)
+    params[P_QA_SPATIAL] = False
+    
     # Only run QA for SNOTEL and RAWS stations since GHCH-D observations
     # are already flagged by the Durre et al. 2010 procedures
     stn_da = StationDataDb(params[P_PATH_DB])

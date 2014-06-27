@@ -32,8 +32,8 @@ class TZGeonamesClient(object):
     def __init__(self, username):
         self.username = username
  
-    def call(self, service, params=None):
-        url = self.build_url(service, params)
+    def __call(self, service, params=None):
+        url = self.__build_url(service, params)
  
         try:
             response = urllib2.urlopen(urllib2.Request(url))
@@ -47,7 +47,7 @@ class TZGeonamesClient(object):
                 raise GeonamesError(json_response['status']['message'])
         return json_response
  
-    def build_url(self, service, params=None):
+    def __build_url(self, service, params=None):
         url = '%s%s?username=%s' % (TZGeonamesClient.BASE_URL, service, self.username)
         if params:
             if isinstance(params, dict):
@@ -58,7 +58,7 @@ class TZGeonamesClient(object):
     
     # http://api.geonames.org/timezoneJSON?lat=47.01&lng=10.2&username=demo
     def find_timezone(self, lon,lat):
-        return self.call('timezoneJSON',{'lat':lat,'lng':lon})
+        return self.__call('timezoneJSON',{'lat':lat,'lng':lon})
     
     def get_utc_offset(self,lon,lat):
         tz = self.find_timezone(lon, lat)

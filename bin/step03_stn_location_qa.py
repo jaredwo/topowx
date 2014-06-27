@@ -25,7 +25,7 @@ if __name__ == '__main__':
     path_por = os.path.join(FPATH_STNDATA, 'all', 'all_por_1948_2012.csv')
     stndb = StationDataDb(fpath_db)
     a_por = twx.db.load_por_csv(path_por)
-    mask_por_tmin, mask_por_tmax = twx.db.build_valid_por_masks(a_por)[0:2]
+    mask_por_tmin, mask_por_tmax = twx.db.build_valid_por_masks(a_por)
 
     # Only run qa for stations that have required period of record and that
     # have not been qa'd before

@@ -1069,8 +1069,3 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
         var_miss[:,i:i+n_stns] = n_miss
         ds.sync()
         stchk.increment()
-
-# if __name__ == '__main__':
-
-    # add_monthly_means("/projects/daymet2/station_data/all/all_1948_2012.nc", 'tmin')
-    # add_monthly_means("/projects/daymet2/station_data/all/all_1948_2012.nc", 'tmax')

@@ -49,7 +49,7 @@ def snotel_mirror_tabdata(local_path, remote_path=RPATH_SNOTEL_TABDATA):
         The remote path to mirror from.
     '''
 
-    subprocess.call(['/usr/local/bin/wget', '--no-verbose', '--mirror',
+    subprocess.__call(['/usr/local/bin/wget', '--no-verbose', '--mirror',
                      '--directory-prefix=' + local_path, remote_path])
 
 
@@ -67,22 +67,22 @@ def ghcnd_download_data(local_path, remote_path=RPATH_GHCN, extract_tar=True):
         Extract the ghcnd_all.tar.gz file
     '''
 
-    subprocess.call(['wget', '--directory-prefix=' + local_path,
+    subprocess.__call(['wget', '--directory-prefix=' + local_path,
                      urljoin(remote_path, 'ghcnd-version.txt')])
 
-    subprocess.call(['wget', '--directory-prefix=' + local_path,
+    subprocess.__call(['wget', '--directory-prefix=' + local_path,
                      urljoin(remote_path, 'status.txt')])
 
-    subprocess.call(['wget', '--directory-prefix=' + local_path,
+    subprocess.__call(['wget', '--directory-prefix=' + local_path,
                      urljoin(remote_path, 'readme.txt')])
 
-    subprocess.call(['wget', '--directory-prefix=' + local_path,
+    subprocess.__call(['wget', '--directory-prefix=' + local_path,
                      urljoin(remote_path, 'ghcnd-inventory.txt')])
 
-    subprocess.call(['wget', '--directory-prefix=' + local_path,
+    subprocess.__call(['wget', '--directory-prefix=' + local_path,
                      urljoin(remote_path, 'ghcnd-stations.txt')])
 
-    subprocess.call(['wget', '--directory-prefix=' + local_path,
+    subprocess.__call(['wget', '--directory-prefix=' + local_path,
                      urljoin(remote_path, 'ghcnd_all.tar.gz')])
 
     if extract_tar:
@@ -107,7 +107,7 @@ def ghcnd_download_byyr_data(local_path, yrs, remote_path=RPATH_GHCN_BYYEAR):
 
     for yr in yrs:
 
-        subprocess.call(['wget', '--directory-prefix=' + local_path,
+        subprocess.__call(['wget', '--directory-prefix=' + local_path,
                          urljoin(remote_path, "%s.csv.gz" % (yr, ))])
 
 

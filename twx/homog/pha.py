@@ -65,7 +65,7 @@ def setup_pha(fpath_pha_tar, path_out_src, path_out_run, yr_begin, yr_end, stns,
     yrs = np.arange(yr_begin, yr_end + 1)
 
     print "Uncompressing PHA..."
-    subprocess.call(["tar", "-xzvf", fpath_pha_tar, '-C', path_out_src])
+    subprocess.__call(["tar", "-xzvf", fpath_pha_tar, '-C', path_out_src])
 
     fpath_incl = os.path.join(path_out_src, 'phav52i', 'source_expand', 'parm_includes', 'inhomog.parm.MTHLY.TEST.incl')
     f_incl = open(fpath_incl, 'r')
@@ -94,7 +94,7 @@ def setup_pha(fpath_pha_tar, path_out_src, path_out_run, yr_begin, yr_end, stns,
     os.chdir(path_src)
 
     print "Compiling PHA..."
-    subprocess.call(['make', 'install', 'INSTALLDIR=%s' % (path_out_run,)])
+    subprocess.__call(['make', 'install', 'INSTALLDIR=%s' % (path_out_run,)])
 
     _write_conf(os.path.join(path_out_run, "world1.conf"), yr_end, n_stnyrs, varname)
     _write_conf(os.path.join(path_out_run, "data", "world1.conf"), yr_end, n_stnyrs, varname)
@@ -117,14 +117,14 @@ def run_pha(path_run, varname):
 
     pha_cmd = os.path.join(path_run, 'testv52i-pha.sh') + "  world1 %s raw 0 0 P" % (varname,)
     print "Running PHA for %s..." % (varname,)
-    subprocess.call(pha_cmd, shell=True)
+    subprocess.__call(pha_cmd, shell=True)
     
     path_log = os.path.join(path_run,'data','benchmark','world1','output','PHAv52i.FAST.MLY.TEST.*.%s.world1.r00.out.gz'%(varname,))
     path_out_log = os.path.join(path_run,'data','benchmark','world1','output','pha_adj_%s.log'%(varname,))
     
     print "Writing log of PHA adjustments: "+path_out_log
     cmd = " ".join(["zgrep 'Adj write'",path_log,">",path_out_log])
-    subprocess.call(cmd,shell=True)
+    subprocess.__call(cmd,shell=True)
 
 
 class HomogDaily():
@@ -195,7 +195,7 @@ class HomogDaily():
         
         fstn_id = _format_stnid(stn_id)
         
-        file_homog_mth = open(os.path.join(self.path_FLs_data,fstn_id,'.FLs.r00.',self.varname))
+        file_homog_mth = open(os.path.join(self.path_FLs_data,"%s.FLs.r00.%s"%(fstn_id,self.varname)))
                 
         mthvals_homog = np.ones(self.mths.size,dtype=np.float)*-9999
         
