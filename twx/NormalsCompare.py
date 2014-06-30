@@ -11,7 +11,7 @@ from twx.utils.input_raster import RasterDataset,OutsideExtent
 from copy import copy
 import twx.interp.interp_tair as it
 from twx.db.ushcn import TairAggregate
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from multiprocessing import Pool
 import twx.utils.util_dates as utld
 from datetime import datetime
@@ -187,7 +187,7 @@ def runTwxInterps():
     #tminMthly = np.zeros((aTagg.yr_mths.size,astns.size))*np.nan
     #tmaxMthly = np.zeros((aTagg.yr_mths.size,astns.size))*np.nan
     
-    sck = status_check(astns.size, 100)
+    sck = StatusCheck(astns.size, 100)
     chksize = 100
     
     for x in np.arange(astns.size,step=chksize):
@@ -232,7 +232,7 @@ def buildDaymetNorms():
     tmaxMthly = np.zeros((tagg.yr_mths.size,stns.size))
     #tmaxMthly = np.zeros((tagg.yr_mths.size,stns.size))
     
-    sck = status_check(stns.size*np.arange(1980,2013).size, 10)
+    sck = StatusCheck(stns.size*np.arange(1980,2013).size, 10)
     
     egDs = RasterDataset("".join([dataPath,"tmax_",str(1980),"_jan.tif"]))
     

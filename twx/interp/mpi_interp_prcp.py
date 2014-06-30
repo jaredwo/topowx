@@ -10,7 +10,7 @@ import sys
 from twx.db.station_data import StationSerialDataDb,STN_ID,DATE,LON,LAT,YMD
 import twx.interp.interp_prcp as ip
 from twx.interp.station_select import station_select
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset,date2num
 import netCDF4
 import datetime
@@ -212,7 +212,7 @@ def proc_write(params,nwrkers):
     for key in tile_ids.keys():
         tile_queues[key] = deque()
     
-    stat_chk = status_check(nchks,1)
+    stat_chk = StatusCheck(nchks,1)
     
     while 1:
         

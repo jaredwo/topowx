@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import netCDF4
 from twx.db.create_db_all_stations import dbDataset
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 
 NCDF_CHK_COLS = 50
 
@@ -167,7 +167,7 @@ def insert_to_new_ds(ds_old,ds_new,var):
     stnids_old = ds_old.variables['stn_id'][:].astype("<S16")
     stnids_new = ds_new.variables['stn_id'][:].astype("<S16")
     
-    schk = status_check(stnids_old.size,500)
+    schk = StatusCheck(stnids_old.size,500)
     
     for x in np.arange(stnids_old.size):
         

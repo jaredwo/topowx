@@ -21,7 +21,7 @@ import sys
 from netCDF4 import Dataset,date2num,num2date
 import netCDF4
 import datetime
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from twx.db.station_data import StationDataDb, StationSerialDataDb,BAD,STN_ID,YEAR,LON,LAT,\
     DTYPE_STN_BASIC,DATE,MONTH
 from twx.db.create_db_all_stations import dbDataset
@@ -29,7 +29,7 @@ import twx.utils.util_dates as utld
 from twx.db.ushcn import TairAggregate
 import twx.utils.util_geo as utlg
 from scipy import stats
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import cProfile
 from matplotlib.mlab import griddata 
 #from modis.montana_ndvi import EOSGridSD
@@ -998,7 +998,7 @@ def linear_interp_ncstack(ncpath,varname):
     nmiss = np.sum(lst.mask,axis=0)
     rows,cols = np.nonzero(np.logical_and(nmiss < lst.shape[0], nmiss > 0))
     x = np.arange(lst.shape[0])
-    statchk = status_check(rows.size,10000)
+    statchk = StatusCheck(rows.size,10000)
     
     for r,c in zip(rows,cols):
         
@@ -1021,7 +1021,7 @@ def impute_ncstack(ncpath,varname,stnda,impLst):
     
     nmiss = np.sum(lst.mask,axis=0)
     rows,cols = np.nonzero(np.logical_and(nmiss < lst.shape[0], nmiss > 0))
-    statchk = status_check(rows.size,1000)
+    statchk = StatusCheck(rows.size,1000)
     
 #    rows = np.array([25,35])
 #    cols = np.array([1111,1125])
@@ -1516,7 +1516,7 @@ def testImputeLstNorm():
     print np.mean(impLst)
     plt.show()
     
-#    schk = status_check(lstImp.size, 50)
+#    schk = StatusCheck(lstImp.size, 50)
 #    for x,x1 in zip(np.arange(1080,1150),np.arange(lstImp.shape[1])):
 #        
 #        for y,y1 in zip(np.arange(0,60),np.arange(lstImp.shape[0])):
@@ -1564,7 +1564,7 @@ def testImputeLstNormFnl():
     lstImp = np.zeros(lstToTest.shape)
     lstToTest = None
     
-    schk = status_check(lstImp.size, 100)
+    schk = StatusCheck(lstImp.size, 100)
     for x,x1 in zip(np.arange(xStart,xEnd),np.arange(lstImp.shape[1])):
         
         for y,y1 in zip(np.arange(yStart,yEnd),np.arange(lstImp.shape[0])):

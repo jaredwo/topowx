@@ -14,7 +14,7 @@ import cProfile
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import netCDF4
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import scipy.stats as stats
 
 class OptimKrigBwNstns(object):
@@ -99,7 +99,7 @@ def setOptimTairParams(pathDb,pathXvalDs):
     divs = dsStns.variables['neon'][:]
     divs = np.unique(divs.data[np.logical_not(divs.mask)])
     
-    stchk = status_check(divs.size, 10)
+    stchk = StatusCheck(divs.size, 10)
     
     for climDiv in divs:
         
@@ -139,7 +139,7 @@ def setOptimTairAnomParams(pathDb,pathXvalDs):
     divs = dsStns.variables['neon'][:]
     divs = np.unique(divs.data[np.logical_not(divs.mask)])
     
-    stchk = status_check(divs.size, 10)
+    stchk = StatusCheck(divs.size, 10)
     
     for climDiv in divs:
         

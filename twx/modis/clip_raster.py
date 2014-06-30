@@ -11,7 +11,7 @@ from twx.utils.util_ncdf import to_ncdf,expand_grid
 import twx.utils.util_geo as utlg
 from netCDF4 import Dataset
 from twx.utils.output_raster import output_raster
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import matplotlib.pyplot as plt
 import scipy.interpolate as si
 
@@ -403,7 +403,7 @@ def replace_with_nn_vals():
         
     idxs = np.nonzero(np.logical_and(amask != rlcc.ndata,alcc==rlcc.ndata))
 
-    schk = status_check(idxs[0].size, 1000)
+    schk = StatusCheck(idxs[0].size, 1000)
     
     for y,x in zip(idxs[0],idxs[1]):
                     

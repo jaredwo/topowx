@@ -8,7 +8,7 @@ import numpy as np
 from mpi4py import MPI
 import sys
 from twx.db.station_data import StationSerialDataDb,STN_ID,NEON,MASK,BAD
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import netCDF4
 from twx.db.create_db_all_stations import dbDataset
 from netCDF4 import Dataset
@@ -112,7 +112,7 @@ def proc_write(params,nwrkers):
             
     ttl_xvals = ttl_xval_stns# * min_ngh_wins.size
     
-    stat_chk = status_check(ttl_xvals,250)
+    stat_chk = StatusCheck(ttl_xvals,250)
     
     while 1:
        

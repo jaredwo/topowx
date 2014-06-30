@@ -7,7 +7,7 @@ A MPI driver for interpolating tair to a specified grid using interp.interp_tair
 from mpi4py import MPI
 import sys
 from twx.db.station_data import StationSerialDataDb,DTYPE_STN_BASIC
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset,num2date
 import os
 import numpy as np
@@ -235,7 +235,7 @@ def proc_write(params,nwrkers):
     
     print "WRITER: Setup complete..."
     
-    stat_chk = status_check(nchks,10)
+    stat_chk = StatusCheck(nchks,10)
     
     tileRslts = {}
     tileChksDone = {}

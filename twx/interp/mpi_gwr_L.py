@@ -15,7 +15,7 @@ from mpi4py import MPI
 import sys
 from twx.db.station_data import StationSerialDataDb,STN_ID,LON,LAT,ELEV
 from twx.interp.station_select import station_select
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -104,7 +104,7 @@ def proc_write(params,nwrkers):
     for x in np.arange(stn_ids.size):
         stn_idxs[stn_ids[x]] = x
     
-    stat_chk = status_check(stn_da.stns.size,100)
+    stat_chk = StatusCheck(stn_da.stns.size,100)
     
     L = np.zeros((stn_ids.size,stn_ids.size))
     Y = stn_da.stns['MEAN_OBS'][np.in1d(stn_da.stn_ids, stn_ids,True)]

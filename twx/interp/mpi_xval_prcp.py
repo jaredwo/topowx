@@ -9,7 +9,7 @@ from mpi4py import MPI
 import sys
 from twx.db.station_data import StationSerialDataDb,STN_ID,LON,LAT,ELEV
 from twx.interp.station_select import station_select
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import twx.utils.util_geo as utlg
 from twx.utils.ncdf_raster import ncdf_raster
 from netCDF4 import Dataset
@@ -206,7 +206,7 @@ def proc_write(params,nwrkers):
     
     ttl_xvals = params[P_NGH_RNG].size * stn_ids.size
     
-    stat_chk = status_check(ttl_xvals,100)
+    stat_chk = StatusCheck(ttl_xvals,100)
     
     while 1:
        

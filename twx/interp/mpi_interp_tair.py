@@ -8,7 +8,7 @@ from mpi4py import MPI
 import sys
 from twx.db.station_data import LON,LAT,NEON,ELEV,TDI
 import twx.interp.interp_tair as it
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 from collections import deque
@@ -132,7 +132,7 @@ def proc_work(params,rank):
             stndaTmax.set_obs(bnds)
             
             if rank == 2:
-                stat_chk = status_check(params[P_CHCKSIZE_Y]*params[P_CHCKSIZE_X],30)
+                stat_chk = StatusCheck(params[P_CHCKSIZE_Y]*params[P_CHCKSIZE_X],30)
             
             for r in np.arange(params[P_CHCKSIZE_Y]):
             
@@ -226,7 +226,7 @@ def proc_write(params,nwrkers):
     for key in tile_ids.keys():
         tile_queues[key] = deque()
     
-    stat_chk = status_check(nchks,1)
+    stat_chk = StatusCheck(nchks,1)
     
     while 1:
         

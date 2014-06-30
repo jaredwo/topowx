@@ -10,7 +10,7 @@ from to_ncdf import modis_et_dataset
 from twx.utils.util_ncdf import ncdf_raster
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import sys
 
 #NetCDF4 chunk caching settings
@@ -142,7 +142,7 @@ if __name__ == '__main__':
 #    var_tmax = ds_tmax.variables['tmax']
 #    var_tmax.set_var_chunk_cache(CHK_CACHE_SIZE,CHK_CACHE_ELEMS,CHK_CACHE_PREEMP)
 #    
-#    schk = status_check(nonzero_rows.size*nonzero_cols.size,1000)
+#    schk = StatusCheck(nonzero_rows.size*nonzero_cols.size,1000)
 #    for r in np.arange(nonzero_rows.size):
 #        
 #        for c in np.arange(nonzero_cols.size):

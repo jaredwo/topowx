@@ -267,11 +267,8 @@ def proc_coord(params, nwrkers):
 
 if __name__ == '__main__':
 
-    #PROJECT_ROOT = "/projects/topowx"
-    #FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
-
-    PROJECT_ROOT = "/projects/topowx/refactor_test"
-    FPATH_STNDATA = PROJECT_ROOT#os.path.join(PROJECT_ROOT, 'station_data')
+    PROJECT_ROOT = "/projects/topowx"
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
 
     np.seterr(all='raise')
     np.seterr(under='ignore')

@@ -14,7 +14,7 @@ from infill_daily import pca_matrix,source_r,gwrpca_matrix
 from twx.infill.obs_por import load_por_csv,POR_DTYPE,build_valid_por_masks
 
 from twx.utils.ncdf_raster import ncdf_raster
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 import datetime
@@ -210,7 +210,7 @@ def proc_write(params,nwrkers):
 #    for x in np.arange(params[P_NGH_RNG].size):
 #        ngh_idxs[params[P_NGH_RNG][x]] = x
             
-    stat_chk = status_check(ttl_infills,10)
+    stat_chk = StatusCheck(ttl_infills,10)
     
     while 1:
 

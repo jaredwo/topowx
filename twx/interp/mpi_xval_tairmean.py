@@ -9,7 +9,7 @@ from mpi4py import MPI
 import sys
 from twx.db.station_data import StationSerialDataDb,STN_ID,MEAN_OBS,MASK,BAD,DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO
 from twx.interp.station_select import station_select
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import twx.interp.interp_tair as it
 import netCDF4
 from netCDF4 import Dataset
@@ -117,7 +117,7 @@ def proc_write(params,nwrkers):
         avar[:] = netCDF4.default_fillvals['f8']
         ds.sync()
     
-    stat_chk = status_check(stns.size,250)
+    stat_chk = StatusCheck(stns.size,250)
     
     while 1:
        

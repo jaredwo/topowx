@@ -10,7 +10,7 @@ import numpy as np
 from mpi4py import MPI
 import sys
 from twx.db.station_data import StationDataDb
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 from twx.utils.util_dates import YEAR,MONTH
@@ -260,7 +260,7 @@ def proc_write(params,nwrkers):
     for x in np.arange(params[P_NGH_RNG].size):
         ngh_idxs[params[P_NGH_RNG][x]] = x
 
-    stat_chk = status_check(ttl_infills,10)
+    stat_chk = StatusCheck(ttl_infills,10)
     
     while 1:
         

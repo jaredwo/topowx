@@ -8,7 +8,7 @@ import numpy as np
 from mpi4py import MPI
 import sys
 from twx.db.station_data import StationSerialDataDb,STN_ID,MASK,BAD
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import netCDF4
 from netCDF4 import Dataset
 import rpy2.robjects as robjects
@@ -119,7 +119,7 @@ def proc_write(params,nwrkers):
         avar[:] = netCDF4.default_fillvals['f8']
         ds.sync()
     
-    stat_chk = status_check(stns.size,250)
+    stat_chk = StatusCheck(stns.size,250)
     
     while 1:
        

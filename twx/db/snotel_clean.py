@@ -30,7 +30,7 @@ prcp for a day is total new prcp for the CURRENT day
 __all__ = ['snotel_find_no_metadata_stns','snotel_write_stn_metadata','snotel_write_stn_obs']
 
 import os
-from twx.utils import status_check
+from twx.utils import StatusCheck
 import numpy as np
 import datetime
 from datetime import timedelta
@@ -182,7 +182,7 @@ def snotel_write_stn_obs(path_hist, path_tab, fpath_stn_metadata, path_out):
     obs_hist = _load_obs_hist(path_hist)
 
     print "Writing cleaned station observations..."
-    statchk = status_check(len(stn_ids), 10)
+    statchk = StatusCheck(len(stn_ids), 10)
 
     for x in np.arange(len(stn_ids)):
 

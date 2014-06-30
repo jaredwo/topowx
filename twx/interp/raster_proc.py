@@ -8,7 +8,7 @@ from twx.utils.output_raster import output_raster
 import numpy as np
 import twx.utils.util_geo as utlg
 import twx.utils.util_misc as utlm
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from twx.utils.multiprocess import multiprocess,worker,multiprocess_config
 
 class output_handler_smooth():
@@ -168,7 +168,7 @@ def spatial_smooth(raster_path,output_path,radius,nodata_val):
     
     rows_data,cols_data = np.nonzero(a != nodata_val)
     
-    status = status_check(rows_data.size, 1000000)
+    status = StatusCheck(rows_data.size, 1000000)
     
     for i in np.arange(rows_data.size):
         

@@ -7,7 +7,7 @@ from twx.db.station_data import STN_ID,LON,LAT,BAD,StationSerialDataDb,STATE,STN
     StationDataDb,YMD,DATE,DAY,DTYPE_STN_BASIC
 import numpy as np
 from twx.utils.util_dates import YEAR,MONTH
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import obs_por as por
@@ -230,7 +230,7 @@ def toGHCNmDataFiles(stns,stn_da,varname,dirPathOut):
         yrmthMasks[yr] = mthmasks
     
     
-    schk = status_check(stns.size,50)
+    schk = StatusCheck(stns.size,50)
     for stn in stns:
         
         outId = formatStnId(stn[STN_ID])
@@ -253,7 +253,7 @@ def toGHCNmDataFiles(stns,stn_da,varname,dirPathOut):
 
 def mthlyToGHCNmDataFiles(stns,data,yrs,varname,dirPathOut):
         
-    schk = status_check(stns.size,50)
+    schk = StatusCheck(stns.size,50)
     for stn,x in zip(stns,np.arange(stns.size)):
         
         outId = formatStnId(stn[STN_ID])
@@ -477,7 +477,7 @@ def updateHomogStns(stns,homogDly,dsout):
     dsout.variables['nmths_adj'][:] = 0
     dsout.sync()
     
-    schk = status_check(stns.size,100)
+    schk = StatusCheck(stns.size,100)
     nUnuse = 0
     for stn in stns:
         
@@ -591,7 +591,7 @@ def addMthlyMeansTobsDs(dsPathRaw,dsPathTobs,varName):
     varDly = ds.variables[varName]
     chkSize = 50
     
-    stchk = status_check(np.int(np.round(stns.size/np.float(chkSize))), 10)
+    stchk = StatusCheck(np.int(np.round(stns.size/np.float(chkSize))), 10)
     for i in np.arange(0,stns.size,chkSize):
         
         if i + chkSize < stns.size:

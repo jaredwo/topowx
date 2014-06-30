@@ -9,7 +9,7 @@ from mpi4py import MPI
 import sys
 from twx.db.station_data import StationSerialDataDb,STN_ID,MEAN_OBS,NEON
 from twx.interp.station_select import station_select
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import twx.interp.interp_tair as it
 import netCDF4
 from twx.interp_constants import *
@@ -153,7 +153,7 @@ def proc_write(params,nwrkers):
     for x in np.arange(stns.size):
         stn_idxs[stns[STN_ID][x]] = x
             
-    stat_chk = status_check(stn_ids.size,250)
+    stat_chk = StatusCheck(stn_ids.size,250)
     
     while 1:
        

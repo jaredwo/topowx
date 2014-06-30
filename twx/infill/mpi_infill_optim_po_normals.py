@@ -12,7 +12,7 @@ import sys
 from twx.db.station_data import StationDataDb,STN_ID,LON,LAT
 from twx.infill.obs_por import load_por_csv,POR_DTYPE
 from twx.utils.input_raster import input_raster
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 import datetime
@@ -122,7 +122,7 @@ def proc_write(params,nwrkers):
     
     ttl_infills = stn_ids.size
     
-    stat_chk = status_check(ttl_infills,10)
+    stat_chk = StatusCheck(ttl_infills,10)
     
     errs = []
     

@@ -13,7 +13,7 @@ from twx.db.station_data import StationDataDb,STN_ID,LON,LAT
 from infill_daily import source_r
 from twx.infill.obs_por import load_por_csv,POR_DTYPE,build_valid_por_masks
 from twx.utils.ncdf_raster import ncdf_raster
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 import datetime
@@ -153,7 +153,7 @@ def proc_write(params,nwrkers):
         
     tair_idxs = {'tmin':0,'tmax':1}
     
-    stat_chk = status_check(ttl_infills,10)
+    stat_chk = StatusCheck(ttl_infills,10)
     
     rslts = {'tmin':([],[],[]),'tmax':([],[],[])}
     

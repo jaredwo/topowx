@@ -9,7 +9,7 @@ from twx.utils.output_raster import output_raster
 from twx.interp.topo_disect import TopoDisectDEM 
 from mpi4py import MPI
 import sys
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -84,7 +84,7 @@ def write_proc(params,nwrkers):
     nwrkrs_done = 0
     
     result = np.zeros(3)
-    stat_chk = status_check(npts,10000)
+    stat_chk = StatusCheck(npts,10000)
     while 1:
        
         MPI.COMM_WORLD.Recv([result,MPI.DOUBLE],source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)

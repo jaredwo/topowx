@@ -26,7 +26,7 @@ class multiprocess():
         Constructor
         '''
         self.config = configMultiProcess
-        self.status_check = configMultiProcess.status_check_num
+        self.StatusCheck = configMultiProcess.status_check_num
         self.outputHandler = configMultiProcess.outputHandler
         if self.config.numProcs > 1:
             if self.config.inQueueLimit is not None:
@@ -63,10 +63,10 @@ class multiprocess():
             self.outputHandler.handleOutput(self.singleWorker.do_work(predictPt))
         self.numPredictPts+=1
         
-        if self.status_check != -1:
-            if self.numPredictPts - self.numPredictPtsLastStatus == self.status_check:
+        if self.StatusCheck != -1:
+            if self.numPredictPts - self.numPredictPtsLastStatus == self.StatusCheck:
                 currentTime = time.time()
-                print "Total pts put on queue %d.  Last %d pts took %f minutes."%(self.numPredictPts,self.status_check,(currentTime - self.queue_statusTime)/60.0)
+                print "Total pts put on queue %d.  Last %d pts took %f minutes."%(self.numPredictPts,self.StatusCheck,(currentTime - self.queue_statusTime)/60.0)
                 print "Current total process time for queue loading: %f minutes"%((currentTime - self.queue_startTime)/60.0)
                 self.queue_statusTime = time.time()
                 self.numPredictPtsLastStatus = self.numPredictPts
@@ -82,11 +82,11 @@ class multiprocess():
             while numProcessed < self.numPredictPts: 
                 self.outputHandler.handleOutput(self.outq.get())
                 numProcessed+=1
-                if (self.status_check != -1) and (numProcessed - numProcessedLastStatus == self.status_check):
+                if (self.StatusCheck != -1) and (numProcessed - numProcessedLastStatus == self.StatusCheck):
                     currentTime = time.time()
-                    print "Total processed pts is %d.  Last %d pts took %f minutes. %d points to go."%(numProcessed,self.status_check,(currentTime - statusTime)/60.0,self.numPredictPts-numProcessed)
+                    print "Total processed pts is %d.  Last %d pts took %f minutes. %d points to go."%(numProcessed,self.StatusCheck,(currentTime - statusTime)/60.0,self.numPredictPts-numProcessed)
                     print "Current total process time: %f minutes"%((currentTime - startTime)/60.0)
-                    print "Estimate Time Remaining: %f"%(((self.numPredictPts-numProcessed)/self.status_check)*((currentTime - statusTime)/60.0))
+                    print "Estimate Time Remaining: %f"%(((self.numPredictPts-numProcessed)/self.StatusCheck)*((currentTime - statusTime)/60.0))
                     statusTime = time.time()
                     numProcessedLastStatus = numProcessed
             

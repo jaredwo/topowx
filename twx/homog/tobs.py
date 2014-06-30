@@ -9,7 +9,7 @@ import subprocess
 import os
 import datetime
 from netCDF4 import Dataset, date2num
-from twx.utils import status_check, get_days_metadata, YEAR, MONTH, YMD, DAY, DATE
+from twx.utils import StatusCheck, get_days_metadata, YEAR, MONTH, YMD, DAY, DATE
 import numpy as np
 import twx
 from twx.db import STN_ID, LON, LAT, STN_NAME, STATE, ELEV, MISSING, DTYPE_STNOBS, NCDF_CHK_COLS
@@ -114,7 +114,7 @@ def create_tobs_db(fpath_tobs_file, fpath_db, stnids, min_date, max_date):
 
     n_obs = int(subprocess.check_output(["wc", "-l", fpath_tobs_file]).split()[0])
 
-    stchk = status_check(n_obs, 1000000)
+    stchk = StatusCheck(n_obs, 1000000)
 
     stn_idxs = {}
     for x in np.arange(stnidsOrig.size):

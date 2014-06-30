@@ -7,7 +7,7 @@ An MPI driver for calculating various metrics from tiled output
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset,num2date
 import netCDF4
 from collections import deque
@@ -410,7 +410,7 @@ def proc_write(params,nwrkers):
     for key in tile_ids.keys():
         tile_queues[key] = deque()
     
-    stat_chk = status_check(nchks,1)
+    stat_chk = StatusCheck(nchks,1)
     
     while 1:
         

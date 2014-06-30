@@ -9,7 +9,7 @@ from mpi4py import MPI
 import sys
 from twx.db.station_data import StationSerialDataDb,STN_ID,MASK,BAD, LAT, LON,\
     get_lst_varname, get_optim_varname, get_optim_anom_varname, NEON
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import netCDF4
 from netCDF4 import Dataset
 from twx.utils.input_raster import RasterDataset
@@ -116,7 +116,7 @@ def proc_write(params,nwrkers):
     #(row,col,norm,se)
     interp_tair = np.zeros(4)
     
-    stat_chk = status_check(n_interps,5000)
+    stat_chk = StatusCheck(n_interps,5000)
     
     while 1:
         

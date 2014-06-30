@@ -5,12 +5,13 @@ into a single database format
 
 __all__ = ['Insert', 'InsertGhcn', 'InsertRaws', 'InsertSnotel',
            'create_netcdf_db', 'insert_data_netcdf_db',
-           'MISSING', 'DTYPE_STNOBS', 'NCDF_CHK_COLS', 'add_monthly_means']
+           'MISSING', 'DTYPE_STNOBS', 'NCDF_CHK_COLS', 'add_monthly_means',
+           'add_utc_offset','dbDataset']
 
 import os
 import numpy as np
 import datetime
-from twx.utils import status_check, get_days_metadata, ymdL, DATE, YMD, YEAR
+from twx.utils import StatusCheck, get_days_metadata, ymdL, DATE, YMD, YEAR
 from netCDF4 import Dataset
 from netCDF4 import date2num
 import netCDF4
@@ -414,7 +415,7 @@ def insert_data_netcdf_db(db_path, insert_objs):
     
     print "Inserting observations for each station..."
 
-    stat_chk = status_check(stn_ids.size, 100)
+    stat_chk = StatusCheck(stn_ids.size, 100)
 
     for insert, stn_rows in zip(insert_objs, all_stn_rows_ls):
 
@@ -1041,7 +1042,7 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
     var_dly_qa = ds.variables["_".join(["qflag", var_name])]
     chk_size = 50
 
-    stchk = status_check(np.int(np.round(stns.size / np.float(chk_size))), 10)
+    stchk = StatusCheck(np.int(np.round(stns.size / np.float(chk_size))), 10)
     for i in np.arange(0, stns.size, chk_size):
 
         if i + chk_size < stns.size:
@@ -1069,3 +1070,41 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
         var_miss[:,i:i+n_stns] = n_miss
         ds.sync()
         stchk.increment()
+
+def add_utc_offset(ds_path,geonames_usrname=None):
+    '''
+    Add a UTC offset station attribute to a netCDF database
+    
+    Parameters
+    ----------
+    ds_path : str
+        File path to a netCDF station database
+    geonames_usrname : str, optional
+        A Geonames username. If not None,
+        the Geonames time zone data web service will be
+        used if time zone information for a point cannot
+        be determined locally.  
+    '''
+    
+    stnda = twx.db.StationDataDb(ds_path, mode='r+') 
+    
+    var_utc = stnda.add_stn_variable(twx.db.UTC_OFFSET,twx.db.UTC_OFFSET,"hours","i2")
+    
+    ndata = netCDF4.default_fillvals['i2']
+    
+    utc = twx.db.UtcOffset(ndata, geonames_usrname)
+    
+    print "Starting to get station UTC offset data..."
+    
+    schk = StatusCheck(stnda.stns.size, 100)
+    
+    for x in np.arange(stnda.stns.size):
+        
+        var_utc[x] = utc.get_utc_offset(stnda.stns[LON][x], stnda.stns[LAT][x])
+        schk.increment()
+    
+    stnda.ds.close()
+    stnda = None
+    
+    
+    

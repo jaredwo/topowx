@@ -7,7 +7,7 @@ from station_data import STN_ID,PRCP,TMIN,TMAX,STATE,STN_NAME,LON,LAT,ELEV,MONTH
 import numpy as np
 from datetime import timedelta,datetime
 import matplotlib.mlab as mlab
-from twx.utils import status_check
+from twx.utils import StatusCheck
 
 
 MONTHS = np.arange(1,13)
@@ -155,7 +155,7 @@ def output_por_csv(stn_da,stns,path):
     print "building period of records..."
     
     por_results = np.recarray(stns.size,dtype=POR_DTYPE)
-    stat_chk = status_check(stns.size,250)
+    stat_chk = StatusCheck(stns.size,250)
     
     for x in np.arange(0,stns.size,STN_CHK_SIZE):
     

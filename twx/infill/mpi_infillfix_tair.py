@@ -8,7 +8,7 @@ import numpy as np
 from mpi4py import MPI
 import sys
 from twx.db.station_data import StationDataDb
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 from twx.infill.infill_daily import pca_matrix,tmin_tmax_fixer
@@ -205,7 +205,7 @@ def proc_write(params,nwrkers):
     
     ttl_infills = stn_ids_rerun_tmin.size + stn_ids_rerun_tmax.size + a + b
     
-    stat_chk = status_check(ttl_infills,10)
+    stat_chk = StatusCheck(ttl_infills,10)
     
     ttl_infills = ttl_infills - np.sum(ds_rst.variables['tmin'][:]) - np.sum(ds_rst.variables['tmax'][:]) 
     

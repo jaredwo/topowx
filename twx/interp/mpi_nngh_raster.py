@@ -8,7 +8,7 @@ from twx.utils.input_raster import input_raster
 from twx.utils.output_raster import output_raster
 from mpi4py import MPI
 import sys
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from twx.db.station_data import StationSerialDataDb, MASK,VARIO_NUG,\
     VARIO_PSILL, VARIO_RNG
 from twx.interp.station_select import station_select
@@ -87,7 +87,7 @@ def write_proc(params,nwrkers):
     nwrkrs_done = 0
     
     result = np.zeros(5)
-    stat_chk = status_check(npts,10000)
+    stat_chk = StatusCheck(npts,10000)
     while 1:
        
         MPI.COMM_WORLD.Recv([result,MPI.DOUBLE],source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)

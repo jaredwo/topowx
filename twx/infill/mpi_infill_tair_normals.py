@@ -10,7 +10,7 @@ from mpi4py import MPI
 import sys
 from twx.db.station_data import StationDataDb,STN_ID,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX
 from twx.infill.obs_por import load_por_csv,build_valid_por_masks
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import netCDF4
 from twx.infill.infill_normals import impute_tair_norm
 from twx.infill.infill_daily import source_r
@@ -124,7 +124,7 @@ def proc_write(params,nwrkers):
     
     ttl_infills = stn_ids_tmin.size + stn_ids_tmax.size
     
-    stat_chk = status_check(ttl_infills,30)
+    stat_chk = StatusCheck(ttl_infills,30)
     
     while 1:
        

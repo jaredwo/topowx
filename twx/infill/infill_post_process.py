@@ -11,7 +11,7 @@ from netCDF4 import num2date,Dataset,date2num
 import netCDF4
 import twx.utils.util_dates as utld
 import numpy as np
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from twx.utils.input_raster import input_raster, OutsideExtent, RasterDataset
 from twx.modis.montana_ndvi import modis_sin_rast
 import twx.utils.util_geo as utlg
@@ -408,7 +408,7 @@ def build_serial_complete_nnrdif_ds(ds_in,ds_nnr,tair_var,out_path):
     n_stns = len(ds_in.dimensions['stn_id'])
     stns = build_stn_struct(ds_out)
     
-    stat_chk = status_check(n_stns,100)
+    stat_chk = StatusCheck(n_stns,100)
     for x in np.arange(n_stns):
         
         nnr_obs = ds_nnr.interp_variable(stns[LON][x],stns[LAT][x],stns[ELEV][x])
@@ -447,7 +447,7 @@ def update_serial_complete_ds(fpath_infill,fpath_serial,tair_var,stn_ids):
     all_imp_flags = np.ones(n_days,dtype=np.bool)
     all_imp_stns = np.zeros(n_stns,dtype=np.bool)
     
-    stat_chk = status_check(n_stns,100)
+    stat_chk = StatusCheck(n_stns,100)
     for stn_id in stn_ids:
         
         x = np.nonzero(ds_stnids==stn_id)[0][0]
@@ -498,7 +498,7 @@ def build_serial_complete_ds(ds_in,tair_var,out_path):
     all_imp_flags = np.ones(n_days,dtype=np.bool)
     all_imp_stns = np.zeros(n_stns,dtype=np.bool)
     
-    stat_chk = status_check(n_stns,100)
+    stat_chk = StatusCheck(n_stns,100)
     for x in np.arange(n_stns):
         
         imp_mask = ds_in.variables['flag_impute'][:,x].astype(np.bool)
@@ -616,7 +616,7 @@ def add_stn_raster_values(ds_path,var_name,name,units,a_rast,handle_ndata=True,n
     
     rvals = np.zeros(len(newvar[:]))
     
-    schk = status_check(lon.size, 1000) 
+    schk = StatusCheck(lon.size, 1000) 
     for x in np.arange(lon.size):
         
         rval = bm.interp(aflip, xGrid, yGrid, np.array(lon[x]), np.array(lat[x]), checkbounds=False, masked=True, order=interpOrder)
@@ -720,7 +720,7 @@ def output_dup_stns(fpath_infilldb,tair_var,fpath_out,mode="w"):
     if mode == "w":
         fout.write(",".join([STN_ID,RM_STN_FLAG+"\n"]))
     
-    stat_chk = status_check(stn_da.stns.size,100)
+    stat_chk = StatusCheck(stn_da.stns.size,100)
     for stn in stn_da.stns:
         
         if stn[STN_ID] not in dup_stnids:
@@ -1118,7 +1118,7 @@ def add_monthly_means(ds_path,var_name):
     varDly = ds.variables[var_name]
     chkSize = 50
     
-    stchk = status_check(np.int(np.round(stns.size/np.float(chkSize))), 10)
+    stchk = StatusCheck(np.int(np.round(stns.size/np.float(chkSize))), 10)
     for i in np.arange(0,stns.size,chkSize):
         
         if i + chkSize < stns.size:
@@ -1156,7 +1156,7 @@ def add_monthly_norms(dsPath,varName,startYr,endYr):
     varDly = ds.variables[varName]
     chkSize = 50
     
-    stchk = status_check(np.int(np.round(stns.size/np.float(chkSize))), 10)
+    stchk = StatusCheck(np.int(np.round(stns.size/np.float(chkSize))), 10)
     for i in np.arange(0,stns.size,chkSize):
         
         if i + chkSize < stns.size:
@@ -1202,7 +1202,7 @@ def add_ann_means(dsPath,varName):
     varMthly = ds.variables["_".join([varName,"mth"])]
     chkSize = 50
     
-    stchk = status_check(np.int(np.round(stns.size/np.float(chkSize))), 10)
+    stchk = StatusCheck(np.int(np.round(stns.size/np.float(chkSize))), 10)
     for i in np.arange(0,stns.size,chkSize):
         
         if i + chkSize < stns.size:

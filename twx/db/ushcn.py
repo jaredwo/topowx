@@ -7,7 +7,7 @@ import numpy as np
 from twx.db.station_data import STN_ID,STATE,STN_NAME,LON,LAT,ELEV,YEAR,MONTH,DATE,YDAY,_build_stn_struct
 import twx.utils.util_dates as utld
 from netCDF4 import Dataset, date2num, num2date
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import netCDF4
 
 class StationDataUSHCN(object):
@@ -353,7 +353,7 @@ def createUshcnDs(fpathStns,pathObs,fpathdsout,minYr=1948,maxYr=2012):
 
     tairVarNames = ['raw_tmin','raw_tmax','tob_tmin','tob_tmax','FLs.52i_tmin','FLs.52i_tmax']
     
-    stchk = status_check(stns.size*len(tairVarNames),100)
+    stchk = StatusCheck(stns.size*len(tairVarNames),100)
     
     for aTairVar in tairVarNames:
         

@@ -8,7 +8,7 @@ import numpy as np
 from mpi4py import MPI
 import sys
 from twx.db.station_data import StationSerialDataDb,STN_ID,MASK,BAD,get_krigparam_varname, VARIO_NUG, VARIO_PSILL, VARIO_RNG
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import netCDF4
 from netCDF4 import Dataset
 import rpy2.robjects as robjects
@@ -104,7 +104,7 @@ def proc_write(params,nwrkers):
         
         dsvars[avarname] = avar
     
-    stat_chk = status_check(nstns, 250)    
+    stat_chk = StatusCheck(nstns, 250)    
     while 1:
        
         stn_id,nug,psill,rng = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)

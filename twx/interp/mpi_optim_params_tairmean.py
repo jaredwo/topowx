@@ -10,7 +10,7 @@ from mpi4py import MPI
 import sys
 from twx.db.station_data import StationSerialDataDb,STN_ID,NEON,MASK,BAD,\
     DTYPE_INTERP
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from twx.db.create_db_all_stations import dbDataset
 from netCDF4 import Dataset
 from twx.interp.optimize import OptimKrigBwNstns, setOptimTairParams,\
@@ -105,7 +105,7 @@ def proc_write(params,nwrkers):
             
     ttl_xvals = ttl_xval_stns# * min_ngh_wins.size
     
-    stat_chk = status_check(ttl_xvals,10)
+    stat_chk = StatusCheck(ttl_xvals,10)
     
     while 1:
        

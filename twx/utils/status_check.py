@@ -6,7 +6,7 @@ Created on Jul 5, 2011
 import time
 import sys
 
-class status_check(object):
+class StatusCheck(object):
     '''
     classdocs
     '''

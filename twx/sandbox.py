@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 from twx.db.create_db_all_stations import create_netcdf_db, MISSING,copy_db_ncdf_nometa
 from twx.db.create_db_all_stations import insert_glac,insert_data_netcdf_db,insert_usfs
 import sqlite3 as sql
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from twx.utils.util_ncdf import ncdf_raster,to_geotiff,to_ncdf,expand_grid
 from qa.qa_location import load_locs_fixed
 import twx.utils.util_geo as utlg
@@ -468,7 +468,7 @@ def check_qaflags():
 #    obs[TMAX][np.isnan(obs[TMAX])] = MISSING
 #    obs[PRCP][np.isnan(obs[PRCP])] = MISSING
 #    
-#    stat_chk = status_check(stns.size,50)
+#    stat_chk = StatusCheck(stns.size,50)
 #    for i in np.arange(stns[STN_ID].size):
 #        
 #        stn_idx = np.nonzero(stn_ids==stns[STN_ID][i])[0][0]
@@ -4873,7 +4873,7 @@ def find_dup_stns():
     fout = open("/projects/daymet2/station_data/infill/impute_tair/dup_tmax_stns_rm.txt","w")
     fout.write(",".join([STN_ID,RM_STN_FLAG+"\n"]))
     
-    stat_chk = status_check(stn_da.stns.size,100)
+    stat_chk = StatusCheck(stn_da.stns.size,100)
     for stn in stn_da.stns:
         
         if stn[STN_ID] not in dup_stnids:
@@ -5432,7 +5432,7 @@ def testInterpTair():
     a_pt[MEAN_OBS] = -2.0
     a_pt = a_pt[0]
     
-    stat_chk = status_check(1, 1)
+    stat_chk = StatusCheck(1, 1)
     tair_daily, tair_mean, std_err, ci = interp.interp(a_pt,np.array(['SNOTEL_13C01S']))
     stat_chk.increment()
     print tair_mean, std_err, ci
@@ -6855,7 +6855,7 @@ def extreme_infill_qa():
     stn_ids = ds.variables['stn_id'][:]
     avar = ds.variables['tmax_imp']
     
-    schk = status_check(stn_ids.size,100)
+    schk = StatusCheck(stn_ids.size,100)
     for x in np.arange(stn_ids.size):
         
         vals = avar[:,x]
@@ -6882,7 +6882,7 @@ def chk_lc_stns():
     a_rast = input_raster('/projects/daymet2/climate_office/modis/MOD12Q1/mosaic_lc_wgs84.tif')
     a_lc = a_rast.readEntireRaster()
     
-    #schk = status_check(stns.size,500)
+    #schk = StatusCheck(stns.size,500)
     cnt=0
     for stn in stns:
         
@@ -8135,7 +8135,7 @@ def stnDataFilesRuben():
     
     pathOut = "/projects/daymet2/station_data/forRuben/StnInterps/obsFiles/"
     
-    stchk = status_check(stnids.size, 50)
+    stchk = StatusCheck(stnids.size, 50)
     
     for aId,x in zip(stnids,np.arange(stnids.size)):
         
@@ -8196,7 +8196,7 @@ def prcpStnDataFilesRuben():
             
     pathOut = "/projects/daymet2/station_data/forRuben/prcpObsFiles/"
     
-    stchk = status_check(stnids.size, 50)
+    stchk = StatusCheck(stnids.size, 50)
     
     for aId,x in zip(stnids,np.arange(stnids.size)):
             
@@ -8259,7 +8259,7 @@ def stnMetaFileRuben():
     for aDay in days365:
         dayMasks81.append(np.logical_and(np.logical_and(days[MONTH]==aDay[MONTH],days[utld.DAY]==aDay[utld.DAY]),normMask81))
      
-    stchk = status_check(stnids.size,100)
+    stchk = StatusCheck(stnids.size,100)
     for aId,x in zip(stnids,np.arange(stnids.size)):
         
         try:
@@ -8375,7 +8375,7 @@ def prcpStnMetaFileRuben():
     for aDay in days365:
         dayMasks81.append(np.logical_and(np.logical_and(days[MONTH]==aDay[MONTH],days[utld.DAY]==aDay[utld.DAY]),normMask81))
      
-    stchk = status_check(stnids.size,100)
+    stchk = StatusCheck(stnids.size,100)
     for aId,x in zip(stnids,np.arange(stnids.size)):
         
         stn = stnda.stns[stnda.stn_idxs[aId]]

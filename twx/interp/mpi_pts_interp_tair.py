@@ -10,7 +10,7 @@ from twx.db.station_data import StationSerialDataDb,LON,LAT,NEON,ELEV,TDI,LST,VC
     MASK, OPTIM_NNGH, OPTIM_NNGH_ANOM
 import twx.interp.interp_tair as it
 from twx.interp.station_select import station_select
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 from collections import deque
@@ -161,7 +161,7 @@ def proc_write(params,nwrkers):
     status = MPI.Status()
     nwrkrs_done = 0
         
-    stat_chk = status_check(params[P_STN_IDS].size,10)
+    stat_chk = StatusCheck(params[P_STN_IDS].size,10)
     stn_ids = params[P_STN_IDS]
     dsout = createNcdfOut(params)
     

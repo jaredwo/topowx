@@ -19,7 +19,7 @@ from mpl_toolkits.basemap import Basemap
 from matplotlib.colors import Normalize
 from matplotlib import cm
 from copy import copy
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from matplotlib.mlab import amap
 import twx.db.ushcn as ushcn
 import twx.utils.util_dates as utld

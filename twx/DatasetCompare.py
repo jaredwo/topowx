@@ -15,7 +15,7 @@ import osgeo.gdal as gdal
 import osgeo.gdalconst as gdalconst
 import osgeo.osr as osr
 from scipy import stats
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from modis.clip_raster import resample_to_grd1,mask_to_rastmask
 from datetime import datetime
 from twx.db.station_data import BAD,LON,LAT,ELEV,BAD,LST,TDI,MASK,NEON,OPTIM_NNGH,VARIO_RNG,VARIO_NUG,VARIO_PSILL,OPTIM_NNGH_ANOM,StationDataDb,DTYPE_STN_BASIC,YMD,STN_ID
@@ -80,7 +80,7 @@ def getAnnTrend(dsPath,varname,start_yr=1948,end_yr=2012):
     
     atrends = np.zeros((tairAnn.shape[1],tairAnn.shape[2]))
     
-    schk = status_check(atrends.size,10000)
+    schk = StatusCheck(atrends.size,10000)
     for r in np.arange(tairAnn.shape[1]):
     
         for c in np.arange(tairAnn.shape[2]):
@@ -113,7 +113,7 @@ def getTrend(dsPath,varname,start_yr=1948,end_yr=2012):
     
     atrends = np.zeros((tairAnn.shape[1],tairAnn.shape[2]))
     
-    #schk = status_check(atrends.size,1000)
+    #schk = StatusCheck(atrends.size,1000)
     for r in np.arange(tairAnn.shape[1]):
     
         for c in np.arange(tairAnn.shape[2]):

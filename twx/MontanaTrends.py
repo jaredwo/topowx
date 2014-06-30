@@ -8,7 +8,7 @@ from twx.db.station_data import LON, LAT,YEAR,STN_ID, DATE,MONTH
 import matplotlib.pyplot as plt
 from twx.utils.input_raster import RasterDataset
 from mpl_toolkits.basemap import Basemap
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 import twx.db.ushcn as ushcn
 import twx.utils.util_dates as utld
 from datetime import datetime
@@ -79,7 +79,7 @@ def calcConusTrendsSeason(mths,seasonName,tairVar):
     
     trendsHomog = np.zeros((allAnomGridHomog.shape[1],allAnomGridHomog.shape[2]))
     
-    schk = status_check(trendsHomog.size,10000)
+    schk = StatusCheck(trendsHomog.size,10000)
     for r in np.arange(allAnomGridHomog.shape[1]):
     
         for c in np.arange(allAnomGridHomog.shape[2]):
@@ -140,7 +140,7 @@ def calcConusTrends():
     
     trendsHomog = np.zeros((allAnomGridHomog.shape[1],allAnomGridHomog.shape[2]))
     
-    schk = status_check(trendsHomog.size,10000)
+    schk = StatusCheck(trendsHomog.size,10000)
     for r in np.arange(allAnomGridHomog.shape[1]):
     
         for c in np.arange(allAnomGridHomog.shape[2]):
@@ -532,7 +532,7 @@ def calcMontanaAnomsMthly():
     anomMthlyAllTmin = np.ma.masked_array(np.zeros((12,uYrs.size,stns.size)))
     anomMthlyAllTmax = np.ma.masked_array(np.zeros((12,uYrs.size,stns.size)))
         
-    schk = status_check(stns.size, 50)
+    schk = StatusCheck(stns.size, 50)
     
     blankAnoms = np.ma.masked_equal(np.zeros(uYrs.size)*MISSING_VAL,MISSING_VAL)
     
@@ -631,7 +631,7 @@ def calcGriddedMontanaTrends(anomPath,tairVar,name,mth=None,startYr=1895,endYr=2
         
     trendsGrid = np.zeros((allAnomGrid.shape[1],allAnomGrid.shape[2]))
     
-    schk = status_check(trendsGrid.size,1000)
+    schk = StatusCheck(trendsGrid.size,1000)
     for r in np.arange(allAnomGrid.shape[1]):
     
         for c in np.arange(allAnomGrid.shape[2]):

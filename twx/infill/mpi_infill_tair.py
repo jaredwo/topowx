@@ -9,7 +9,7 @@ from mpi4py import MPI
 import sys
 from twx.db.create_db_all_stations import dbDataset
 from twx.db.station_data import StationDataDb,STN_ID,DATE,MEAN_TMIN,MEAN_TMAX
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 from twx.infill.infill_daily import ImputeMatrixPCA,source_r
@@ -161,7 +161,7 @@ def proc_write(params,nwrkers):
     
     print "Writer: Output NCDF files ready"
     
-    stat_chk = status_check(ttl_infills,10)
+    stat_chk = StatusCheck(ttl_infills,10)
     
     while 1:
 

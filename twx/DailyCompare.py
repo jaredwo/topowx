@@ -7,7 +7,7 @@ from twx.db.station_data import StationDataDb, StationSerialDataDb, STN_ID, STN_
 import numpy as np
 from multiprocessing import Pool
 import twx.interp.interp_tair as it
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from DatasetCompare import PrismTileRaster
 from scipy import stats
 import twx.utils.util_dates as utld
@@ -161,7 +161,7 @@ def runInterps():
     tminDly = np.zeros((ndays,astns.size),dtype=np.float32)*np.float32(np.nan)
     tmaxDly = np.zeros((ndays,astns.size),dtype=np.float32)*np.float32(np.nan)
     
-    sck = status_check(astns.size, 100)
+    sck = StatusCheck(astns.size, 100)
     chksize = 100
     
     for x in np.arange(astns.size,step=chksize):
@@ -202,7 +202,7 @@ def buildPrismDaily():
     
     blank = np.ones(pRastTmax.days.size,dtype=np.float32)*np.nan
     
-    schk = status_check(stns.size,50)
+    schk = StatusCheck(stns.size,50)
     
     for stn,x in zip(stns,np.arange(stns.size)):
         
@@ -240,7 +240,7 @@ def buildDaymetDaily():
     
     blank = np.ones(ndays,dtype=np.float32)*np.nan
     
-    schk = status_check(stns.size,50)
+    schk = StatusCheck(stns.size,50)
     
     for stn,x in zip(stns,np.arange(stns.size)):
         
@@ -406,7 +406,7 @@ def calcErrStats():
     #prismR2Tmax = np.zeros((13,stns.size))
     #daymetR2Tmax = np.zeros((13,stns.size))
     
-    stchk = status_check(stns.size, 100)
+    stchk = StatusCheck(stns.size, 100)
     for stn,x in zip(stns,np.arange(stns.size)):
         
         try:

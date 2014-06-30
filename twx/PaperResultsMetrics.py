@@ -21,7 +21,7 @@ from mpl_toolkits.basemap import Basemap
 from matplotlib.colors import Normalize,BoundaryNorm
 from matplotlib import cm
 from copy import copy
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from matplotlib.mlab import amap
 import twx.db.ushcn as ushcn
 import twx.utils.util_dates as utld
@@ -2749,7 +2749,7 @@ def topoWxVsUSHCN():
     
     baseMask = np.logical_and(uYrs >= 1961,uYrs <= 1990)
     
-    stchk = status_check(stns.size,50)
+    stchk = StatusCheck(stns.size,50)
     for astn,usId,x in zip(stns,matchUSIds,np.arange(stns.size)):
         
         obsTwx = tairAgg.dailyToAnn(stnda.load_obs(astn[STN_ID]))
@@ -3345,7 +3345,7 @@ def avgAnnDifsHomog():
     for yr in uYrs:
         yrMasks.append(stndaH.days[YEAR] == yr)
     
-    stchk = status_check(stns.size,100)
+    stchk = StatusCheck(stns.size,100)
     for aId,x in zip(stns[STN_ID],np.arange(stns[STN_ID].size)):
         
         obsH = stndaH.load_obs(aId) 
@@ -3396,7 +3396,7 @@ def getStnsForHomogAnomCompare(ds,stnIdsToChk,tairVar,dayMask=None,outFpath=None
        
     stnIds = ds.variables['stn_id'][:].astype("<S16")
     
-    stat_chk = status_check(stnIdsToChk.size,500)
+    stat_chk = StatusCheck(stnIdsToChk.size,500)
     
     USE_ALL_IMP_THRESHOLD = np.round(365.25 * 5.0)
     
@@ -4476,7 +4476,7 @@ def calcConusTrendsTopoWx():
     
     trendsHomog = np.zeros((allAnomGridHomog.shape[1],allAnomGridHomog.shape[2]))
     
-    schk = status_check(trendsHomog.size,10000)
+    schk = StatusCheck(trendsHomog.size,10000)
     for r in np.arange(allAnomGridHomog.shape[1]):
     
         for c in np.arange(allAnomGridHomog.shape[2]):
@@ -4554,7 +4554,7 @@ def calcConusTrends():
     trendsHomog = np.zeros((allAnomGridHomog.shape[1],allAnomGridHomog.shape[2]))
     trendsRaw = np.zeros((allAnomGridHomog.shape[1],allAnomGridHomog.shape[2]))
     
-    schk = status_check(trendsHomog.size,10000)
+    schk = StatusCheck(trendsHomog.size,10000)
     for r in np.arange(allAnomGridHomog.shape[1]):
     
         for c in np.arange(allAnomGridHomog.shape[2]):

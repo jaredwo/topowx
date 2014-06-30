@@ -10,7 +10,7 @@ import numpy as np
 from mpi4py import MPI
 import sys
 from twx.db.station_data import StationDataDb
-from twx.utils.status_check import status_check
+from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 from twx.infill.infill_normals import build_mth_masks,infill_prcp_norm,MTH_BUFFER
@@ -118,7 +118,7 @@ def proc_write(params,nwrkers):
     
     ttl_infills = stn_ids.size
 
-    stat_chk = status_check(ttl_infills,10)
+    stat_chk = StatusCheck(ttl_infills,10)
         
     while 1:
        
