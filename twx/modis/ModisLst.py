@@ -1380,7 +1380,7 @@ class ImputeLstNorm(object):
         impNorm = np.array(r.impute_norm_all(robjects.Matrix(ptLst))).ravel()
         return impNorm
 
-def shrinkMatrix(aMatrix,idx,minObs=1):
+def _shrink_matrix(aMatrix,idx,minObs=1):
     
     aMatrix = ~aMatrix
     

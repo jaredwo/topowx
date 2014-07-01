@@ -18,7 +18,7 @@ from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 import datetime
-from twx.infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,impute_tair_norm
+from twx.infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,infill_tair_mu_sigma
 from twx.infill.infill_daily import NODATA_NORMS,ImputeMatrixPCA
 from twx.db.reanalysis import NNRds,NNRNghData
 from scipy import stats
@@ -127,7 +127,7 @@ def proc_work(params,rank):
                 obs_tair = np.array(stn_da.load_all_stn_obs_var(np.array([stn_id]), tair_var)[0],dtype=np.float64)
                     
                 #Estimate normal
-                norm_est,va_est = impute_tair_norm(stn_id, stn_da, stn_masks[tair_var], tair_var,ds_nnr,aclib,
+                norm_est,va_est = infill_tair_mu_sigma(stn_id, stn_da, stn_masks[tair_var], tair_var,ds_nnr,aclib,
                                                    nnghs=nnghs,tair_mask=tair_mask,trim_nan=False)[0]
                 
                 stn_da.stns["_".join(["mean",tair_var])][i] = norm_est

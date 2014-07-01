@@ -44,7 +44,7 @@ def create_tobs_file(path_ghcn_yrly, fpath_out, yrs, element='TMAX', fips_codes=
         cmd = "".join(["zgrep ", elem_str, " ", os.path.join(path_ghcn_yrly, str(yr)), ".csv.gz | zgrep -E ",
                       fips_codes_str, " | zgrep '[0-9]$' | zgrep -v '2400$' >> ", fpath_out])
         print "Running cmd: " + cmd
-        subprocess.__call(cmd, shell=True)
+        subprocess.call(cmd, shell=True)
 
 def create_tobs_db(fpath_tobs_file, fpath_db, stnids, min_date, max_date):
     '''

@@ -17,7 +17,7 @@ from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset
 import netCDF4
 import datetime
-from twx.infill.infill_normals import impute_tair_norm,infill_tair,MTH_BUFFER,build_mth_masks
+from twx.infill.infill_normals import infill_tair_mu_sigma,infill_tair,MTH_BUFFER,build_mth_masks
 from twx.db.reanalysis import NNRNghData
 from httplib import HTTPException
 from twx.infill.random_xval_stations import XvalStnsTairSnotelRaws
@@ -104,7 +104,7 @@ def proc_work(params,rank):
                 #imp_mean = infill_tair(stn_id, stn_da, stn_da.days, tair_var,stn_masks[tair_var], mth_masks, mthbuf_masks, tair_mask)
                 #imp_var = 0
 
-                imp_mean,imp_var = impute_tair_norm(stn_id, stn_da, stn_masks[tair_var],tair_var,ds_nnr,
+                imp_mean,imp_var = infill_tair_mu_sigma(stn_id, stn_da, stn_masks[tair_var],tair_var,ds_nnr,
                                                     aclib,tair_mask=tair_mask,nnghs=nnghs)[0]
                 
                 obs_tair = np.array(stn_da.load_all_stn_obs_var(np.array([stn_id]), tair_var)[0],dtype=np.float64)

@@ -3,14 +3,14 @@ Functions and classes for working with NCEP/NCAR Reanalysis
 netCDF data downloaded from ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis.
 '''
 
-__all__ = ['create_nnr_subset','create_nnr_subset_nolevel','NNRNghData']
+__all__ = ['create_nnr_subset','create_nnr_subset_nolevel','NNRNghData',
+           'create_thickness_nnr_subset']
 
 from netCDF4 import Dataset, num2date
 import netCDF4
 import numpy as np
 from twx.utils import A_DAY, YMD, get_days_metadata, grt_circle_dist, get_ymd_array
 from twx.db import dbDataset
-from datetime import datetime
 import os
 
 # NCEP/NCAR Reanalysis has observation times
@@ -278,15 +278,35 @@ def create_thickness_nnr_subset(path_nnr, fpath_out, yrs, days, level_up, level_
 
 
 class NNRNghData():
+    '''
+    Class for loading NCEP/NCAR Reanalysis data surrounding a
+    station lon,lat point.
+    '''
 
     NNR_VARS = np.array(['tair', 'hgt', 'thick', 'rhum', 'uwnd', 'vwnd', 'slp'])
     NNR_TIMES = np.array(['24z', '18z', '12z'])
     TMIN = 'tmin'
     TMAX = 'tmax'
+    #Maps main CONUS UTC offset times to NCEP/NCAR Reanalysis observation times
+    #corresponding most closely to local timing of Tmin/TMax
     UTC_OFFSET_TIMES = {TMIN:{-4:'12z', -5:'12z', -6:'12z', -7:'12z', -8:'12z'},
                         TMAX:{-4:'18z', -5:'18z', -6:'18z', -7:'24z', -8:'24z'}}
 
-    def __init__(self, path_nnr, startend_ymd, nnr_vars=None):
+    def __init__(self, path_nnr_na, startend_ymd, nnr_vars=None):
+        '''
+        Parameters
+        ----------
+        path_nnr_na : str
+            Local path to directory containing North American subsets
+            of NCEP/NCAR Reanalysis data created by
+            create_nnr_subset* functions.
+        startend_ymd : tuple of 2 ints
+            A 2-element tuple containing the start and end YMDs for the
+            NCEP/NCAR Reanalysis data to be loaded (eg (19480101,20121231))
+        nnr_vars : ndarray, optional
+            A ndarray of strings containing the names of the North American
+            subset reanalysis variables to be loaded. Defaults to NNR_VARS
+        '''
 
         self.ds_nnr = {}
 
@@ -294,16 +314,17 @@ class NNRNghData():
             self.nnr_vars = self.NNR_VARS
         else:
             self.nnr_vars = nnr_vars
-
-
+        
+        #Open datasets for all variables
         for nnr_var in self.nnr_vars:
 
             for nnr_time in self.NNR_TIMES:
-
-                self.ds_nnr["".join([nnr_var, nnr_time])] = Dataset("".join([path_nnr, "nnr_", nnr_var, "_", nnr_time, ".nc"]))
+                
+                self.ds_nnr["".join([nnr_var, nnr_time])] = Dataset(os.path.join(path_nnr_na,"nnr_%s_%s.nc"%(nnr_var,nnr_time)))
 
         eg_ds = self.ds_nnr.values()[0]
-
+        
+        #Get time series date information for the variables
         var_time = eg_ds.variables['time']
 
         start, end = num2date([var_time[0], var_time[-1]], var_time.units)
@@ -312,6 +333,7 @@ class NNRNghData():
         self.day_mask = np.nonzero(np.logical_and(self.days[YMD] >= startend_ymd[0], self.days[YMD] <= startend_ymd[1]))[0]
         self.days = self.days[self.day_mask]
 
+        #Get lat/lon for each grid cell
         self.nnr_lons = eg_ds.variables['lon'][:]
         self.nnr_lats = eg_ds.variables['lat'][:]
         llgrid = np.meshgrid(self.nnr_lons, self.nnr_lats)
@@ -319,7 +341,33 @@ class NNRNghData():
         self.grid_lons = llgrid[0].ravel()
         self.grid_lats = llgrid[1].ravel()
 
-    def get_nngh_matrix(self, lon, lat, tair_var, utc_offset=-7, nngh=4):
+    def get_nngh_matrix(self, lon, lat, tair_var, utc_offset, nngh=4):
+        '''
+        Load a 2-d matrix of of NCEP/NCAR Reanalysis data for the lon, lat point
+        a temperature variable of interest.
+        
+        Parameters
+        ----------
+        lon : double
+            The longitude of the point
+        lat : double
+            The latitude of the point
+        tair_var : str
+            The temperature variable for which to load corresponding
+            reanalysis data
+        utc_offset : int
+            The UTC offset of the point's time zone
+        nngh : int, optional
+            The number of nearest NCEP/NCAR Reanalysis grid cells to load in the
+            returned matrix
+            
+        Returns
+        -------
+        nnr_matrix : ndarray
+            A N*P 2-D array where N is the number of days in the reanalysis time
+            series and P is the number of reanalysis variables * the number of 
+            neighboring grid cells that were loaded
+        '''
 
         dist_nnr = grt_circle_dist(lon, lat, self.grid_lons, self.grid_lats)
         sort_dist_nnr = np.argsort(dist_nnr)
@@ -348,156 +396,9 @@ class NNRNghData():
                 if len(adata.shape) == 1:
                     adata.shape = (adata.size, 1)
 
-#                if np.ma.isMA(adata):
-#
-#                    #print "|".join(['NNR NODATA',nnr_var,str(nnr_ngh_lons[x]),str(nnr_ngh_lats[x]),str(self.days[adata.mask.ravel()])])
-#                    adata = np.ma.filled(adata, np.nan)
                 if nnr_matrix is None:
                     nnr_matrix = adata
                 else:
                     nnr_matrix = np.hstack((nnr_matrix, adata))
 
-
-
         return nnr_matrix
-
-def KtoC(k):
-    return k - 273.15
-
-def no_conv(x):
-    return x
-
-if __name__ == '__main__':
-
-    path_nnr = '/projects/daymet2/reanalysis_data/'
-    yrs = np.arange(1948, 2014)
-    days = get_days_metadata(datetime(1948, 1, 1), datetime(2013, 1, 31))
-
-############################################################
-# Temperature
-############################################################
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_tair_24z.nc',
-#                      yrs, days,'air','tair', np.array([850]), 24, KtoC)
-#
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_tair_12z.nc',
-#                      yrs, days,'air','tair', np.array([850]), 12, KtoC)
-#
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_tair_18z.nc',
-#                      yrs, days,'air','tair', np.array([850]), 18, KtoC)
-
-############################################################
-# 500-1000 Thickness
-############################################################
-#    create_thickness_nnr_subset(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_thick_24z.nc',
-#                                yrs, days, 500, 1000, 24)
-#
-#    create_thickness_nnr_subset(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_thick_12z.nc',
-#                                yrs, days, 500, 1000, 12)
-#
-#    create_thickness_nnr_subset(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_thick_18z.nc',
-#                                yrs, days, 500, 1000, 18)
-
-############################################################
-# Height
-############################################################
-
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_hgt_24z.nc',
-#                      yrs, days,'hgt','hgt', np.array([500,700]), 24, no_conv)
-#
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_hgt_12z.nc',
-#                      yrs, days,'hgt','hgt', np.array([500,700]), 12, no_conv)
-#
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_hgt_18z.nc',
-#                      yrs, days,'hgt','hgt', np.array([500,700]), 18, no_conv)
-
-############################################################
-# RH
-############################################################
-#
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_rhum_24z.nc',
-#                      yrs, days,'rhum','rhum', np.array([850]), 24, no_conv)
-#
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_rhum_12z.nc',
-#                      yrs, days,'rhum','rhum', np.array([850]), 12, no_conv)
-#
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_rhum_18z.nc',
-#                      yrs, days,'rhum','rhum', np.array([850]), 18, no_conv)
-
-############################################################
-# SLP
-############################################################
-
-#    create_nnr_subset_nolevel(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_slp_24z.nc',
-#                              yrs, days, 'slp', 'slp', 24, no_conv)
-#
-#    create_nnr_subset_nolevel(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_slp_12z.nc',
-#                              yrsnc, days, 'slp', 'slp', 12, no_conv)
-#
-#    create_nnr_subset_nolevel(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_slp_18z.nc',
-#                              yrs, days, 'slp', 'slp', 18, no_conv)
-
-############################################################
-# Inversion Strength
-############################################################
-
-#    create_inversion_strength_nnr_subset(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_inv_str_24z.nc',
-#                                         yrs, days, 700, 24)
-#    create_inversion_strength_nnr_subset(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_inv_str_12z.nc',
-#                                         yrs, days, 700, 12)
-#    create_inversion_strength_nnr_subset(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_inv_str_18z.nc',
-#                                         yrs, days, 700, 18)
-
-############################################################
-# V-Wind Surface
-############################################################
-
-#    create_nnr_subset_nolevel(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_vwnd_24z.nc',
-#                              yrs, days, 'vwnd', 'vwnd', 24, no_conv,".sig995")
-#
-#    create_nnr_subset_nolevel(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_vwnd_12z.nc',
-#                              yrs, days, 'vwnd', 'vwnd', 12, no_conv,".sig995")
-#
-#    create_nnr_subset_nolevel(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_vwnd_18z.nc',
-#                              yrs, days, 'vwnd', 'vwnd', 18, no_conv,".sig995")
-
-############################################################
-# U-Wind Surface
-############################################################
-
-#    create_nnr_subset_nolevel(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_uwnd_24z.nc',
-#                              yrs, days, 'uwnd', 'uwnd', 24, no_conv,".sig995")
-#
-#    create_nnr_subset_nolevel(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_uwnd_12z.nc',
-#                              yrs, days, 'uwnd', 'uwnd', 12, no_conv,".sig995")
-#
-#    create_nnr_subset_nolevel(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_uwnd_18z.nc',
-#                              yrs, days, 'uwnd', 'uwnd', 18, no_conv,".sig995")
-
-
-
-############################################################
-# V-Wind 850mb
-############################################################
-
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_vwnd_24z.nc',
-#                      yrs, days,'vwnd','vwnd', np.array([850]), 24, no_conv)
-#
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_vwnd_12z.nc',
-#                      yrs, days,'vwnd','vwnd', np.array([850]), 12, no_conv)
-#
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_vwnd_18z.nc',
-#                      yrs, days,'vwnd','vwnd', np.array([850]), 18, no_conv)
-
-############################################################
-# U-Wind 850mb
-############################################################
-
-    create_nnr_subset(path_nnr, '/projects/daymet2/reanalysis_data/conus_subset/nnr_uwnd_24z.nc',
-                      yrs, days, 'uwnd', 'uwnd', np.array([850]), 24, no_conv)
-
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_uwnd_12z.nc',
-#                      yrs, days,'uwnd','uwnd', np.array([850]), 12, no_conv)
-#
-#    create_nnr_subset(path_nnr,'/projects/daymet2/reanalysis_data/conus_subset/nnr_uwnd_18z.nc',
-#                      yrs, days,'uwnd','uwnd', np.array([850]), 18, no_conv)
-

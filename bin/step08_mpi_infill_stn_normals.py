@@ -8,14 +8,11 @@ using the methods of obs_infill_normal.
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import StationDataDb,STN_ID,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX
-from twx.infill.obs_por import load_por_csv,build_valid_por_masks
-from twx.utils.status_check import StatusCheck
+from twx.db import StationDataDb,STN_ID,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX,load_por_csv,build_valid_por_masks
+from twx.utils import StatusCheck, Unbuffered
 import netCDF4
-from twx.infill.infill_normals import impute_tair_norm
-from twx.infill.infill_daily import source_r
-from twx.db.reanalysis import NNRNghData
-from twx.interp.clibs import clib_wxTopo
+from twx.infill import impute_tair_norm
+from twx.db import NNRNghData
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -27,25 +24,14 @@ N_NON_WRKRS = 2
 
 P_PATH_DB = 'P_PATH_DB'
 P_PATH_POR = 'P_PATH_POR'
-P_PATH_R_FUNCS = 'P_PATH_R_FUNCS'
 P_PATH_NNR = 'P_PATH_NNR'
-P_PATH_CLIB = 'P_PATH_CLIB'
 
 P_START_YMD = 'P_START_YMD'
 P_END_YMD = 'P_END_YMD'
 P_MIN_POR = 'P_MIN_POR'
-P_STN_LOC_BNDS = 'P_STN_LOC_BNDS'
 P_MIN_NNGH_DAILY = 'P_MIN_NNGH_DAILY'
 
-class Unbuffered:
-    def __init__(self, stream):
-        self.stream = stream
-    def write(self, data):
-        self.stream.write(data)
-        self.stream.flush()
-    def __getattr__(self, attr):
-        return getattr(self.stream, attr)
-sys.stdout=Unbuffered(sys.stdout)
+sys.stdout = Unbuffered(sys.stdout)
 
 def proc_work(params,rank):
     
@@ -57,21 +43,14 @@ def proc_work(params,rank):
     #mask_por_tmin,mask_por_tmax = bcast_msg
     
     por = load_por_csv(params[P_PATH_POR])
-    mask_por_tmin,mask_por_tmax,mask_por_prcp = build_valid_por_masks(por,params[P_MIN_POR],params[P_STN_LOC_BNDS])
-    
-    source_r(params[P_PATH_R_FUNCS])
-    
+    mask_por_tmin,mask_por_tmax = build_valid_por_masks(por,params[P_MIN_POR])
+        
     stn_masks = {'tmin':mask_por_tmin,'tmax':mask_por_tmax}
     
     ds_nnr = NNRNghData(params[P_PATH_NNR], (params[P_START_YMD],params[P_END_YMD]))
-        
-    aclib = clib_wxTopo()
-        
+                
     print "".join(["Worker ",str(rank),": Received broadcast msg"])
-    
-    mae = netCDF4.default_fillvals['f4']
-    bias = netCDF4.default_fillvals['f4']
-    
+        
     while 1:
     
         stn_id,tair_var = MPI.COMM_WORLD.recv(source=RANK_COORD,tag=MPI.ANY_TAG,status=status)

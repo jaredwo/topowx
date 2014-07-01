@@ -8,6 +8,7 @@ import os
 import twx
 from twx.homog import HomogDaily
 from twx.utils import DATE
+from twx.db import StationDataDb
 
 if __name__ == '__main__':
     
@@ -60,4 +61,11 @@ if __name__ == '__main__':
     insert_homog = twx.homog.InsertHomog(stnda, homog_tmin, homog_tmax, path_tmin_pha_run, path_tmax_pha_run)
     twx.db.create_netcdf_db(path_out_homog_db, stnda.days[DATE][0], stnda.days[DATE][-1], [insert_homog])
     twx.db.insert_data_netcdf_db(path_out_homog_db, [insert_homog])
+    
+    # Create a period-of-record file for the homogenized database
+    fpath_por_out = os.path.join(FPATH_STNDATA, 'all', 'homog_por_1948_2012.csv')
+    stn_da = StationDataDb(path_out_homog_db)
+    stns = stn_da.stns
+    twx.db.output_por_csv(stn_da, stns, fpath_por_out)
+    
     

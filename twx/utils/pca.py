@@ -1,40 +1,59 @@
 '''
-Created on Nov 20, 2012
-
-@author: jared.oyler
+Utility functions performing basic principal component analysis
 '''
+
+__all__ = ['pca_svd']
+
 import numpy as np
 
-class PCA(object):
+def pca_svd(A,center=True,scale=False):
     '''
-    classdocs
+    Run a Principal Component Analysis (PCA) on the input matrix
+    using singular value decomposition (SVD).
+    
+    Parameters
+    ----------
+    A : ndarray
+        A 2-D input matrix with rows as the observations
+        and columns as the variables. If performing an S-Mode PCA,
+        each column is a separate time series.
+    center : bool
+        Mean center each column of A.
+    scale : bool
+        Scale each column of A by dividing each column by its
+        standard deviation.
+    
+    Returns
+    ----------
+    pc_loads : ndarray
+        A P*P array of principal component loadings
+        where P is the number of columns in the input matrix.
+    pc_scores : ndarray
+        A N*P array of principal component scores where
+        N is number of rows in the input matrix and P
+        is the number of columns
+    var_explain : ndarray
+        A 1-D array of size P containing the fraction
+        of variance explained by each principal component.  
     '''
-
-
-    def __init__(self,a):
-        '''
-        Constructor
-        '''
-        n, m = a.shape
-        if n<m:
-            raise RuntimeError('we assume data in a is organized with numrows>numcols')
-
-        self.numrows, self.numcols = n, m
-        self.mu = a.mean(axis=0)
-        self.sigma = a.std(axis=0)
-
-        a = self.center(a)
-
-        self.a = a
-
-        U, s, Vh = np.linalg.svd(a, full_matrices=False)
-
-
-        Y = np.dot(Vh, a.T).T
-
-        vars = s**2/float(len(s))
-        self.fracs = vars/vars.sum()
-
-
-        self.Wt = Vh
-        self.Y = Y
+    
+    A = np.require(A,dtype=np.float64,requirements=['C','A','W','O'])
+    
+    nrows,ncols = A.shape
+    
+    if center:
+        A = A - np.mean(A,axis=0)
+    
+    if scale:
+        A = A/np.std(A,axis=0,ddof=1)
+    
+    full_matrices = True if ncols > nrows else False
+     
+    u,s,v = np.linalg.svd(A,full_matrices=full_matrices)
+    
+    s = np.square(s)/(nrows-1)
+    var_explain = s/np.sum(s)
+    pc_loads = v.T
+    pc_scores = np.dot(A,pc_loads)
+    
+    return pc_loads,pc_scores,var_explain

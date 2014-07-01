@@ -35,7 +35,7 @@ import twx.utils.util_geo as utlg
 from twx.infill.infill_daily import gwrpca_matrix,source_r,pca_matrix,calc_hss,calc_forecast_scores,pca_matrix_prcp,infill_prcp,PO_THRESHS,prcp_infill_results,build_yr_mth_masks,tmin_tmax_fixer,ioapca_matrix,nnrpca_matrix,ImputeMatrixPCA,MIN_NNR_VAR
 from qa.qa_location import get_elev_usgs
 
-from twx.infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,infill_prcp_norm,ImputeMatrix,impute_tair_norm
+from twx.infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,infill_prcp_norm,_InfillMatrix,infill_tair_mu_sigma
 from twx.infill.obs_por import load_por_csv,POR_DTYPE,build_valid_por_masks
 from twx.interp.station_select import StationSelect
 from twx.interp.interp_tair import KrigTair, LST_TMAX, LST_TMIN, StationDataWrkChk
@@ -3872,7 +3872,7 @@ def TEST_PCACOR_IMPUTE_TAIR():
         fin_mask = np.logical_and(np.logical_not(xval_mask),np.isfinite(tair))
         
         
-    fit_norm,masked_norm = impute_tair_norm(stn_id, stn_da, stn_masks[tair_var], tair_var,ds_nnr[tair_var],tair_mask=xval_mask)
+    fit_norm,masked_norm = infill_tair_mu_sigma(stn_id, stn_da, stn_masks[tair_var], tair_var,ds_nnr[tair_var],tair_mask=xval_mask)
     #fit_tair,masked_tair = infill_tair(stn_id, stn_da, days, tair_var, mth_masks, mthbuf_masks, tair_mask)
     mask_nan = np.isnan(masked_norm)
     fnl_norm = np.copy(masked_norm)
@@ -4011,7 +4011,7 @@ def TEST_MICROMET_IMPUTE_TAIR():
         fin_mask = np.logical_and(np.logical_not(xval_mask),np.isfinite(tair))
         
         
-    fit_norm,masked_norm = impute_tair_norm(stn_id, stn_da, stn_masks[tair_var], tair_var,ds_nnr[tair_var],tair_mask=xval_mask)
+    fit_norm,masked_norm = infill_tair_mu_sigma(stn_id, stn_da, stn_masks[tair_var], tair_var,ds_nnr[tair_var],tair_mask=xval_mask)
 
     mask_nan = np.isnan(masked_norm)
     fnl_norm = np.copy(masked_norm)
@@ -6032,7 +6032,7 @@ def test_impute_tair_norm():
         
     aclib = clib_wxTopo('/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C')
     
-    impute_tair_norm(stn_id, stn_da, stn_masks[tair_var], tair_var, nnr_ds, aclib)
+    infill_tair_mu_sigma(stn_id, stn_da, stn_masks[tair_var], tair_var, nnr_ds, aclib)
     
 
 def coast_tmax_analysis():
@@ -6107,7 +6107,7 @@ def test_impute_tair_norm_new():
     
     ds_nnr = NNRNghData('/projects/daymet2/reanalysis_data/conus_subset/',(19480101,20111231))
     
-    fit_tair,obs_tair = impute_tair_norm(stn_id, stn_da, mask_por_tmax,"tmax",ds_nnr)
+    fit_tair,obs_tair = infill_tair_mu_sigma(stn_id, stn_da, mask_por_tmax,"tmax",ds_nnr)
     print fit_tair
 
 def xval_stats_impute_norm():
@@ -6268,7 +6268,7 @@ def test_impute_norm():
     print fit_tair - np.mean(obs_tair[fin_mask])
     #print np.mean(fit_tair[tair_mask])-np.mean(obs_tair[tair_mask])
     
-    imp_mean,imp_var = impute_tair_norm(stn_id, stn_da, stn_masks[tair_var],tair_var,ds_nnr,aclib,tair_mask=tair_mask,nnghs=nngh_stns,nnghs_nnr=nngh_nnr)[0]
+    imp_mean,imp_var = infill_tair_mu_sigma(stn_id, stn_da, stn_masks[tair_var],tair_var,ds_nnr,aclib,tair_mask=tair_mask,nnghs=nngh_stns,nnghs_nnr=nngh_nnr)[0]
         
     
     obs_mean,obs_var = np.mean(obs_tair[fin_mask]),np.var(obs_tair[fin_mask], ddof=1)
@@ -6337,7 +6337,7 @@ def test_impute_daily():
     obs_tair = np.array(stn_da.load_all_stn_obs_var(np.array([stn_id]), tair_var)[0],dtype=np.float64)
     mask_modobs = np.logical_and(np.isfinite(obs_tair),np.logical_not(tair_mask))
 #    #Estimate normal
-    norm_est,va_est = impute_tair_norm(stn_id, stn_da, stn_masks[tair_var], tair_var,ds_nnr,aclib,tair_mask=tair_mask,trim_nan=False,nnghs=nngh_stns, nnghs_nnr=nngh_nnr)[0]
+    norm_est,va_est = infill_tair_mu_sigma(stn_id, stn_da, stn_masks[tair_var], tair_var,ds_nnr,aclib,tair_mask=tair_mask,trim_nan=False,nnghs=nngh_stns, nnghs_nnr=nngh_nnr)[0]
     
     i = np.nonzero(stn_da.stn_ids==stn_id)[0][0]
         
@@ -7839,7 +7839,7 @@ def imputeDailyNoXval():
     aclib = clib_wxTopo(params[P_PATH_CLIB])
     
     #Estimate normal
-    norm_est,va_est = impute_tair_norm(stn_id, stn_da, stn_masks[tair_var], tair_var,ds_nnr,aclib,
+    norm_est,va_est = infill_tair_mu_sigma(stn_id, stn_da, stn_masks[tair_var], tair_var,ds_nnr,aclib,
                                        nnghs=params[P_MIN_NNGH_DAILY],tair_mask=xval_mask,trim_nan=False)[0]
                                        
     i = np.nonzero(stn_da.stn_ids==stn_id)[0][0]
@@ -8064,7 +8064,7 @@ def imputeNormNoXval():
     
     
     stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
-    norm,vary = impute_tair_norm(stn_id, stn_da, stn_masks[tair_var],tair_var,ds_nnr,aclib,nnghs=params[P_MIN_NNGH_DAILY])[0]
+    norm,vary = infill_tair_mu_sigma(stn_id, stn_da, stn_masks[tair_var],tair_var,ds_nnr,aclib,nnghs=params[P_MIN_NNGH_DAILY])[0]
     print norm,vary
 
 def resetInfills():

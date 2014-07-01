@@ -1297,7 +1297,7 @@ class ImputeMatrixPCA(object):
 #        print trim_pca_tair.shape
         
         #preNCols = trim_pca_tair.shape[1]
-        trim_pca_tair, trim_ngh_norms, trim_ngh_std = shrinkMatrix(trim_pca_tair, trim_ngh_norms, trim_ngh_std, min_daily_nnghs)
+        trim_pca_tair, trim_ngh_norms, trim_ngh_std = _shrink_matrix(trim_pca_tair, trim_ngh_norms, trim_ngh_std, min_daily_nnghs)
         #print "".join([self.stn_id,": removed ",str(preNCols- trim_pca_tair.shape[1])," cols."])
         
         if nnr_tair.size > 0:
@@ -1405,7 +1405,7 @@ def isBadImp(impTair,impMatrix):
     
     
 
-def shrinkMatrix(aMatrix, nghNorms, nghStd, minNghs):
+def _shrink_matrix(aMatrix, nghNorms, nghStd, minNghs):
     
     validMask = np.isfinite(aMatrix[:,1:minNghs+1])
     nObs = np.sum(validMask,axis=1)
