@@ -15,7 +15,7 @@ from twx.utils.status_check import StatusCheck
 from twx.utils.input_raster import input_raster, OutsideExtent, RasterDataset
 from twx.modis.montana_ndvi import modis_sin_rast
 import twx.utils.util_geo as utlg
-from twx.infill.infill_daily import ImputeMatrixPCA,source_r
+from twx.infill.infill_daily import InfillMatrixPPCA,source_r
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from twx.db.reanalysis import NNRNghData
@@ -891,9 +891,9 @@ def updateImputeDaily():
     aclib = clib_wxTopo()
     
     
-    a_pca_matrix = ImputeMatrixPCA(stn_id, stn_da, tair_var,ds_nnr,aclib,tair_mask=tair_mask)
+    a_pca_matrix = InfillMatrixPPCA(stn_id, stn_da, tair_var,ds_nnr,aclib,tair_mask=tair_mask)
     
-    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_pca_matrix.impute(min_daily_nnghs=params[P_MIN_NNGH_DAILY],
+    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_pca_matrix.infill(min_daily_nnghs=params[P_MIN_NNGH_DAILY],
                                                                         nnghs_nnr=params[P_NNGH_NNR],
                                                                         max_nnr_var=params[P_NNR_VARYEXPLAIN],
                                                                         chk_perf=params[P_CHCK_IMP_PERF],
@@ -942,7 +942,7 @@ def analyzeBadImpsVarChgPt():
     
     source_r('/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/pca_infill.R')
     
-    f = open('/projects/daymet2/station_data/infill/infill_20130725/impute.log')
+    f = open('/projects/daymet2/station_data/infill/infill_20130725/infill.log')
     lines = np.array(f.readlines())
     lmask = np.logical_and(np.logical_and(np.char.find(lines, 'ERROR|') != -1,
                                           np.char.find(lines, 'variance') != -1),
@@ -1011,10 +1011,10 @@ def analyzeBadImpsHighMAE():
     
     source_r('/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/pca_infill.R')
     
-    f = open('/projects/daymet2/station_data/infill/infill_20130725/impute.log')
+    f = open('/projects/daymet2/station_data/infill/infill_20130725/infill.log')
     lines = np.array(f.readlines())
     lmask = np.logical_and(np.logical_and(np.char.find(lines, 'ERROR|') != -1,
-                                          np.char.find(lines, 'low impute performance') != -1),
+                                          np.char.find(lines, 'low infill performance') != -1),
                                           np.char.find(lines, 'tmax') != -1)
     
     lmask = np.logical_and(lmask,np.char.find(lines, 'variance') == -1)

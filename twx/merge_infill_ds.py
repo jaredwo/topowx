@@ -6,7 +6,7 @@ Created on Apr 1, 2013
 from twx.db.station_data import StationDataDb,STN_ID
 from twx.db.reanalysis import NNRNghData
 from twx.interp.clibs import clib_wxTopo
-from twx.infill.infill_daily import ImputeMatrixPCA,source_r
+from twx.infill.infill_daily import InfillMatrixPPCA,source_r
 import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
@@ -27,9 +27,9 @@ def update_single_infill(stn_id,var,npcs,path_out):
     ds_nnr = NNRNghData('/projects/daymet2/reanalysis_data/conus_subset/', (19480101,20121231))
     aclib = clib_wxTopo('/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C')
     
-    a_pca_matrix = ImputeMatrixPCA(stn_id, stn_da, var,ds_nnr,aclib)
+    a_pca_matrix = InfillMatrixPPCA(stn_id, stn_da, var,ds_nnr,aclib)
     
-    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_pca_matrix.impute(npcs=npcs)
+    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_pca_matrix.infill(npcs=npcs)
 
     fnl_tair = np.copy(obs_tair)
     fill_mask = np.isnan(fnl_tair)

@@ -19,7 +19,7 @@ from netCDF4 import Dataset
 import netCDF4
 import datetime
 from twx.infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,infill_tair_mu_sigma
-from twx.infill.infill_daily import NODATA_NORMS,ImputeMatrixPCA
+from twx.infill.infill_daily import NODATA_NORMS,InfillMatrixPPCA
 from twx.db.reanalysis import NNRds,NNRNghData
 from scipy import stats
 from httplib import HTTPException
@@ -133,9 +133,9 @@ def proc_work(params,rank):
                 stn_da.stns["_".join(["mean",tair_var])][i] = norm_est
                 stn_da.stns["_".join(["var",tair_var])][i] = va_est
                 
-                a_pca_matrix = ImputeMatrixPCA(stn_id, stn_da, tair_var,ds_nnr,aclib,tair_mask=tair_mask)
+                a_pca_matrix = InfillMatrixPPCA(stn_id, stn_da, tair_var,ds_nnr,aclib,tair_mask=tair_mask)
                             
-                imp_tair =  a_pca_matrix.impute(min_daily_nnghs=nnghs,
+                imp_tair =  a_pca_matrix.infill(min_daily_nnghs=nnghs,
                                                 nnghs_nnr=params[P_NNGH_NNR],
                                                 max_nnr_var=params[P_NNR_VARYEXPLAIN],
                                                 chk_perf=params[P_CHCK_IMP_PERF],

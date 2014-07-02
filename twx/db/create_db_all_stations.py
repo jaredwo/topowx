@@ -6,7 +6,7 @@ into a single database format
 __all__ = ['Insert', 'InsertGhcn', 'InsertRaws', 'InsertSnotel',
            'create_netcdf_db', 'insert_data_netcdf_db',
            'MISSING', 'DTYPE_STNOBS', 'NCDF_CHK_COLS', 'add_monthly_means',
-           'add_utc_offset','dbDataset']
+           'add_utc_offset','dbDataset','create_quick_db']
 
 import os
 import numpy as np
@@ -16,7 +16,7 @@ from netCDF4 import Dataset
 from netCDF4 import date2num
 import netCDF4
 from netcdftime import num2date
-from station_data import STN_NAME, ELEV, LAT, LON, STATE
+from station_data import STN_NAME, ELEV, LAT, LON, STATE, STN_ID
 import twx
 
 MISSING = -9999.
@@ -201,6 +201,91 @@ class dbDataset(Dataset):
     def db_create_qflagprcp_var(self, dim=('time', 'stn_id'), chunk=None):
 
         self.db_create_char_var('qflag_prcp', "quality assurance flag prcp", "quality assurance flag prcp", dim, chunk)
+
+
+def create_quick_db(path,stns,days,variables):
+    '''
+    Quickly create a netCDF4 weather station database for a specific set of stations,
+    time period, and set of variables.
+    
+    Parameters
+    ----------
+    path : str
+        File path for the database
+    stns : structured array
+        A structured array of stations from twx.db.StationDataDb.
+    days : structured array
+        A days array produced by twx.utils.get_days_metadata
+    variables : list of tuples
+        A list of tuples specifying the (time,stn_id) variables
+        to be created. Each tuple is of size 5 and should contain: 
+        variable name, data type, fill value, long name, and units.
+    '''
+
+    ncdf_file = Dataset(path, 'w')
+
+    # Set global attributes
+    title = "Weather Station Database"
+    ncdf_file.title = title
+    ncdf_file.institution = "University of Montana Numerical Terradynamics Simulation Group"
+    ncdf_file.history = "".join(["Created on: ", datetime.datetime.strftime(datetime.date.today(), "%Y-%m-%d")])
+
+    print "Creating netCDF4 database for " + str(days[DATE][0]) + " to " + str(days[DATE][-1]) + " for " + str(stns.size) + " stations."
+
+    dim_time = ncdf_file.createDimension('time', days.size)
+    dim_station = ncdf_file.createDimension('stn_id', stns.size)
+
+    times = ncdf_file.createVariable('time', 'f8', ('time',), fill_value=False)
+    times.long_name = "time"
+    times.units = "".join(["days since ", str(days[DATE][0].year), "-", str(days[DATE][0].month), "-", str(days[DATE][0].day), " 0:0:0"])
+    times.standard_name = "time"
+    times.calendar = "standard"
+    times[:] = date2num(days[DATE], times.units)
+
+    stations = ncdf_file.createVariable('stn_id', 'str', ('stn_id',))
+    stations.long_name = "station id"
+    stations.standard_name = "station id"
+    stations[:] = stns[STN_ID].astype(np.object)
+
+    names = ncdf_file.createVariable('name', 'str', ('stn_id',))
+    names.long_name = "station name"
+    names.standard_name = "name"
+    names[:] = stns[STN_NAME].astype(np.object)
+
+    states = ncdf_file.createVariable('state', 'str', ('stn_id',))
+    states.long_name = "state"
+    states.standard_name = "state"
+    states[:] = stns[STATE].astype(np.object)
+
+    latitudes = ncdf_file.createVariable('lat', 'f8', ('stn_id',), fill_value=MISSING)
+    latitudes.long_name = "latitude"
+    latitudes.units = "degrees_north"
+    latitudes.standard_name = "latitude"
+    latitudes[:] = stns[LAT]
+
+    longitudes = ncdf_file.createVariable('lon', 'f8', ('stn_id',), fill_value=MISSING)
+    longitudes.long_name = 'longitude'
+    longitudes.units = "degrees_east"
+    longitudes.standard_name = "longitude"
+    longitudes[:] = stns[LON]
+
+    elevs = ncdf_file.createVariable('elev', 'f8', ('stn_id',), fill_value=MISSING)
+    elevs.long_name = "elevation"
+    elevs.units = "m"
+    elevs.standard_name = "elevation"
+    elevs[:] = stns[ELEV]
+    
+    for varname,dtype,fill_value,long_name,units in variables:
+    
+        a_var = ncdf_file.createVariable(varname, dtype, ('time', 'stn_id'),
+                                         fill_value=fill_value,
+                                         chunksizes=(days[DATE].size, NCDF_CHK_COLS))
+        a_var.long_name = long_name
+        a_var.units = units
+
+    ncdf_file.close()
+
+    print "Done creating NCDF Database......"
 
 
 def create_netcdf_db(path, min_date, max_date, inserts):

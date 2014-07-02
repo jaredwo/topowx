@@ -32,7 +32,7 @@ from twx.utils.status_check import StatusCheck
 from twx.utils.util_ncdf import ncdf_raster,to_geotiff,to_ncdf,expand_grid
 from qa.qa_location import load_locs_fixed
 import twx.utils.util_geo as utlg
-from twx.infill.infill_daily import gwrpca_matrix,source_r,pca_matrix,calc_hss,calc_forecast_scores,pca_matrix_prcp,infill_prcp,PO_THRESHS,prcp_infill_results,build_yr_mth_masks,tmin_tmax_fixer,ioapca_matrix,nnrpca_matrix,ImputeMatrixPCA,MIN_NNR_VAR
+from twx.infill.infill_daily import gwrpca_matrix,source_r,pca_matrix,calc_hss,calc_forecast_scores,pca_matrix_prcp,infill_prcp,PO_THRESHS,prcp_infill_results,build_yr_mth_masks,tmin_tmax_fixer,ioapca_matrix,nnrpca_matrix,InfillMatrixPPCA,MIN_NNR_VAR
 from qa.qa_location import get_elev_usgs
 
 from twx.infill.infill_normals import infill_tair,build_mth_masks,MTH_BUFFER,infill_prcp_norm,_InfillMatrix,infill_tair_mu_sigma
@@ -3887,7 +3887,7 @@ def TEST_PCACOR_IMPUTE_TAIR():
     va_pca = np.copy(va[tair_var])
     va_pca[stn_da.stn_ids==stn_id] = va_est
     
-    a_matrix = ImputeMatrixPCA(stn_id, stn_da, tair_var, norms_pca,ds_nnr[tair_var],tair_mask=xval_mask)
+    a_matrix = InfillMatrixPPCA(stn_id, stn_da, tair_var, norms_pca,ds_nnr[tair_var],tair_mask=xval_mask)
     
 #    for x in np.arange(a_matrix.pca_tair.shape[1]):
 #        plt.plot(a_matrix.pca_tair[:,x])
@@ -3895,7 +3895,7 @@ def TEST_PCACOR_IMPUTE_TAIR():
         
     
     #a_matrix = impute_matrix(stn_id, stn_da, stn_masks[tair_var], tair_var,tair_mask=xval_mask)
-    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_matrix.impute(nnghs=nnghs)
+    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_matrix.infill(nnghs=nnghs)
     
     if xval_mask is not None:
         difs = fit_tair[xval_mask] - tair[xval_mask]
@@ -4028,9 +4028,9 @@ def TEST_MICROMET_IMPUTE_TAIR():
     va_pca[np.in1d(stn_da.stn_ids, norms_stnid,True)] = va[tair_var]
     va_pca[stn_da.stn_ids==stn_id] = va_est
     
-    a_matrix = ImputeMatrixPCA(stn_id, stn_da, tair_var, norms_pca, va_pca,ds_nnr[tair_var],tair_mask=xval_mask)
+    a_matrix = InfillMatrixPPCA(stn_id, stn_da, tair_var, norms_pca, va_pca,ds_nnr[tair_var],tair_mask=xval_mask)
     #a_matrix = impute_matrix(stn_id, stn_da, stn_masks[tair_var], tair_var,tair_mask=xval_mask)
-    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_matrix.impute()
+    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_matrix.infill()
     
     if xval_mask is not None:
         difs = fit_tair[xval_mask] - tair[xval_mask]
@@ -6344,9 +6344,9 @@ def test_impute_daily():
     stn_da.stns["_".join(["mean",tair_var])][i] = norm_est
     stn_da.stns["_".join(["var",tair_var])][i] = va_est
     
-    a_pca_matrix = ImputeMatrixPCA(stn_id, stn_da, tair_var,ds_nnr,aclib=aclib,tair_mask=tair_mask,add_bestngh=True)
+    a_pca_matrix = InfillMatrixPPCA(stn_id, stn_da, tair_var,ds_nnr,aclib=aclib,tair_mask=tair_mask,add_bestngh=True)
                 
-    fit_tair =  a_pca_matrix.impute(nngh_stns,nngh_nnr)[0]   
+    fit_tair =  a_pca_matrix.infill(nngh_stns,nngh_nnr)[0]   
     
     xval_fit = fit_tair[tair_mask]
     xval_obs = obs_tair[tair_mask]
@@ -6423,9 +6423,9 @@ def test_impute_daily_noxval():
     tair_mask = xval_masks[tair_var]
     obs_tair = np.array(stn_da.load_all_stn_obs_var(np.array([stn_id]), tair_var)[0],dtype=np.float64)
     
-    a_pca_matrix = ImputeMatrixPCA(stn_id, stn_da, tair_var,ds_nnr,aclib)
+    a_pca_matrix = InfillMatrixPPCA(stn_id, stn_da, tair_var,ds_nnr,aclib)
                 
-    fit_tair =  a_pca_matrix.impute(nngh_stns,nngh_nnr)[0]
+    fit_tair =  a_pca_matrix.infill(nngh_stns,nngh_nnr)[0]
     xval_fit = fit_tair[tair_mask]
     xval_obs = obs_tair[tair_mask]    
     
@@ -7850,9 +7850,9 @@ def imputeDailyNoXval():
     stn_da.stns["_".join(["mean",tair_var])][i] = norm_est
     stn_da.stns["_".join(["var",tair_var])][i] = va_est
     
-    a_pca_matrix = ImputeMatrixPCA(stn_id, stn_da, tair_var,ds_nnr,aclib,tair_mask=xval_mask)
+    a_pca_matrix = InfillMatrixPPCA(stn_id, stn_da, tair_var,ds_nnr,aclib,tair_mask=xval_mask)
     
-    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_pca_matrix.impute(min_daily_nnghs=params[P_MIN_NNGH_DAILY],
+    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_pca_matrix.infill(min_daily_nnghs=params[P_MIN_NNGH_DAILY],
                                                                         nnghs_nnr=params[P_NNGH_NNR],
                                                                         max_nnr_var=params[P_NNR_VARYEXPLAIN],
                                                                         chk_perf=params[P_CHCK_IMP_PERF],
@@ -7973,9 +7973,9 @@ def updateImputeDaily():
     aclib = clib_wxTopo(params[P_PATH_CLIB])
     
     
-    a_pca_matrix = ImputeMatrixPCA(stn_id, stn_da, tair_var,ds_nnr,aclib,tair_mask=tair_mask)
+    a_pca_matrix = InfillMatrixPPCA(stn_id, stn_da, tair_var,ds_nnr,aclib,tair_mask=tair_mask)
     
-    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_pca_matrix.impute(min_daily_nnghs=params[P_MIN_NNGH_DAILY],
+    fit_tair, obs_tair, npcs, fnl_nnghs, max_dist = a_pca_matrix.infill(min_daily_nnghs=params[P_MIN_NNGH_DAILY],
                                                                         nnghs_nnr=params[P_NNGH_NNR],
                                                                         max_nnr_var=params[P_NNR_VARYEXPLAIN],
                                                                         chk_perf=params[P_CHCK_IMP_PERF],
@@ -8521,7 +8521,7 @@ def analyzeBadImpsHighMAE():
     f = open('/projects/daymet2/station_data/infill/infill_20130518/impute_20130528.log')
     lines = np.array(f.readlines())
     lmask = np.logical_and(np.logical_and(np.char.find(lines, 'ERROR|') != -1,
-                                          np.char.find(lines, 'low impute performance') != -1),
+                                          np.char.find(lines, 'low infill performance') != -1),
                            np.char.find(lines, 'tmax') != -1)
     
     lmask = np.logical_and(lmask,np.char.find(lines, 'variance') == -1)
@@ -9098,7 +9098,7 @@ def daymetAnnPlot():
 
 def imputeLogAnalysis():
     
-    logFile = open('/projects/daymet2/station_data/infill/infill_20130725/impute.log')
+    logFile = open('/projects/daymet2/station_data/infill/infill_20130725/infill.log')
     
     warns = {}
     succ = {}

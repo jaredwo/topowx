@@ -1,18 +1,20 @@
 '''
-A MPI driver for producing mean value estimates (i.e--normals) for each station over a specified time period
-using the methods of obs_infill_normal.
+MPI script for estimating/infilling period-of-record means
+and variances of incomplete Tmin/Tmax station time series.
 
-@author: jared.oyler
+Must be run using mpiexec or mpirun.
 '''
 
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db import StationDataDb,STN_ID,MEAN_TMIN,MEAN_TMAX,VAR_TMIN,VAR_TMAX,load_por_csv,build_valid_por_masks
+from twx.db import StationDataDb,STN_ID,MEAN_TMIN,MEAN_TMAX,\
+VAR_TMIN,VAR_TMAX,load_por_csv,build_valid_por_masks
 from twx.utils import StatusCheck, Unbuffered
 import netCDF4
-from twx.infill import impute_tair_norm
+from twx.infill import infill_mean_variance
 from twx.db import NNRNghData
+import os
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -49,31 +51,32 @@ def proc_work(params,rank):
     
     ds_nnr = NNRNghData(params[P_PATH_NNR], (params[P_START_YMD],params[P_END_YMD]))
                 
-    print "".join(["Worker ",str(rank),": Received broadcast msg"])
+    print "".join(["WORKER ",str(rank),": Received broadcast msg"])
         
     while 1:
     
         stn_id,tair_var = MPI.COMM_WORLD.recv(source=RANK_COORD,tag=MPI.ANY_TAG,status=status)
 
         if status.tag == TAG_STOPWORK:
-            MPI.COMM_WORLD.send([None]*6, dest=RANK_WRITE, tag=TAG_STOPWORK)
-            print "".join(["Worker ",str(rank),": Finished"]) 
+            MPI.COMM_WORLD.send([None]*4, dest=RANK_WRITE, tag=TAG_STOPWORK)
+            print "".join(["WORKER ",str(rank),": Finished"]) 
             return 0
         else:
             
             try:
                 
-                norm,vary = impute_tair_norm(stn_id, stn_da, stn_masks[tair_var],tair_var,ds_nnr,aclib,nnghs=params[P_MIN_NNGH_DAILY])[0]
+                stn_mean,stn_vari = infill_mean_variance(stn_id, stn_da, stn_masks[tair_var],
+                                                         tair_var, ds_nnr, nnghs=params[P_MIN_NNGH_DAILY])
             
             except Exception as e:
             
-                print "".join(["ERROR: Worker ",str(rank),": could not infill ",
+                print "".join(["ERROR: WORKER ",str(rank),": could not infill ",
                                tair_var," for ",stn_id,str(e)])
                 
-                norm = netCDF4.default_fillvals['f8']
-                vary = netCDF4.default_fillvals['f8']
+                stn_mean = netCDF4.default_fillvals['f8']
+                stn_vari = netCDF4.default_fillvals['f8']
             
-            MPI.COMM_WORLD.send((stn_id,tair_var,mae,bias,norm,vary), dest=RANK_WRITE, tag=TAG_DOWORK)
+            MPI.COMM_WORLD.send((stn_id,tair_var,stn_mean,stn_vari), dest=RANK_WRITE, tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
                 
 def proc_write(params,nwrkers):
@@ -107,22 +110,20 @@ def proc_write(params,nwrkers):
     
     while 1:
        
-        stn_id,tair_var,mae,bias,norm,vary = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
+        stn_id,tair_var,stn_mean,stn_vari = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
         
         if status.tag == TAG_STOPWORK:
             
             nwrkrs_done+=1
             if nwrkrs_done == nwrkers:
-                print "Writer: Finished"
+                print "WRITER: Finished"
                 return 0
         else:
             
             stnid_dim = stn_idxs[stn_id]
-            
-            #print "|".join(["WRITER",stn_id,tair_var,"%.4f"%(mae,),"%.4f"%(bias,),"%.4f"%(norm,),"%.4f"%(vary,)])
-            
-            tair_varmeans[tair_var][stnid_dim] = norm
-            tair_varvary[tair_var][stnid_dim] = vary
+                        
+            tair_varmeans[tair_var][stnid_dim] = stn_mean
+            tair_varvary[tair_var][stnid_dim] = stn_vari
             stn_da.ds.sync()
                         
             stat_chk.increment()
@@ -132,26 +133,16 @@ def proc_coord(params,nwrkers):
     #Load the period-of-record datafile
     por = load_por_csv(params[P_PATH_POR])
     
-    mask_por_tmin,mask_por_tmax,mask_por_prcp = build_valid_por_masks(por,params[P_MIN_POR],params[P_STN_LOC_BNDS])
-    
-    #mask_ca = np.char.startswith(por[STN_ID], "GHCN_CA")
-    #mask_por_tmin = np.logical_and(mask_por_tmin,mask_ca)
-    #mask_por_tmax = np.logical_and(mask_por_tmax,mask_ca)
-    
-#    stns_ids = np.array(['GHCN_USC00045866','GHCN_USC00046943','GHCN_USC00047011',
-#                         'GHCN_USC00047024','GHCN_USC00047767','GHCN_USW00093226','RAWS_CDNO','RAWS_CSBB'])
-    
+    mask_por_tmin,mask_por_tmax = build_valid_por_masks(por,params[P_MIN_POR])
+        
     #Extract stn_ids that have min # of observations
     stn_ids_tmin = por[STN_ID][mask_por_tmin]
     stn_ids_tmax = por[STN_ID][mask_por_tmax]
-    
-#    stn_ids_tmin = stn_ids_tmin[np.in1d(stn_ids_tmin, stns_ids, True)]
-#    stn_ids_tmax = stn_ids_tmax[np.in1d(stn_ids_tmax, stns_ids, True)]
-    
+        
     #Send stn masks to all processes
     MPI.COMM_WORLD.bcast((mask_por_tmin,mask_por_tmax), root=RANK_COORD)
     
-    print "Coord: Done initialization. Starting to send work."
+    print "COORD: Done initialization. Starting to send work."
     
     cnt = 0
     nrec = 0
@@ -178,9 +169,12 @@ def proc_coord(params,nwrkers):
     for w in np.arange(nwrkers):
         MPI.COMM_WORLD.send((None,None), dest=w+N_NON_WRKRS, tag=TAG_STOPWORK)
         
-    print "coord_proc: done"
+    print "COORD: done"
 
 if __name__ == '__main__':
+    
+    PROJECT_ROOT = "/projects/topowx"
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
     
     np.seterr(all='raise')
     np.seterr(under='ignore')
@@ -189,17 +183,14 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = '/projects/daymet2/station_data/all/all_1948_2012.nc'
-    params[P_PATH_POR] = '/projects/daymet2/station_data/all/all_por_1948_2012.csv'
-    params[P_PATH_R_FUNCS] = '/home/jared.oyler/repos/twx/twx/lib/rpy/imputation.R'
-    params[P_PATH_NNR] = '/projects/daymet2/reanalysis_data/conus_subset/'
-    params[P_MIN_POR] = 5  #2 for CCE
+    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'tair_homog_1948_2012.nc')
+    params[P_PATH_POR] = os.path.join(FPATH_STNDATA, 'all', 'homog_por_1948_2012.csv')
+    params[P_PATH_NNR] = os.path.join(PROJECT_ROOT, 'reanalysis_data', 'conus_subset')
+    params[P_MIN_POR] = 5  #minimum period-of-record in years
     params[P_START_YMD] = 19480101
     params[P_END_YMD] = 20121231
-    params[P_MIN_NNGH_DAILY] = 3
-    #left,right,bottom,top
-    #params[P_STN_LOC_BNDS] = (-118.5,-109.2,44.0,52.6) #Crown of the Continent
-    params[P_STN_LOC_BNDS] = (-126.0,-64.0,22.0,53.0) #CONUS
+    params[P_MIN_NNGH_DAILY] = 3 #minimum number of neighboring observations per day
+
     
     if rank == RANK_COORD:
         proc_coord(params, nsize-N_NON_WRKRS)

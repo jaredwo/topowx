@@ -8,6 +8,21 @@
 library(norm)
 SEED<-4324
 
+#Estimate the mean and variance of an incomplete station time series
+
+#Parameters
+#----------
+#mat : matrix
+#	N*P 2-D matrix where N is the number days in the time series and P
+#	is the number of station and/or other time series to be used for
+# 	estimation. The first column is the station time series of focus.
+#	Use NaN to represent missing observations.
+
+#Returns
+#----------
+#vector
+#	A vector containing the estimated mean and variance for the first
+#	column of the input matrix.
 infill_mu_sigma <- function(mat)
 {	
 

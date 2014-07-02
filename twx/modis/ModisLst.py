@@ -1205,7 +1205,7 @@ class ImputeLST():
             
             self.mthMasks.append(self.stnda.days[MONTH]==mth)
         
-    def impute(self,x,y,lst,nstns=7):
+    def infill(self,x,y,lst,nstns=7):
         lon, lat, Z = self.sinTrans.trans_sin_to_wgs84.TransformPoint(x,y)
         
         dists = utlg.grt_circle_dist(lon, lat, self.stns[LON], self.stns[LAT])
