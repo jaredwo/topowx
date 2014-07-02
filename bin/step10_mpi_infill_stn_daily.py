@@ -8,7 +8,7 @@ Must be run using mpiexec or mpirun.
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db import StationDataDb, STN_ID, MEAN_TMIN,\
+from twx.db import StationDataDb, STN_ID, MEAN_TMIN, \
 MEAN_TMAX, NNRNghData, create_quick_db
 from twx.utils import StatusCheck, Unbuffered
 from netCDF4 import Dataset
@@ -302,9 +302,9 @@ if __name__ == '__main__':
     params = {}
     params[P_PATH_DB] = '/projects/topowx/refactor_test/all/tair_homog_1948_2012.nc'
     params[P_PATH_OUT] = '/projects/topowx/refactor_test/infill'
-    #params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'tair_homog_1948_2012.nc')
-    #params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill')
-    
+    # params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'tair_homog_1948_2012.nc')
+    # params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill')
+
     params[P_PATH_NNR] = os.path.join(PROJECT_ROOT, 'reanalysis_data', 'conus_subset')
     params[P_NCDF_MODE] = 'w'  # w or r+
     params[P_START_YMD] = 19480101
