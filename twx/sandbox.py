@@ -7909,7 +7909,7 @@ def imputeDailyNoXval():
 #        ds_out.variables['flag_impute'][:,stn_idx] = fill_mask
 #        ds_out.variables[LAST_VAR_WRITTEN][stn_idx] = fnl_nnghs
 
-def updateImputeDaily():
+def update_daily_infill():
     
     P_PATH_DB = 'P_PATH_DB'
     P_PATH_OUT = 'P_PATH_OUT'
@@ -9613,7 +9613,7 @@ if __name__ == '__main__':
     #tmaxShiftValidation()
     #imputeLogAnalysis()
     #daymetAnnPlot()
-    #updateImputeDaily()
+    #update_daily_infill()
     #xvalStatsImpute()
     #Optim/xval stations methods
     ###################################
@@ -9648,7 +9648,7 @@ if __name__ == '__main__':
     #analyzeRmStns()
     #analyzeBadImpsHighMAE()
     #stnsForRuben()
-    #updateImputeDaily()
+    #update_daily_infill()
     #analyzeBadImps()
     #summary_stats_daymet()
     #stnsForRuben()

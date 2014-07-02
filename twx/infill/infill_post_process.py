@@ -829,7 +829,7 @@ def set_optim_nnghs(dspath,varname_tair,min_nghs,varname=OPTIM_NNGH,longname=Non
         avar[lcc_mask] = min_nghs[x]
     ds.sync()
     
-def updateImputeDaily():
+def update_daily_infill():
     
     P_PATH_DB = 'P_PATH_DB'
     P_PATH_OUT = 'P_PATH_OUT'
@@ -1221,7 +1221,7 @@ if __name__ == '__main__':
 #Pre-STEP: Analyze flagged imputations and fix if necessary
     #analyzeBadImpsVarChgPt()
     #analyzeBadImpsHighMAE()
-    #updateImputeDaily()
+    #update_daily_infill()
 
     
 #################################################################################################################    

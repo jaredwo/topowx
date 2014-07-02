@@ -4,7 +4,7 @@ Classes and utilities for accessing weather station data
 
 __all__ = ["TMAX","TMIN","TMIN_FLAG","TMAX_FLAG","LON","LAT","ELEV","STN_ID",
            "STN_NAME","STATE","UTC_OFFSET","StationDataDb","StationSerialDataDb",
-           "MEAN_TMAX","MEAN_TMIN","VAR_TMIN","VAR_TMAX"]
+           "MEAN_TMAX","MEAN_TMIN","VAR_TMIN","VAR_TMAX","BAD"]
 
 import numpy as np
 from twx.utils import get_days_metadata, get_days_metadata_dates
@@ -207,7 +207,7 @@ class StationDataDb(object):
         self.day_mask = np.nonzero(np.logical_and(self.days[YMD] >= start_ymd, self.days[YMD] <= end_ymd))[0]
         self.days = self.days[self.day_mask]
            
-    def add_stn_variable(self,varname,long_name,units,dtype):
+    def add_stn_variable(self,varname,long_name,units,dtype,fill_value=None):
         '''
         Add and initialize a station variable. If the variable
         already exists, it will be reset.
@@ -222,6 +222,9 @@ class StationDataDb(object):
             The units of the variable.
         dtype : str
             The data type of the variable as a string.
+        fill_value : int or float
+            The fill or no data value for the variable.
+            If None, the default netCDF4 fill value will be used
             
         Returns
         -------
@@ -229,17 +232,19 @@ class StationDataDb(object):
             The new netCDF4 variable
         '''
         
+        fill_value = netCDF4.default_fillvals[dtype] if fill_value is None else fill_value
+        
         if varname not in self.ds.variables.keys():
             
             newvar = self.ds.createVariable(varname,dtype,('stn_id',),
-                                            fill_value=netCDF4.default_fillvals[dtype])
+                                            fill_value=fill_value)
             newvar.long_name = long_name
             newvar.units = units
             
         else:
             
             newvar = self.ds.variables[varname]
-            newvar[:] = netCDF4.default_fillvals[dtype]
+            newvar[:] = fill_value
             self.ds.sync()
         
         return newvar
@@ -400,7 +405,7 @@ class StationSerialDataDb(object):
     Each serially complete database only has one main variable.
     '''
 
-    def __init__(self, nc_path, var_name,vcc_size=470560000,vcc_nelems=None,vcc_preemption=0):
+    def __init__(self, nc_path, var_name,vcc_size=470560000,vcc_nelems=None,vcc_preemption=0,mode="r"):
         '''
         Parameters
         ----------
@@ -415,9 +420,11 @@ class StationSerialDataDb(object):
             raw data chunk cache hash table.
         vcc_preemption : int, optional
             The netCDF4 var chunk cache preemption value.
+        mode : str, optional
+            The dataset read mode (r or r+)
         '''
                 
-        self.ds = Dataset(nc_path)
+        self.ds = Dataset(nc_path,mode=mode)
         var_time = self.ds.variables['time']        
         dates = num2date(var_time[:], var_time.units)
         self.days = get_days_metadata_dates(dates)  
@@ -467,8 +474,6 @@ class StationSerialDataDb(object):
             A numpy array of N station ids or a single station id
         mth : int, optional
             Only load observations for a specific month
-        set_flagged_nan : bool
-            If true, any QA-flagged observations will be set to nan
             
         Returns
         -------
@@ -507,3 +512,45 @@ class StationSerialDataDb(object):
             obs.shape = (obs.shape[0],)
         
         return obs
+
+    def add_stn_variable(self,varname,long_name,units,dtype,fill_value=None):
+        '''
+        Add and initialize a station variable. If the variable
+        already exists, it will be reset.
+        
+        Parameters
+        ----------
+        varname : str
+            The name of the variable.
+        long_name : str
+            The long name of the variable.
+        units : str
+            The units of the variable.
+        dtype : str
+            The data type of the variable as a string.
+        fill_value : int or float
+            The fill or no data value for the variable.
+            If None, the default netCDF4 fill value will be used
+            
+        Returns
+        -------
+        newvar : netCDF4.Variable
+            The new netCDF4 variable
+        '''
+        
+        fill_value = netCDF4.default_fillvals[dtype] if fill_value is None else fill_value
+        
+        if varname not in self.ds.variables.keys():
+            
+            newvar = self.ds.createVariable(varname,dtype,('stn_id',),
+                                            fill_value=fill_value)
+            newvar.long_name = long_name
+            newvar.units = units
+            
+        else:
+            
+            newvar = self.ds.variables[varname]
+            newvar[:] = fill_value
+            self.ds.sync()
+        
+        return newvar
