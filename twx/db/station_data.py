@@ -4,7 +4,9 @@ Classes and utilities for accessing weather station data
 
 __all__ = ["TMAX","TMIN","TMIN_FLAG","TMAX_FLAG","LON","LAT","ELEV","STN_ID",
            "STN_NAME","STATE","UTC_OFFSET","StationDataDb","StationSerialDataDb",
-           "MEAN_TMAX","MEAN_TMIN","VAR_TMIN","VAR_TMAX","BAD"]
+           "MEAN_TMAX","MEAN_TMIN","VAR_TMIN","VAR_TMAX","BAD","CLIMDIV",
+           "MASK","TDI","get_norm_varname","get_optim_varname","get_optim_anom_varname",
+           "get_lst_varname"]
 
 import numpy as np
 from twx.utils import get_days_metadata, get_days_metadata_dates
@@ -35,7 +37,6 @@ MEAN_OBS = "obs_mean"
 TDI = "tdi" #Topographic Dissection
 LST = "lst" #Land Surface Temperature
 VCF = 'vcf' #vegetation continuous fields (% forest cover)
-NEON = "neon" #NEON Ecoregion
 LC = 'lc' #land cover
 OPTIM_NNGH = 'optim_nnghs'
 OPTIM_NNGH_ANOM = 'optim_nnghs_anom'
@@ -245,7 +246,8 @@ class StationDataDb(object):
             
             newvar = self.ds.variables[varname]
             newvar[:] = fill_value
-            self.ds.sync()
+        
+        self.ds.sync()
         
         return newvar
         
@@ -438,6 +440,7 @@ class StationSerialDataDb(object):
         self.stn_ids = np.array(self.ds.variables['stn_id'][:], dtype="<S16")
         self.var = self.ds.variables[var_name]
         self.var.set_auto_maskandscale(False) #no missing values, no need to mask
+        self.var_name = var_name
         
         if vcc_size != None or vcc_nelems != None or vcc_preemption != None:
             
@@ -551,6 +554,7 @@ class StationSerialDataDb(object):
             
             newvar = self.ds.variables[varname]
             newvar[:] = fill_value
-            self.ds.sync()
+        
+        self.ds.sync()
         
         return newvar

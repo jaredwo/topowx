@@ -26,7 +26,7 @@ if __name__ == '__main__':
     ds_nnr = NNRNghData(fpath_nnr_subsets, (stnda.days[YMD][0], stnda.days[YMD][-1]))
     
     stn_id = '' #set to a station id for which infilling should be rerun
-    tair_var = 'tmin'
+    tair_var = 'tmin' #or tmax
     
     #PPCA parameters that can be adjusted
     min_daily_nnghs = 3

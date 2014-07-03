@@ -294,7 +294,7 @@ class NcdfRaster():
         
     def getGridCellOffset(self,x,y):
         
-        if not self.is_inbounds(x, y):
+        if not self.__is_inbounds(x, y):
             raise Exception("Lon/Lat outside raster extent")
         
         originX = self.geoTransform[0]
@@ -306,7 +306,7 @@ class NcdfRaster():
         yOffset = abs(int((y - originY) / pixelHeight))
         return xOffset,yOffset
     
-    def is_inbounds(self,x,y):
+    def __is_inbounds(self,x,y):
         return x >= self.min_x and x <= self.max_x and y >= self.min_y and y <= self.max_y
     
 
@@ -350,7 +350,7 @@ class ncdf_raster():
     
     def getGridCellOffset(self,lon,lat):
         
-        if not self.is_inbounds(lon, lat):
+        if not self.__is_inbounds(lon, lat):
             raise Exception("Lon/Lat outside raster extent")
         
         originX = self.geoTransform[0]
@@ -362,7 +362,7 @@ class ncdf_raster():
         yOffset = abs(int((lat - originY) / pixelHeight))
         return xOffset,yOffset
     
-    def is_inbounds(self,x_geo,y_geo):
+    def __is_inbounds(self,x_geo,y_geo):
         return x_geo >= self.min_x and x_geo <= self.max_x and y_geo >= self.min_y and y_geo <= self.max_y
     
     def get_data_value(self,lon,lat,useCache=False):

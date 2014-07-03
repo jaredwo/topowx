@@ -34,21 +34,27 @@ LST_TMIN = 'lst_tmin'
 MIN_RADIUS_INFLUENCE = 10
 DFLT_INIT_NNGHS = 100
 
+R_LOADED = False
 
-def init_interp_R_env():
+def _init_interp_R_env():
     
-    print "Loading R environment for interp_tair..."
-    
-    #get system path to twx
-    twx_path = os.path.split(os.path.split(__file__)[0])[0]
-    #get system path to interp.R
-    rsrc_path = os.path.join(twx_path,'lib','rpy','interp.R')
-    
-    r.source(rsrc_path)
-    #Set trend formula
-    ri.globalenv['FORMULA'] =  ri.globalenv.get("build_formula")(ri.StrSexpVector(["tair"]),ri.StrSexpVector(KRIG_TREND_VARS))
+    global R_LOADED
 
-init_interp_R_env()
+    if not R_LOADED:
+    
+        print "Loading R environment for interp_tair..."
+        
+        #get system path to twx
+        twx_path = os.path.split(os.path.split(__file__)[0])[0]
+        #get system path to interp.R
+        rsrc_path = os.path.join(twx_path,'lib','rpy','interp.R')
+        
+        r.source(rsrc_path)
+        #Set trend formula
+        ri.globalenv['FORMULA'] =  ri.globalenv.get("build_formula")(ri.StrSexpVector(["tair"]),ri.StrSexpVector(KRIG_TREND_VARS))
+        
+        R_LOADED = True
+        
 
 class SVD_Exception(Exception):
     pass
@@ -521,15 +527,53 @@ class BuildKrigParams(object):
                 
         return nug,psill,rng
 
-#Build variogram params and performing moving window kriging all in one step
 class KrigTairAll(object):
+    '''
+    Class to perform moving window variogram fitting and regression kriging
+    of monthly normals all in one step. Uses the R gstat package. This is
+    mainly used in the optimization of the local number of neighboring
+    stations bandwidth to be used for moving window regression kriging in
+    each month.
+    '''
     
     def __init__(self,stn_slct):
+        '''
+        Parameters
+        ----------
+        stn_slct : StationSelect
+            A StationSelect object for finding and
+            selecting neighboring stations to a point.
+        '''
         
+        _init_interp_R_env()
         self.stn_slct = stn_slct
         self.r_func = ri.globalenv.get('krig_all')
         
     def krigall(self,pt,nnghs,stns_rm=None):
+        '''
+        Run moving window variogram fitting and regression kriging
+        to interpolate monthly temperature normals to a single point location.
+        
+        Parameters
+        ----------
+        pt : structured array
+            A structured array containing the point's latitude, longitude,
+            elevation, topographic dissection index, and average land skin 
+            temperatures for each month. An empty point can be initialized
+            with build_empty_pt()
+        nnghs : int
+            The number of neighboring stations to use.
+        stns_rm : ndarray or str, optional
+            An array of station ids or a single station id for stations that
+            should not be considered neighbors for the specific point.
+        
+        Returns
+        ----------
+        interp_norms : ndarray
+            A 1-D array of size 12 containing 
+            the interpolated monthly normals
+        
+        '''
         
         self.stn_slct.set_ngh_stns(pt[LAT],pt[LON],nnghs,load_obs=False,stns_rm=stns_rm)
                 

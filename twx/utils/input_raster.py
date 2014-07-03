@@ -98,7 +98,7 @@ class RasterDataset(object):
         '''Returns the grid cell offset for this raster based on the input wgs84 lon/lat'''
         xGeo, yGeo, zGeo = self.coordTrans_wgs84_to_src.TransformPoint(lon,lat) 
         
-        if not self.is_inbounds(xGeo, yGeo):
+        if not self.__is_inbounds(xGeo, yGeo):
             raise OutsideExtent("lat/lon outside raster extent: "+str(lat)+","+str(lon))
         
         originX = self.geo_t[0]
@@ -127,7 +127,7 @@ class RasterDataset(object):
         a = np.ma.masked_equal(a, self.gdal_ds.GetRasterBand(1).GetNoDataValue())
         return a
     
-    def is_inbounds(self,x_geo,y_geo):
+    def __is_inbounds(self,x_geo,y_geo):
         return x_geo >= self.min_x and x_geo <= self.max_x and y_geo >= self.min_y and y_geo <= self.max_y
 
 class input_raster(object):
@@ -187,7 +187,7 @@ class input_raster(object):
         '''Returns the grid cell offset for this raster based on the input wgs84 lon/lat'''
         xGeo, yGeo, zGeo = self.coordTrans_wgs84_to_src.TransformPoint(lon,lat) 
         
-        if not self.is_inbounds(xGeo, yGeo):
+        if not self.__is_inbounds(xGeo, yGeo):
             raise OutsideExtent("lat/lon outside raster extent: "+str(lat)+","+str(lon))
         
         originX = self.geoTransform[0]
@@ -199,7 +199,7 @@ class input_raster(object):
         yOffset = abs(int((yGeo - originY) / pixelHeight))
         return xOffset,yOffset
     
-    def is_inbounds(self,x_geo,y_geo):
+    def __is_inbounds(self,x_geo,y_geo):
         return x_geo >= self.min_x and x_geo <= self.max_x and y_geo >= self.min_y and y_geo <= self.max_y
     
     def get_data_value(self,lon,lat,useCache=False):

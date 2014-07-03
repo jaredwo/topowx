@@ -69,7 +69,7 @@ def proc_work(params,rank):
             
             try:
                 
-                err,std_err = xval.runXval(stn_id)
+                err,std_err = xval.run_xval(stn_id)
                 #in_ci = True if  xval_stn[MEAN_OBS] >= ci[0] and  xval_stn[MEAN_OBS] <= ci[1] else False
                             
             except Exception as e:

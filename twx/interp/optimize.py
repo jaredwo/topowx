@@ -5,35 +5,109 @@ Created on Sep 25, 2013
 '''
 
 import numpy as np
-from twx.db.station_data import StationSerialDataDb,STN_ID,BAD,get_norm_varname,LAT,LON,\
-    get_optim_varname, get_optim_anom_varname, get_lst_varname,DTYPE_STN_BASIC,MASK,TDI,BAD,NEON,DTYPE_NORMS,DTYPE_LST,\
-    DTYPE_INTERP_OPTIM, DTYPE_INTERP_OPTIM_ALL, DTYPE_INTERP
-from twx.interp.station_select import StationSelect
-import twx.interp.interp_tair as it
-import cProfile
-import matplotlib.pyplot as plt
+from twx.db import StationSerialDataDb,STN_ID,get_norm_varname,\
+get_optim_varname, get_optim_anom_varname,BAD,dbDataset
+from twx.interp import StationSelect
+import twx.interp as it
 from netCDF4 import Dataset
 import netCDF4
-from twx.utils.status_check import StatusCheck
+from twx.utils import StatusCheck
 import scipy.stats as stats
+import os
+from twx.db.station_data import CLIMDIV
+
+def create_climdiv_optim_nstns_db(path_out,tair_var,stn_ids,nstns_rng,climdiv):
+    '''
+    Create a netCDF file for storing cross validation mean absolute error (MAE)
+    for monthly normals interpolation for a set of stations and neighbor station 
+    bandwidths within a single climate division. The MAE netCDF variable will be 
+    of shape (12,N,P) where 12 is the number of months, N is number of bandwidths
+    specified by nstns_rng and P is the number stations.  
+    
+    Parameters
+    ----------
+    path_out : str
+        The directory path for file output. The output file will be named:
+        optim_nstns_[tair_var]_climdiv[climdiv_id].nc
+    tair_var : str
+        The temperature variable ('tmin' or 'tmax')
+    stn_ids : ndarray
+        The station ids used for cross validation
+    climdiv : int
+        The U.S. climate division id
+    
+    '''
+        
+    fpath = os.path.join(path_out,"optim_nstns_%s_climdiv%d.nc"%(tair_var,climdiv))
+        
+    ds = dbDataset(fpath,'w')
+    ds.db_create_global_attributes("Cross Validation MAE for Different N Neighboring Stations: "+tair_var)
+        
+    ds.createDimension('min_nghs',nstns_rng.size)
+    ds.db_create_stnid_dimvar(stn_ids)
+    
+    nghs = ds.createVariable('min_nghs','i4',('min_nghs',),fill_value=False)
+    nghs.long_name = "min_nghs"
+    nghs.standard_name = "min_nghs"
+    nghs[:] = nstns_rng
+    
+    ds.createDimension('mth',12)
+    mthVar = ds.createVariable('mth','i4',('mth',),fill_value=False)
+    mthVar[:] = np.arange(1,13)
+    
+    ds.db_create_mae_var(('mth','min_nghs','stn_id'))
+                
+    ds.sync()
+    
+    return ds
 
 class OptimKrigBwNstns(object):
     '''
-    classdocs
+    Class for running a cross validation to optimize the local number
+    of neighboring stations to use for moving window regression kriging
+    of monthly temperature normals
     '''
 
-    def __init__(self,pathDb,tairVar):
+    def __init__(self,path_db,tair_var):
+        '''
+        Parameters
+        ----------
+        path_db : str
+            File path to a serially complete netCDF
+            station database containing the stations and
+            temperature variable for interpolation.
+        tair_var : str
+            The temperature variable for interpolation ('tmin' or 'tmax')
+        '''
                 
-        stn_da = StationSerialDataDb(pathDb, tairVar,stn_dtype=DTYPE_INTERP)
+        stn_da = StationSerialDataDb(path_db, tair_var)
         mask_stns = np.isnan(stn_da.stns[BAD])         
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
                      
         self.krig = it.KrigTairAll(stn_slct)
         self.stn_da = stn_da
         
-    def runXval(self,stnId,abw_nngh):
+    def run_xval(self,stn_id,abw_nngh):
+        '''
+        Run leave-one-out cross validations for a specific station id
+        and a set of different number of neighbor bandwidths.
         
-        xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stnId]]
+        Parameters
+        ----------
+        stn_id : str
+            Station id for cross validation
+        abw_nngh : ndarray
+            A 1-D array of different neighbor stations bandwidths
+            for which to run cross validation.
+        
+        Returns
+        ----------
+        err : ndarray
+            A 12 * N array of cross validations error (modeled - observed)
+            where N is the number of bandwidths specified by abw_nngh
+            
+        '''
+        xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
         
         err = np.zeros((12,abw_nngh.size))
         xvalNorms = np.array([xval_stn[get_norm_varname(mth)] for mth in np.arange(1,13)])
@@ -59,7 +133,7 @@ class OptimGwrNormBwNstns(object):
         self.gwr_norm = it.GwrTairNorm(stn_slct)
         self.stn_da = stn_da
         
-    def runXval(self,stnId,abw_nngh):
+    def run_xval(self,stnId,abw_nngh):
         
         xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stnId]]
         
@@ -80,45 +154,42 @@ class OptimGwrNormBwNstns(object):
                 
         return err
 
-def setOptimTairParams(pathDb,pathXvalDs):
-#    '/projects/daymet2/station_data/infill/infill_20130725/xval/optimTairMean/tmax/xval_tmax_mean' 
-    dsStns = Dataset(pathDb,'r+')
-    climDivStns = dsStns.variables['neon'][:].data
+def set_optim_nstns_tair_norm(stnda,path_xval_ds):
+
+    climdiv_stns = stnda.stns[CLIMDIV]
     
-    varsOptim = {}
+    vars_optim = {}
     for mth in np.arange(1,13):
         
         varNameOptim = get_optim_varname(mth)
-        if varNameOptim not in dsStns.variables.keys():
-            varOptim = dsStns.createVariable(varNameOptim,'f8',('stn_id',),fill_value=netCDF4.default_fillvals['f8'])
-        else:
-            varOptim = dsStns.variables[varNameOptim]
-        varOptim[:] = netCDF4.default_fillvals['f8']
-        varsOptim[mth] = varOptim
+        long_name = "Optimal number of neighbors to use for monthly normal interpolation for month %d"%mth            
+        varOptim = stnda.add_stn_variable(varNameOptim,long_name,"",'f8',
+                                          fill_value=netCDF4.default_fillvals['f8'])
+        vars_optim[mth] = varOptim
     
-    divs = dsStns.variables['neon'][:]
-    divs = np.unique(divs.data[np.logical_not(divs.mask)])
+    divs = np.unique(climdiv_stns[np.isfinite(climdiv_stns)])
     
     stchk = StatusCheck(divs.size, 10)
     
-    for climDiv in divs:
+    for clim_div in divs:
         
-        fpath = "".join([pathXvalDs,"_",str(climDiv),".nc"])
+        fpath = "".join([pathXvalDs,"_",str(clim_div),".nc"])
         dsClimDiv = Dataset(fpath)
         
         maeClimDiv = dsClimDiv.variables['mae'][:]
         nnghsClimDiv = dsClimDiv.variables['min_nghs'][:]
         
-        climDivMask = np.nonzero(climDivStns==climDiv)[0]
+        climDivMask = np.nonzero(climdiv_stns==clim_div)[0]
         
         for mth in np.arange(1,13):
             maeClimDivMth = maeClimDiv[mth-1,:,:]
             mmae = np.mean(maeClimDivMth,axis=1)
             minIdx = np.argmin(mmae)
-            varsOptim[mth][climDivMask] = nnghsClimDiv[minIdx]
+            vars_optim[mth][climDivMask] = nnghsClimDiv[minIdx]
         
         stchk.increment()
-    dsStns.sync()
+    
+    stnda.ds.sync()
 
 def setOptimTairAnomParams(pathDb,pathXvalDs):
 #    '/projects/daymet2/station_data/infill/infill_20130725/xval/optimTairMean/tmax/xval_tmax_mean' 
@@ -219,7 +290,7 @@ class OptimTairAnom(object):
         self.stn_da = stn_da
         self.gwr = gwr
         
-    def runXval(self,stn_id,a_nnghs):
+    def run_xval(self,stn_id,a_nnghs):
         
         xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
         xval_obs = self.stn_da.load_obs(xval_stn[STN_ID])
@@ -382,7 +453,7 @@ def perfXvalTairOverall():
     print maeDly
     
 #    def runPerf():
-#        biasNorm,maeNorm,maeDly,biasDly,r2Dly = optim.runXval('SNOTEL_13C01S')
+#        biasNorm,maeNorm,maeDly,biasDly,r2Dly = optim.run_xval('SNOTEL_13C01S')
 #    
 #    global runAPerf
 #    runAPerf = runPerf
@@ -395,10 +466,10 @@ def perfOptimTairAnom():
     
     min_ngh_wins = build_min_ngh_windows(10, 150, 0.10)
     
-    #biasAll, maeAll, r2All = optim.runXval('SNOTEL_13C01S', min_ngh_wins)
-    #biasAll, maeAll, r2All = optim.runXval('GHCN_USC00244558', min_ngh_wins) #Kalispell
-    biasAll, maeAll, r2All = optim.runXval('GHCN_USC00247448', min_ngh_wins) #Seeley Lake
-    #biasAll, maeAll, r2All = optim.runXval('GHCN_USW00014755', min_ngh_wins)
+    #biasAll, maeAll, r2All = optim.run_xval('SNOTEL_13C01S', min_ngh_wins)
+    #biasAll, maeAll, r2All = optim.run_xval('GHCN_USC00244558', min_ngh_wins) #Kalispell
+    biasAll, maeAll, r2All = optim.run_xval('GHCN_USC00247448', min_ngh_wins) #Seeley Lake
+    #biasAll, maeAll, r2All = optim.run_xval('GHCN_USW00014755', min_ngh_wins)
     
     mae_argmin =  np.argmin(maeAll, 0)
     cols = np.arange(maeAll.shape[1])
@@ -418,7 +489,7 @@ def perfOptimTairAnom():
 #    print min_ngh_wins[np.argmin(maeMth)]
 #    print np.min(maeMth)
 #    def runPerf():
-#        optim.runXval('SNOTEL_13C01S',min_ngh_wins,0.20)
+#        optim.run_xval('SNOTEL_13C01S',min_ngh_wins,0.20)
 #    
 #    global runAPerf
 #    runAPerf = runPerf
@@ -557,8 +628,8 @@ def perftOptimKrigBwStns():
     
     abw_nngh = build_min_ngh_windows(35,150, 0.10)
     
-    err = optim.runXval('GHCN_USC00244558', abw_nngh)
-    #err = optim.runXval('SNOTEL_13C01S', abw_nngh)
+    err = optim.run_xval('GHCN_USC00244558', abw_nngh)
+    #err = optim.run_xval('SNOTEL_13C01S', abw_nngh)
     
     mae = np.abs(err)
     

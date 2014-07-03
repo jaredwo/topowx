@@ -8,13 +8,11 @@ number of stations to use in each climate division.
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import StationSerialDataDb,STN_ID,NEON,MASK,BAD,\
-    DTYPE_INTERP
-from twx.utils.status_check import StatusCheck
-from twx.db.create_db_all_stations import dbDataset
+from twx.db import StationSerialDataDb,STN_ID,MASK,BAD,CLIMDIV
+from twx.utils import StatusCheck, Unbuffered
 from netCDF4 import Dataset
-from twx.interp.optimize import OptimKrigBwNstns, setOptimTairParams,\
-    OptimGwrNormBwNstns
+from twx.interp import OptimKrigBwNstns, set_optim_nstns_tair_norm, build_min_ngh_windows,create_climdiv_optim_nstns_db
+import os
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -26,22 +24,10 @@ N_NON_WRKRS = 2
 
 P_PATH_DB = 'P_PATH_DB'
 P_PATH_OUT = 'P_PATH_OUT'
-P_PATH_RLIB = 'P_PATH_RLIB'
-
-P_MAX_NNGH_DELTA = 'P_MAX_NNGH_DELTA'
 P_NGH_RNG = 'P_NGH_RNG'
-P_NGH_RNG_STEP = 'P_NGH_RNG_STEP'
 P_VARNAME = 'P_VARNAME'
-P_NEON_ECORGN = 'P_NEON_ECORGN'
+P_CLIMDIVS = 'P_CLIMDIVS'
 
-class Unbuffered:
-    def __init__(self, stream):
-        self.stream = stream
-    def write(self, data):
-        self.stream.write(data)
-        self.stream.flush()
-    def __getattr__(self, attr):
-        return getattr(self.stream, attr)
 sys.stdout=Unbuffered(sys.stdout)
 
 def proc_work(params,rank):
@@ -60,17 +46,17 @@ def proc_work(params,rank):
         
         if status.tag == TAG_STOPWORK:
             MPI.COMM_WORLD.send([None]*2, dest=RANK_WRITE, tag=TAG_STOPWORK)
-            print "".join(["Worker ",str(rank),": Finished"]) 
+            print "".join(["WORKER ",str(rank),": Finished"]) 
             return 0
         else:
             
             try:
       
-                err = optim.runXval(stn_id, params[P_NGH_RNG])
+                err = optim.run_xval(stn_id, params[P_NGH_RNG])
                                             
             except Exception as e:
             
-                print "".join(["ERROR: Worker ",str(rank),": could not xval ",stn_id,str(e)])
+                print "".join(["ERROR: WORKER ",str(rank),": could not xval ",stn_id,str(e)])
                             
             MPI.COMM_WORLD.send((stn_id,err), dest=RANK_WRITE, tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
@@ -83,33 +69,38 @@ def proc_write(params,nwrkers):
     bcast_msg = None
     bcast_msg = MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)
     stn_ids = bcast_msg
-    print "Writer: Received broadcast msg"
+    print "WRITER: Received broadcast msg"
     
-    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME],stn_dtype=DTYPE_INTERP)
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME],mode="r+")
     stn_mask = np.in1d(stn_da.stn_ids,stn_ids,True)
     stns = stn_da.stns[stn_mask]
     
-    neon_ds = {}
+    climdiv_ds = {}
     ttl_xval_stns = 0
-    for neon in params[P_NEON_ECORGN]:
+    for climdiv in params[P_CLIMDIVS]:
         
-        stnids_neon = stns[STN_ID][stns[NEON]==neon]
-        neon_ds[neon] = create_ncdf(params,stnids_neon,neon),stnids_neon
-        ttl_xval_stns+=stnids_neon.size
+        stnids_climdiv = stns[STN_ID][stns[CLIMDIV]==climdiv]
+        
+        a_ds =  create_climdiv_optim_nstns_db(params[P_PATH_OUT], params[P_VARNAME],
+                                              stnids_climdiv, params[P_NGH_RNG], climdiv)
+        climdiv_ds[climdiv] = a_ds,stnids_climdiv
+        
+        ttl_xval_stns+=stnids_climdiv.size
     
-    print "Writer: Output NCDF file created"
+    print "WRITER: Output NCDF files created"
     
     stn_idxs = {}
     for x in np.arange(stns.size):
         stn_idxs[stns[STN_ID][x]] = x
             
-    ttl_xvals = ttl_xval_stns# * min_ngh_wins.size
+    ttl_xvals = ttl_xval_stns
     
     stat_chk = StatusCheck(ttl_xvals,10)
     
     while 1:
        
         stn_id,err = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
+        
         if status.tag == TAG_STOPWORK:
             
             nwrkrs_done+=1
@@ -117,47 +108,46 @@ def proc_write(params,nwrkers):
                 
                 
                 ######################################################
-                print "Writer: Setting the optim # of nghs..."
+                print "WRITER: Setting the optim # of nghs..."
                 
                 stn_da.ds.close()
                 stn_da.ds = None
                 stn_da = None
                 
-                setOptimTairParams(params[P_PATH_DB], params[P_PATH_OUT])
+                set_optim_nstns_tair_norm(params[P_PATH_DB], params[P_PATH_OUT])
             
                 ######################################################
                 
-                print "Writer: Finished"
+                print "WRITER: Finished"
                 return 0
         else:
                         
             stn = stns[stn_idxs[stn_id]]
-            ds,stnids_neon = neon_ds[stn[NEON]]
-            dim2 = np.nonzero(stnids_neon==stn_id)[0][0]
-                        
+            ds,stnids_climdiv = climdiv_ds[stn[CLIMDIV]]
+            dim2 = np.nonzero(stnids_climdiv==stn_id)[0][0]         
             ds.variables['mae'][:,:,dim2] = np.abs(err)
-
             ds.sync()
             
             stat_chk.increment()
                 
 def proc_coord(params,nwrkers):
         
-    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME],stn_dtype=DTYPE_INTERP)
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
+    #Only run xval optimization for stations within mask and that are not marked as bad
     mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD])) 
     stns = stn_da.stns[mask_stns]
         
     #Send stn ids to all processes
     MPI.COMM_WORLD.bcast(stns[STN_ID], root=RANK_COORD)
         
-    print "Coord: Done initialization. Starting to send work."
+    print "COORD: Done initialization. Starting to send work."
     
     cnt = 0
     nrec = 0
                     
-    for neon in params[P_NEON_ECORGN]:
+    for climdiv in params[P_CLIMDIVS]:
     
-        mask_stns_xval = np.logical_and(stn_da.stns[NEON]==neon,mask_stns)
+        mask_stns_xval = np.logical_and(stn_da.stns[CLIMDIV]==climdiv,mask_stns)
         stn_ids_xval = stn_da.stn_ids[mask_stns_xval]
     
         for stn_id in stn_ids_xval:
@@ -171,51 +161,17 @@ def proc_coord(params,nwrkers):
             MPI.COMM_WORLD.send(stn_id, dest=dest, tag=TAG_DOWORK)
             cnt+=1
     
-        print "".join(["Coord: Finished xval of neon: ",str(neon)])
+        print "".join(["COORD: Finished xval of climate division: ",str(climdiv)])
     
     for w in np.arange(nwrkers):
-        MPI.COMM_WORLD.send([None]*3, dest=w+N_NON_WRKRS, tag=TAG_STOPWORK)
+        MPI.COMM_WORLD.send(None, dest=w+N_NON_WRKRS, tag=TAG_STOPWORK)
         
-    print "coord_proc: done"
-
-def create_ncdf(params,stn_ids,neon):
-    
-    path = params[P_PATH_OUT]
-    fpath = "".join([path,"_",str(neon),".nc"])
-        
-    ds = dbDataset(fpath,'w')
-    ds.db_create_global_attributes("Cross Validation "+params[P_VARNAME])
-        
-    ds.createDimension('min_nghs',params[P_NGH_RNG].size)
-    ds.db_create_stnid_dimvar(stn_ids)
-    
-    nghs = ds.createVariable('min_nghs','i4',('min_nghs',),fill_value=False)
-    nghs.long_name = "min_nghs"
-    nghs.standard_name = "min_nghs"
-    nghs[:] = params[P_NGH_RNG]
-    
-    ds.createDimension('mth',12)
-    mthVar = ds.createVariable('mth','i4',('mth',),fill_value=False)
-    mthVar[:] = np.arange(1,13)
-    
-    ds.db_create_mae_var(('mth','min_nghs','stn_id'))
-                
-    ds.sync()
-        
-    return ds
-
-def build_min_ngh_windows(rng_min,rng_max,pct_step):
-    
-    min_nghs = []
-    n = rng_min
-    
-    while n <= rng_max:
-        min_nghs.append(n)
-        n = n + np.round(pct_step*n)
-    
-    return np.array(min_nghs)
+    print "COORD: done"
 
 if __name__ == '__main__':
+    
+    PROJECT_ROOT = "/projects/topowx"
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
         
     np.seterr(all='raise')
     np.seterr(under='ignore')
@@ -225,15 +181,14 @@ if __name__ == '__main__':
 
     params = {}
     
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/infill_nonhomog_20140329/serial_tmax.nc"
-    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/infill_nonhomog_20140329/xval/optimTairMean/tmax/xval_tmax_mean'   
+    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmin.nc')
+    params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill', 'optim')  
     params[P_NGH_RNG] = build_min_ngh_windows(35, 150, 0.10)
-    params[P_NGH_RNG_STEP] = .10 #in pct
-    params[P_VARNAME] = 'tmax'
+    params[P_VARNAME] = 'tmin'
     
     ds = Dataset(params[P_PATH_DB])
-    divs = ds.variables['neon'][:]
-    params[P_NEON_ECORGN] = np.unique(divs.data[np.logical_not(divs.mask)])#np.array([2401])
+    divs = ds.variables[CLIMDIV][:]
+    params[P_CLIMDIVS] = np.unique(divs.data[np.logical_not(divs.mask)])#np.array([2401])
     ds.close()
     ds = None
     

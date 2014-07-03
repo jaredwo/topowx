@@ -1190,9 +1190,9 @@ def calc_ioa2(x, y):
 
 class ImputeLST():
     
-    def __init__(self,stnda,tairVar):
+    def __init__(self,stnda,tair_var):
         
-        self.stnTair = stnda.ds.variables[tairVar][:].astype(np.float)
+        self.stnTair = stnda.ds.variables[tair_var][:].astype(np.float)
         self.stnda = stnda
         self.stns = self.stnda.stns
         self.sinTrans = modis_sin_latlon_transform()
@@ -1417,7 +1417,7 @@ def _shrink_matrix(aMatrix,idx,minObs=1):
 
 class LstData(object):
 
-    def __init__(self,pathNcStacks,tileName,lstVar,tairVar,stnda):
+    def __init__(self,pathNcStacks,tileName,lstVar,tair_var,stnda):
         
         tileCol = np.int(tileName[1:3]) #h
         tileRow = np.int(tileName[4:6]) #v
@@ -1436,7 +1436,7 @@ class LstData(object):
         self.xSin,self.ySin = np.meshgrid(self.dsMain.variables['x'][:],self.dsMain.variables['y'][:])
                 
         maskTimeStns = np.nonzero(np.logical_and(stnda.days[YEAR]>=2003,stnda.days[YEAR]<=2012))[0]
-        self.stnTair = stnda.ds.variables[tairVar][maskTimeStns,:].astype(np.float)+273.15
+        self.stnTair = stnda.ds.variables[tair_var][maskTimeStns,:].astype(np.float)+273.15
         self.stnda = stnda
         self.stns = self.stnda.stns
         self.sinTrans = modis_sin_latlon_transform()

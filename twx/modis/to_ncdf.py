@@ -131,7 +131,7 @@ class modis_et_dataset(object):
         '''Returns the grid cell offset for this raster based on the input wgs84/nad83 lon/lat'''
         x_sin,y_sin,z_sin = self.trans_coord.trans_nad83_to_sin.TransformPoint(lon,lat)
         
-        if not self.is_inbounds(x_sin, y_sin):
+        if not self.__is_inbounds(x_sin, y_sin):
             raise Exception("Lon/Lat outside raster extent")
         
         originX = self.geotransform[0]
@@ -148,7 +148,7 @@ class modis_et_dataset(object):
         x,y = self.gridcell_offset_lonlat(lon, lat)
         return self.et_a[y,x]
     
-    def is_inbounds(self,x_sin,y_sin):
+    def __is_inbounds(self,x_sin,y_sin):
         return x_sin >= self.min_x and x_sin <= self.max_x and y_sin >= self.min_y and y_sin <= self.max_y
 
 

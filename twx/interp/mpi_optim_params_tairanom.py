@@ -64,7 +64,7 @@ def proc_work(params,rank):
             
             try:
                 
-                bias,mae,r2 = optim.runXval(stn_id, min_ngh_wins)
+                bias,mae,r2 = optim.run_xval(stn_id, min_ngh_wins)
                                             
             except Exception as e:
             

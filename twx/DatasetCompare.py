@@ -798,7 +798,7 @@ class DaymetTileRaster():
         
         x, y, z = self.coordTrans_wgs84_to_src.TransformPoint(lon,lat) 
         
-        if not self.is_inbounds(x, y):
+        if not self.__is_inbounds(x, y):
             raise Exception("Lon/Lat outside raster extent")
         
         originX = self.geoTransform[0]
@@ -825,7 +825,7 @@ class DaymetTileRaster():
         
         return tsFnl
     
-    def is_inbounds(self,x,y):
+    def __is_inbounds(self,x,y):
         return x >= self.min_x and x <= self.max_x and y >= self.min_y and y <= self.max_y
 
 class MultiDaymetTileRaster():
@@ -890,7 +890,7 @@ class PrismTileRaster():
         
         x,y = lon,lat
         
-        if not self.is_inbounds(x, y):
+        if not self.__is_inbounds(x, y):
             raise Exception("Lon/Lat outside raster extent")
         
         originX = self.geoTransform[0]
@@ -906,7 +906,7 @@ class PrismTileRaster():
         x,y = self.getGridCellOffset(lon, lat)
         return self.aVar[:,y,x]
     
-    def is_inbounds(self,x,y):
+    def __is_inbounds(self,x,y):
         return x >= self.min_x and x <= self.max_x and y >= self.min_y and y <= self.max_y
 
 class MultiTwxTileRaster():

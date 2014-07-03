@@ -8,7 +8,7 @@ from netCDF4 import Dataset, num2date
 import netCDF4
 from twx.db import create_quick_db,STN_ID,BAD,LON,LAT
 from twx.db.station_data import _build_stn_struct
-from twx.utils import get_days_metadata, StatusCheck, grt_circle_dist
+from twx.utils import get_days_metadata, StatusCheck, grt_circle_dist, TairAggregate
 import mpl_toolkits.basemap as bm
 
 SERIAL_DB_VARIABLES = {'tmin':[('tmin', 'f4', netCDF4.default_fillvals['f4'], 'minimum air temperature', 'C'),
@@ -58,6 +58,22 @@ def update_daily_infill(stnid,tair_var,fpath_db,fnl_tair, mask_infill, infill_ta
     ds_out.close()
     
 def create_serially_complete_db(fpath_infill_db,tair_var,fpath_out_serial_db):
+    '''
+    Create a netCDF single variable, serially-complete station database and
+    insert serially-complete station observations. Based on a specific threshold
+    of total missing data, a station's serially-complete time series will either
+    consist of a mix of actual and infilled observations or entirely of infilled
+    observations from the infill model.
+    
+    Parameters
+    ----------
+    fpath_infill_db : str
+        The file path to the infilled station database
+    tair_var : str
+        The temperature variable ('tmin' or 'tmax') for the database
+    fpath_out_serial_db : str
+        The file path for the output serially-complete database
+    '''
     
     ds_infill = Dataset(fpath_infill_db)
     var_time = ds_infill.variables['time']
@@ -109,6 +125,22 @@ def create_serially_complete_db(fpath_infill_db,tair_var,fpath_out_serial_db):
     print "% of stns with all infilled values: "+str((np.sum(all_infill_stns)/np.float(all_infill_stns.size))*100.)
 
 def set_bad_stations(ds_serial,bad_ids,reset=True):
+    '''
+    Set the bad flag on a specific set of stations.
+    
+    Parameters
+    ----------
+    ds_serial : netCDF4.Dataset
+        The station database on which to set the bad
+        station flags.
+    bad_ids : ndarray
+        An array station ids that should be flagged
+        as bad. If a specified station id is not in
+        the database, it is ignored
+    reset : boolean
+        If true, reset all station bad flags to okay
+        before flagging the passed bad_ids.
+    '''
     
     db_stnids = ds_serial.variables[STN_ID][:].astype(np.str)
     
@@ -120,6 +152,7 @@ def set_bad_stations(ds_serial,bad_ids,reset=True):
         try:
             x = np.nonzero(db_stnids==aid)[0][0]
         except IndexError:
+            #Ignore station id not in database
             pass
         
         ds_serial.variables[BAD][x] = 1
@@ -127,6 +160,25 @@ def set_bad_stations(ds_serial,bad_ids,reset=True):
     ds_serial.sync()
 
 def find_dup_stns(stnda):
+    '''
+    Find duplicate stations in a netCDF4 infilled station database. Two or
+    more stations are considered duplicates if they are at the exact
+    same location. For two or more stations with the same
+    location, the one with the longest non-infilled period-of-record is
+    kept and the others are considered duplicates and will be returned
+    by this function.
+    
+    Parameters
+    ----------
+    stnda : twx.db.StationSerialDataDb
+        A StationSerialDataDb object pointing to the infilled 
+        database that should be searched for duplicate stations.
+        
+    Returns
+    ----------
+    rm_stnids : ndarray
+        An array of duplicate station ids
+    '''
     
     dup_stnids = []
     rm_stnids = []
@@ -147,7 +199,7 @@ def find_dup_stns(stnda):
                 dup_stnids.extend(dup_nghs[STN_ID])
     
                 stn_ids_load = np.sort(np.concatenate([np.array([stn[STN_ID]]).ravel(),np.array([dup_nghs[STN_ID]]).ravel()]))
-                print stn_ids_load
+                #print stn_ids_load
                 stn_idxs = np.nonzero(np.in1d(stnda.stn_ids, stn_ids_load, True))[0]
                 imp_flgs = stnda.ds.variables['flag_infilled'][:,stn_idxs]
                 imp_flg_sum = np.sum(imp_flgs, axis=0)
@@ -163,6 +215,29 @@ def find_dup_stns(stnda):
     return rm_stnids
 
 def add_stn_raster_values(stnda,var_name,long_name,units,a_rast,handle_ndata=True,nn=False):
+    '''
+    Extract raster values for station locations and add them to a 
+    serially-complete netCDF station database
+    
+    Parameters
+    ----------
+    stnda : twx.db.StationSerialDataDb
+        A StationSerialDataDb object pointing to the
+        database to which station raster values should
+        be added.
+    var_name : str
+        The netCDF variable name to be used for the raster values
+    long_name : str
+        The long netCDF variable name to be used for the raster values
+    units : str
+        The units of the raster values
+    handle_ndata : boolean, optional
+        If True, for station locations that have no data raster values or are outside
+        the extent of the raster, the nearest grid cell with a value with be used.
+    nn : boolean, optional
+        If True, use nearest neighbor method to determine the raster value for 
+        specific station location. If false, bilinear interpolation will be used.
+    '''
     
     lon = stnda.stns[LON]
     lat = stnda.stns[LAT]
@@ -201,7 +276,7 @@ def add_stn_raster_values(stnda,var_name,long_name,units,a_rast,handle_ndata=Tru
                     
             else:
                 
-                print "WARNING: Station %s (%.4f,%.4f) did not fall within raster grid cell. Assigning no data value: %.2f."%(a_rast.ndata,)
+                print "WARNING: Station %s (%.4f,%.4f) did not fall within raster grid cell. Assigning no data value: %.2f."%(stnda.stn_ids[x],lon[x],lat[x],a_rast.ndata)
                 rval = a_rast.ndata
         
         rvals[x] = rval
@@ -209,6 +284,56 @@ def add_stn_raster_values(stnda,var_name,long_name,units,a_rast,handle_ndata=Tru
     
     newvar[:] = rvals
     stnda.ds.sync()
+
+def add_monthly_normals(stnda,start_norm_yr=1981,end_norm_yr=2010):
+    '''
+    Calculate and add station monthly normals to a serially-complete 
+    netCDF station database.
+    
+    Parameters
+    ----------
+    stnda : twx.db.StationSerialDataDb
+        A StationSerialDataDb object pointing to the
+        database to which station monthly normals should
+        be added.
+    start_norm_yr : int, optional
+        The start year for the normals.
+    end_norm_yr : int, optional
+        The end year for the normals
+    '''
+    
+    tagg = TairAggregate(stnda.days)
+    stns = stnda.stns
+    
+    norm_vars = {}
+    for mth in np.arange(1,13):
+        
+        norm_var_name = 'norm%02d'%mth
+        long_name = "%d - %d Monthly Normal"%(start_norm_yr,end_norm_yr)
+        norm_var = stnda.add_stn_variable(norm_var_name, long_name, units='C',
+                                         dtype='f8', fill_value=netCDF4.default_fillvals['f8'])
+        norm_vars[mth] = norm_var
+            
+    dly_var = stnda.var
+    
+    chk_size = 50
+    stchk = StatusCheck(np.int(np.round(stns.size/np.float(chk_size))), 10)
+    
+    for i in np.arange(0,stns.size,chk_size):
+        
+        if i + chk_size < stns.size:
+            nstns = chk_size
+        else:
+            nstns = stns.size - i
+
+        dly_vals = np.ma.masked_equal(dly_var[:,i:i+nstns], dly_var._FillValue)
+        norm_vals = tagg.daily_to_mthly_norms(dly_vals, start_norm_yr, end_norm_yr)
+                
+        for mth in np.arange(1,13):
+            norm_vars[mth][i:i+nstns] = norm_vals[mth-1,:]
+        
+        stnda.ds.sync()
+        stchk.increment()
 
 def _find_nn_data(a_data,a_rast,x,y):
                     
