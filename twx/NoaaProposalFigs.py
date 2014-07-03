@@ -74,7 +74,7 @@ def dsi_hdf_to_tif():
     fpath_mask = '/projects/daymet2/docs/noaa_proposal/montana_mask.tif'
     
     ds_mask = RasterDataset(fpath_mask)
-    geot = ds_mask.geoT
+    geot = ds_mask.geo_t
     proj = ds_mask.projection
     
     for yr in np.arange(2000,2012):
@@ -105,7 +105,7 @@ def dsi_crop_montana():
     fpath_mask = '/projects/daymet2/docs/noaa_proposal/montana_mask.tif'
     
     ds_mask = RasterDataset(fpath_mask)
-    mask = ds_mask.readAsArray().data == 1 
+    mask = ds_mask.read_as_array().data == 1 
     
     for yr in np.arange(2000,2012):
         
@@ -124,11 +124,11 @@ def plotDsiSeries():
     dsMask = RasterDataset('/projects/daymet2/docs/noaa_proposal/montana_mask.tif')
     dsLc = RasterDataset('/projects/daymet2/docs/noaa_proposal/UMD_Landcover.tif')
     
-    mask = dsMask.readAsArray().data == 1
-    lat,lon = dsGrd.getCoordGrid1d()
+    mask = dsMask.read_as_array().data == 1
+    lat,lon = dsGrd.get_coord_grid_1d()
     maskNoData = ~mask
     
-    lc = dsLc.readAsArray()
+    lc = dsLc.read_as_array()
     
     nonzero_rows,nonzero_cols = np.nonzero(mask)
     nonzero_rows = np.unique(nonzero_rows)
@@ -260,10 +260,10 @@ def plotDsiSeries():
 def plotUdmVsDSI():
     
     dsDsi = RasterDataset('/projects/daymet2/docs/noaa_proposal/DSI_2007225.tif')
-    dsi = dsDsi.readAsArray()
+    dsi = dsDsi.read_as_array()
     
     dsUdm = RasterDataset('/projects/daymet2/docs/noaa_proposal/USDM_raster3.tif')
-    udm = dsUdm.readAsArray()
+    udm = dsUdm.read_as_array()
     
     maskSetWet = np.logical_and(udm.mask,~dsi.mask)
         
@@ -285,7 +285,7 @@ def plotUdmVsDSI():
     clrs[-1] = "#31A354"
     
     dsGrid = dsDsi
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -450,7 +450,7 @@ def plotMerraVsTwx():
     
     dsTwxTmin = RasterDataset('/projects/daymet2/cce_case_study/topowx_files/annual/cce_topowx_tmin19482012ann.tif')
     dsGrid = dsTwxTmin
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -572,11 +572,11 @@ def plot_montana_dsi_all_yrs():
     
     for yr in yrs:
         ds_dsi = RasterDataset(os.path.join(path_dsi,'Montana_DSI_05deg_%d.tif'%(yr,)))
-        dsi = ds_dsi.readAsArray()
+        dsi = ds_dsi.read_as_array()
         dsi_yrs.append(dsi)
     
     dsDsi = RasterDataset('/projects/daymet2/docs/noaa_proposal/DSI_2007225.tif')
-    dsi = dsDsi.readAsArray()
+    dsi = dsDsi.read_as_array()
     
     #levels = [-0.3,-0.7,-9,-1.2,-1.5]
     levels = np.array([np.min(dsi),-1.5,-1.2,-.9,-0.7,-0.3,np.max(dsi)])
@@ -588,7 +588,7 @@ def plot_montana_dsi_all_yrs():
     levels = np.linspace(-1.5,1.5,11)
     
     dsGrid = dsDsi
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -631,10 +631,10 @@ def plot_montana_dsi_all_yrs():
 
 def plot_ndvi():
     ds_ndvi = RasterDataset('/projects/daymet2/docs/dsi_presentation/NDVI225_mean_wgs84.tif')
-    ndvi = ds_ndvi.readAsArray()
+    ndvi = ds_ndvi.read_as_array()
     
     dsDsi = RasterDataset('/projects/daymet2/docs/noaa_proposal/DSI_2007225.tif')
-    lat,lon = dsDsi.getCoordGrid1d()
+    lat,lon = dsDsi.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -642,7 +642,7 @@ def plot_ndvi():
     urcrnrlon=np.max(lon+buf*4)
 
     print "Mapping data...."
-    lat,lon = ds_ndvi.getCoordGrid1d()
+    lat,lon = ds_ndvi.get_coord_grid_1d()
     m = Basemap(resolution='h',projection='tmerc', llcrnrlat=llcrnrlat,urcrnrlat=urcrnrlat,
                 llcrnrlon=llcrnrlon,urcrnrlon=urcrnrlon,lon_0=-111,lat_0=0)
     xMap, yMap = m(*np.meshgrid(lon,lat))
@@ -664,11 +664,11 @@ def plot_ndvi():
 
 def plot_et():
     ds_et = RasterDataset('/projects/daymet2/docs/dsi_presentation/ET08_mean_wgs84.tif')
-    et = ds_et.readAsArray()
+    et = ds_et.read_as_array()
     
     
     dsDsi = RasterDataset('/projects/daymet2/docs/noaa_proposal/DSI_2007225.tif')
-    lat,lon = dsDsi.getCoordGrid1d()
+    lat,lon = dsDsi.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -676,7 +676,7 @@ def plot_et():
     urcrnrlon=np.max(lon+buf*4)
 
     print "Mapping data...."
-    lat,lon = ds_et.getCoordGrid1d()
+    lat,lon = ds_et.get_coord_grid_1d()
     m = Basemap(resolution='h',projection='tmerc', llcrnrlat=llcrnrlat,urcrnrlat=urcrnrlat,
                 llcrnrlon=llcrnrlon,urcrnrlon=urcrnrlon,lon_0=-111,lat_0=0)
     xMap, yMap = m(*np.meshgrid(lon,lat))

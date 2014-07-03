@@ -847,7 +847,7 @@ def resample_all_mosaics():
 def output_celsius(in_fpath,out_fpath,ndata=65535.0):
     
     in_ds = RasterDataset(in_fpath) 
-    a = in_ds.gdalDs.GetRasterBand(1).ReadAsArray()
+    a = in_ds.gdal_ds.GetRasterBand(1).ReadAsArray()
     a = np.ma.masked_equal(a,ndata)
 
     #To Celsius: multiply by scale factor (0.02) and subtract 273.15
@@ -860,8 +860,8 @@ def output_celsius(in_fpath,out_fpath,ndata=65535.0):
     band_out = ds_out.GetRasterBand(1)
     band_out.SetNoDataValue(ndata)
     
-    #Manually set geoT. Gdal does not read bounds correctly from MRT GeoTiff output
-    geoT = list(in_ds.geoT)
+    #Manually set geo_t. Gdal does not read bounds correctly from MRT GeoTiff output
+    geoT = list(in_ds.geo_t)
     geoT[0] = -125.995833883
     geoT[3] = 53.004166448
     geoT = tuple(geoT)
@@ -914,7 +914,7 @@ def output_mth_means():
                 in_path_yday = "".join([in_path,'yday',str(ydayPeriod),"/"])
                 in_fpath = "".join([in_path_yday,"MOSAIC.",aVar,".C.tif"])
                 ds = RasterDataset(in_fpath)
-                a = ds.readAsArray()
+                a = ds.read_as_array()
                 a = np.ma.asarray(a, np.float64)
             
                 if lst_mth is None:
@@ -929,10 +929,10 @@ def output_mth_means():
                                                             a.shape[1], 
                                                             a.shape[0], 1, gdalconst.GDT_Float32)
             band_out = ds_out.GetRasterBand(1)
-            ndata = ds.gdalDs.GetRasterBand(1).GetNoDataValue()
+            ndata = ds.gdal_ds.GetRasterBand(1).GetNoDataValue()
             band_out.SetNoDataValue(ndata)
             
-            ds_out.SetGeoTransform(ds.geoT)
+            ds_out.SetGeoTransform(ds.geo_t)
             ds_out.SetProjection(ds.projection)
             band_out.WriteArray(np.ma.filled(a, ndata))
             ds_out.FlushCache()
@@ -1602,12 +1602,12 @@ def mosaic_ncstack():
 def check_mthly_rasters_ndata(pathMthly,fpathAnn,lstVar):
     
     dsAnn = RasterDataset(fpathAnn)
-    ann = dsAnn.readAsArray()
+    ann = dsAnn.read_as_array()
     
     for mth in np.arange(1,13):
         fpath = "".join([pathMthly,'MOSAIC.',lstVar,".%02d.C.tif"%mth])
         ds = RasterDataset(fpath)
-        mthVal = ds.readAsArray()
+        mthVal = ds.read_as_array()
         
         nodataVals = np.logical_and(~ann.mask,mthVal.mask)
         plt.imshow(np.ma.masked_equal(nodataVals,0))
@@ -1619,12 +1619,12 @@ def check_mthly_rasters_ndata2(pathMthly,lstVar):
     for mth in np.arange(1,13):
         fpath = "".join([pathMthly,'MOSAIC.',lstVar,".%02d.C.tif"%mth])
         ds = RasterDataset(fpath)
-        mthVal1 = ds.readAsArray()
+        mthVal1 = ds.read_as_array()
         
         for mth2 in np.arange(mth+1,13):
             fpath2 = "".join([pathMthly,'MOSAIC.',lstVar,".%02d.C.tif"%mth2])
             ds2 = RasterDataset(fpath2)
-            mthVal2 = ds2.readAsArray()
+            mthVal2 = ds2.read_as_array()
         
             print mth,mth2,np.sum(np.logical_or(np.logical_and(~mthVal1.mask,mthVal2.mask),
                                   np.logical_and(mthVal1.mask,~mthVal2.mask)))
@@ -1763,7 +1763,7 @@ def set_to_fillval(fpath,varname,mask):
 def reclassify_lc(in_fpath,out_fpath,ndata=255):
     
     in_ds = RasterDataset(in_fpath) 
-    a = in_ds.gdalDs.GetRasterBand(1).ReadAsArray()
+    a = in_ds.gdal_ds.GetRasterBand(1).ReadAsArray()
     
     a[a < 254] = 255
             
@@ -1774,8 +1774,8 @@ def reclassify_lc(in_fpath,out_fpath,ndata=255):
     band_out = ds_out.GetRasterBand(1)
     band_out.SetNoDataValue(ndata)
     
-    #Manually set geoT. Gdal does not read bounds correctly from MRT GeoTiff output
-    geoT = list(in_ds.geoT)
+    #Manually set geo_t. Gdal does not read bounds correctly from MRT GeoTiff output
+    geoT = list(in_ds.geo_t)
     geoT[0] = -125.995833883
     geoT[3] = 53.004166448
     geoT = tuple(geoT)
@@ -1814,8 +1814,8 @@ def createDtrMask():
     dsTmin = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/mthly_lst/MOSAIC.LST_Night_1km.02.C.tif') 
     dsTmax = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/mthly_lst/MOSAIC.LST_Day_1km.02.C.tif')
     
-    stmin = dsTmin.readAsArray()
-    stmax = dsTmax.readAsArray()
+    stmin = dsTmin.read_as_array()
+    stmax = dsTmax.read_as_array()
     
     sdtr = np.ma.abs(stmax - stmin)
     
@@ -1829,7 +1829,7 @@ def createDtrMask():
     band_out = ds_out.GetRasterBand(1)
     #band_out.SetNoDataValue(ndata)
         
-    ds_out.SetGeoTransform(dsTmin.geoT)
+    ds_out.SetGeoTransform(dsTmin.geo_t)
     ds_out.SetProjection(dsTmin.projection)
     band_out.WriteArray(dtrMask)
     ds_out.FlushCache()

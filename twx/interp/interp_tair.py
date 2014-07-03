@@ -88,7 +88,7 @@ class PredictorGrids():
             
             if chgLatLon or not self.ncData.has_key(varname):
             
-                row,col,gridlon,gridlat =  geoNc.getRowCol(aPt[LON],aPt[LAT])
+                row,col,gridlon,gridlat =  geoNc.get_row_col(aPt[LON],aPt[LAT])
                 aPt[varname] = geoNc.ds.variables[varname][row,col]
                 
                 if chgLatLon and not chged:

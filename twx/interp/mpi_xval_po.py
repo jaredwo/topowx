@@ -213,7 +213,7 @@ def proc_coord(params,nwrkers):
         rgns = np.zeros(lons.size)
         for x in np.arange(lons.size):
             try:
-                rgns[x] = neon_rast.getDataValue(lons[x],lats[x])
+                rgns[x] = neon_rast.get_data_value(lons[x],lats[x])
             except:
                 rgns[x] = np.nan
                 

@@ -99,9 +99,9 @@ def proc_write(params,nwrkers):
     nwrkrs_done = 0
         
     ds_grid = RasterDataset(params[P_PATH_GRID])
-    a_grid = ds_grid.readAsArray()
+    a_grid = ds_grid.read_as_array()
     n_interps = np.sum(~a_grid.mask)
-    lats,lons = ds_grid.getCoordGrid1d()
+    lats,lons = ds_grid.get_coord_grid_1d()
     
     fname_out = "gwr_norm_%s_%02d.nc"%(params[P_VARNAME],params[P_MTH])
     ds_out = Dataset(os.path.join(params[P_PATH_OUT],fname_out),'w')
@@ -142,8 +142,8 @@ def proc_write(params,nwrkers):
 def proc_coord(params,nwrkers):
     
     ds_grid = RasterDataset(params[P_PATH_GRID])
-    a_grid = ds_grid.readAsArray()
-    lat,lon = ds_grid.getCoordMeshGrid()
+    a_grid = ds_grid.read_as_array()
+    lat,lon = ds_grid.get_coord_mesh_grid()
     grid_mask = np.nonzero(~a_grid.mask)
     lat = lat[grid_mask]
     lon = lon[grid_mask]

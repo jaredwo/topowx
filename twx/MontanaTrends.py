@@ -42,7 +42,7 @@ def calcConusTrendsSeason(mths,seasonName,tairVar):
     baseMask = np.logical_and(uYrs >= 1961,uYrs <= 1990)
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    gridMask = dsGrid.gdalDs.ReadAsArray() != 19
+    gridMask = dsGrid.gdal_ds.ReadAsArray() != 19
     
     #stns = stndaUS.stns[np.sum(stndaUS.data['raw_tmin'].mask,axis=0)==0]
     stns = stndaUS.stns
@@ -58,7 +58,7 @@ def calcConusTrendsSeason(mths,seasonName,tairVar):
         obsFLs = obsFLs - np.ma.mean(obsFLs[baseMask])
         anomFLs[:,x] = obsFLs
     
-    yGrid,xGrid = dsGrid.getCoordGrid1d()
+    yGrid,xGrid = dsGrid.get_coord_grid_1d()
     yGrid = np.sort(yGrid)
     
     allAnomGridHomog = np.zeros((uYrs.size,yGrid.size,xGrid.size))
@@ -104,7 +104,7 @@ def calcConusTrends():
     tairAgg = ushcn.TairAggregate(days)
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    gridMask = dsGrid.gdalDs.ReadAsArray() != 19
+    gridMask = dsGrid.gdal_ds.ReadAsArray() != 19
     
     #stns = stndaUS.stns[np.sum(stndaUS.data['raw_tmin'].mask,axis=0)==0]
     stns = stndaUS.stns
@@ -119,7 +119,7 @@ def calcConusTrends():
         obsFLs = obsFLs - np.ma.mean(obsFLs[baseMask])
         anomFLs[:,x] = obsFLs
     
-    yGrid,xGrid = dsGrid.getCoordGrid1d()
+    yGrid,xGrid = dsGrid.get_coord_grid_1d()
     yGrid = np.sort(yGrid)
     
     allAnomGridHomog = np.zeros((uYrs.size,yGrid.size,xGrid.size))
@@ -159,7 +159,7 @@ def plotConusTrendsMap():
                 lat_1=29.5,lat_2=45.5,lon_0=-96.0,lat_0=37.5,area_thresh= 10000)
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     x, y = m(*np.meshgrid(lon,lat))
 
     clrs = brewer2mpl.get_map('RdBu', 'Diverging', 11, reverse=True)
@@ -288,11 +288,11 @@ def plotConusTrends():
     rr  = re*rad
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    latGrid,lonGrid = dsGrid.getCoordMeshGrid()
+    latGrid,lonGrid = dsGrid.get_coord_mesh_grid()
     latGrid = np.ravel(latGrid,order='C')
     
     dsGridMt = RasterDataset('/projects/daymet2/docs/ccs_lecture/maskQtrDegMT.tif')
-    mtMask = dsGridMt.readAsArray()
+    mtMask = dsGridMt.read_as_array()
     mtMask = ~mtMask.mask
     mtMask = np.ravel(mtMask,order='C')
     
@@ -347,11 +347,11 @@ def barPlotMtSeasonalTrends():
     rr  = re*rad
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    latGrid,lonGrid = dsGrid.getCoordMeshGrid()
+    latGrid,lonGrid = dsGrid.get_coord_mesh_grid()
     latGrid = np.ravel(latGrid,order='C')
     
     dsGridMt = RasterDataset('/projects/daymet2/docs/ccs_lecture/maskQtrDegMT.tif')
-    mtMask = dsGridMt.readAsArray()
+    mtMask = dsGridMt.read_as_array()
     mtMask = ~mtMask.mask
     mtMask = np.ravel(mtMask,order='C')
     
@@ -607,8 +607,8 @@ def calcGriddedMontanaTrends(anomPath,tairVar,name,mth=None,startYr=1895,endYr=2
     stns = stndaUS.stns
     
     dsGrid = RasterDataset('/projects/daymet2/docs/ccs_lecture/maskQtrDegMT.tif')
-    gridMask = dsGrid.gdalDs.ReadAsArray() != 19    
-    yGrid,xGrid = dsGrid.getCoordGrid1d()
+    gridMask = dsGrid.gdal_ds.ReadAsArray() != 19    
+    yGrid,xGrid = dsGrid.get_coord_grid_1d()
     yGrid = np.sort(yGrid)
     
     allAnomGrid = np.zeros((uYrs.size,yGrid.size,xGrid.size))
@@ -684,8 +684,8 @@ def outputMontanaAnoms():
         tmaxMthly.append(np.ma.masked_equal(np.load('/projects/daymet2/montana_trends/grid_anoms_mth%02d_tmax.npy'%mth),MISSING_VAL))
     
     dsGrid = RasterDataset('/projects/daymet2/docs/ccs_lecture/maskQtrDegMT.tif')
-    lat,lon = dsGrid.getCoordGrid1d()
-    latG,lonG = dsGrid.getCoordMeshGrid()
+    lat,lon = dsGrid.get_coord_grid_1d()
+    latG,lonG = dsGrid.get_coord_mesh_grid()
     
     tminAnnAnoms = calcAnnGridAnoms(latG, tminAnn)
     tmaxAnnAnoms = calcAnnGridAnoms(latG, tmaxAnn)

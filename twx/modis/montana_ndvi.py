@@ -130,9 +130,9 @@ class modis_sin_rast(input_raster):
         dist = np.sqrt(dist)
         return dist
     
-    def getDataValue(self,lon,lat,interp_ndata = False):
+    def get_data_value(self,lon,lat,interp_ndata = False):
         
-        data_val = input_raster.getDataValue(self, lon, lat, False)
+        data_val = input_raster.get_data_value(self, lon, lat, False)
         
         if data_val == self.ndata and interp_ndata:
 

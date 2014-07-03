@@ -9,6 +9,7 @@ import netCDF4
 from twx.db import create_quick_db,STN_ID,BAD,LON,LAT
 from twx.db.station_data import _build_stn_struct
 from twx.utils import get_days_metadata, StatusCheck, grt_circle_dist
+import mpl_toolkits.basemap as bm
 
 SERIAL_DB_VARIABLES = {'tmin':[('tmin', 'f4', netCDF4.default_fillvals['f4'], 'minimum air temperature', 'C'),
                                ('flag_infilled', 'i1', netCDF4.default_fillvals['i1'], 'infilled flag', '')],
@@ -107,11 +108,12 @@ def create_serially_complete_db(fpath_infill_db,tair_var,fpath_out_serial_db):
     
     print "% of stns with all infilled values: "+str((np.sum(all_infill_stns)/np.float(all_infill_stns.size))*100.)
 
-def set_bad_stations(ds_serial,bad_ids):
+def set_bad_stations(ds_serial,bad_ids,reset=True):
     
     db_stnids = ds_serial.variables[STN_ID][:].astype(np.str)
     
-    ds_serial.variables[BAD] = 0
+    if reset:
+        ds_serial.variables[BAD][:] = 0
     
     for aid in bad_ids:
         
@@ -159,6 +161,123 @@ def find_dup_stns(stnda):
     rm_stnids = np.array(rm_stnids)
     
     return rm_stnids
+
+def add_stn_raster_values(stnda,var_name,long_name,units,a_rast,handle_ndata=True,nn=False):
+    
+    lon = stnda.stns[LON]
+    lat = stnda.stns[LAT]
+    
+    newvar = stnda.add_stn_variable(var_name, long_name, units, 'f8', fill_value=a_rast.ndata)
+    
+    ###################################
+    a = a_rast.read_as_array()
+    aflip = np.flipud(a)
+    aflip = aflip.astype(np.float)
+    a = a.data
+    
+    yGrid,xGrid = a_rast.get_coord_grid_1d()
+    yGrid = np.sort(yGrid)
+    
+    interpOrder = 0 if nn else 1
+    
+    rvals = np.zeros(len(newvar[:]))
+    
+    schk = StatusCheck(lon.size, 1000) 
+    for x in np.arange(lon.size):
+        
+        rval = bm.interp(aflip, xGrid, yGrid, np.array(lon[x]), np.array(lat[x]), checkbounds=False, masked=True, order=interpOrder)
+        
+        if np.ma.is_masked(rval):
+            
+            if handle_ndata:
+            
+                rval = bm.interp(aflip, xGrid, yGrid, np.array(lon[x]), np.array(lat[x]), checkbounds=False, masked=True, order=0)
+                
+                if np.ma.is_masked(rval):
+                    row,col = a_rast.get_row_col(lon[x], lat[x])
+                    rval,dist = _find_nn_data(a, a_rast, col, row)
+                    
+                    print "WARNING: Station %s (%.4f,%.4f) did not fall within raster grid cell. Using nearest grid cell value from %.2f km away."%(stnda.stn_ids[x],lon[x],lat[x],dist)
+                    
+            else:
+                
+                print "WARNING: Station %s (%.4f,%.4f) did not fall within raster grid cell. Assigning no data value: %.2f."%(a_rast.ndata,)
+                rval = a_rast.ndata
+        
+        rvals[x] = rval
+        schk.increment()
+    
+    newvar[:] = rvals
+    stnda.ds.sync()
+
+def _find_nn_data(a_data,a_rast,x,y):
+                    
+    r = 1
+    nn = []
+    nn_vals = []
+    
+    while len(nn) == 0:
+        
+        lcol = x-r
+        rcol = x+r
+        trow = y-r
+        brow = y+r
+        
+        #top ring
+        if trow > 0 and trow < a_rast.rows:
+            
+            for i in np.arange(lcol,rcol+1):
+                
+                if i > 0 and i < a_rast.cols:
+                                           
+                    if a_data[trow,i] != a_rast.ndata:                                
+                        nn.append((trow,i))
+                        nn_vals.append(a_data[trow,i])
+        
+        #left ring
+        if lcol > 0 and lcol < a_rast.cols:
+            
+            for i in np.arange(trow,brow+1):
+                
+                if i > 0 and i < a_rast.rows:
+                    
+                    if a_data[i,lcol] != a_rast.ndata:                                                              
+                        nn.append((i,lcol))
+                        nn_vals.append(a_data[i,lcol])
+                    
+        #bottom ring
+        if brow > 0 and brow < a_rast.rows:
+            
+            for i in np.arange(rcol,lcol,-1):
+                
+                if i > 0 and i < a_rast.cols:
+                    
+                    if a_data[brow,i] != a_rast.ndata:                                                                                          
+                        nn.append((brow,i))
+                        nn_vals.append(a_data[brow,i])
+                        
+        #right ring
+        if rcol > 0 and rcol < a_rast.cols:
+            
+            for i in np.arange(brow,trow,-1):
+                
+                if i > 0 and i < a_rast.rows:
+                    
+                    if a_data[i,rcol] != a_rast.ndata:   
+                        nn.append((i,rcol))
+                        nn_vals.append(a_data[i,rcol])
+        
+        r+=1
+    
+
+    nn = np.array(nn)
+    nn_vals = np.array(nn_vals)
+    lats,lons = a_rast.get_coord(nn[:,0], nn[:,1])
+    pt_lat,pt_lon = a_rast.get_coord(y,x)
+    d = grt_circle_dist(pt_lon,pt_lat, lons, lats)
+    j = np.argsort(d)[0]
+    nval = nn_vals[j]
+    return nval,d[j]
 
 def _runs_of_ones_array(bits):
     #http://stackoverflow.com/questions/1066758/find-length-of-sequences-of-identical-values-in-a-numpy-array

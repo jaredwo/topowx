@@ -2809,7 +2809,7 @@ def anomalyMap():
     tairAgg = ushcn.TairAggregate(days)
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    gridMask = dsGrid.gdalDs.ReadAsArray() != 19
+    gridMask = dsGrid.gdal_ds.ReadAsArray() != 19
     
     #stns = stndaUS.stns[np.sum(stndaUS.data['raw_tmin'].mask,axis=0)==0]
     stns = stndaUS.stns
@@ -2864,13 +2864,13 @@ def anomalyMap():
     re = 6371220.0
     rr  = re*rad
 
-    latGrid,lonGrid = dsGrid.getCoordMeshGrid()
+    latGrid,lonGrid = dsGrid.get_coord_mesh_grid()
     latGrid = latGrid.ravel()
     lonGrid = lonGrid.ravel()
     
     wgts = np.cos(latGrid*rad)
     
-    yGrid,xGrid = dsGrid.getCoordGrid1d()
+    yGrid,xGrid = dsGrid.get_coord_grid_1d()
     yGrid = np.sort(yGrid)
     
     difsAnom = np.zeros(uYrs.size)
@@ -3194,7 +3194,7 @@ def anomalyMapHCNvsTopoWx():
     tairAgg = ushcn.TairAggregate(days)
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    gridMask = dsGrid.gdalDs.ReadAsArray() != 19
+    gridMask = dsGrid.gdal_ds.ReadAsArray() != 19
     
     #stns = stndaUS.stns[np.sum(stndaUS.data['raw_tmax'].mask,axis=0)==0]
     stns = stndaUS.stns
@@ -3230,13 +3230,13 @@ def anomalyMapHCNvsTopoWx():
     re = 6371220.0
     rr  = re*rad
 
-    latGrid,lonGrid = dsGrid.getCoordMeshGrid()
+    latGrid,lonGrid = dsGrid.get_coord_mesh_grid()
     latGrid = latGrid.ravel()
     lonGrid = lonGrid.ravel()
     
     wgts = np.cos(latGrid*rad)
     
-    yGrid,xGrid = dsGrid.getCoordGrid1d()
+    yGrid,xGrid = dsGrid.get_coord_grid_1d()
     yGrid = np.sort(yGrid)
         
     avgAnomFLs = np.zeros(uYrs.size)
@@ -3544,12 +3544,12 @@ def exInterpMaps():
 
 def getCceHillshade(m,llcrnrlat,urcrnrlat,llcrnrlon,urcrnrlon):
     dsElev = RasterDataset('/projects/daymet2/dem/hillshade30-wgs84-ds.tif')
-    latElev,lonElev = dsElev.getCoordGrid1d()
+    latElev,lonElev = dsElev.get_coord_grid_1d()
     latElev = np.sort(latElev)
     nx = np.sum(np.logical_and(latElev>=llcrnrlat,latElev<=urcrnrlat))
     ny = np.sum(np.logical_and(lonElev>=llcrnrlon,lonElev<=urcrnrlon))
     #xElev, yElev = m(*np.meshgrid(lonElev,latElev))
-    elev = dsElev.readAsArray()
+    elev = dsElev.read_as_array()
     elev = np.flipud(elev)
     elev = m.transform_scalar(elev, lonElev, latElev, nx, ny)
     return elev
@@ -3567,7 +3567,7 @@ def plotTwxVsPrismDaymetNorms():
         for mth in mths:
             
             ds = RasterDataset("".join([dataPath,"cce_%s_normal_%02d.tif"%(varName,mth)]))
-            a = ds.readAsArray()
+            a = ds.read_as_array()
             a.shape = (1,a.shape[0],a.shape[1])
             mthNorms.append(a)
             
@@ -3608,7 +3608,7 @@ def plotTwxVsPrismDaymetNorms():
     dsEx = RasterDataset('/projects/daymet2/cce_case_study/topowx_files/normals/mosaics/cce_%s_normal_%02d.tif'%(tairVar,1))
          
     dsGrid = dsEx
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -3649,12 +3649,12 @@ def plotTwxVsPrismDaymetNorms():
     levels = np.arange(-4,5)
 
     dsElev = RasterDataset('/projects/daymet2/dem/hillshade30-wgs84-ds.tif')
-    latElev,lonElev = dsElev.getCoordGrid1d()
+    latElev,lonElev = dsElev.get_coord_grid_1d()
     latElev = np.sort(latElev)
     nx = np.sum(np.logical_and(latElev>=llcrnrlat,latElev<=urcrnrlat))
     ny = np.sum(np.logical_and(lonElev>=llcrnrlon,lonElev<=urcrnrlon))
     #xElev, yElev = m(*np.meshgrid(lonElev,latElev))
-    elev = dsElev.readAsArray()
+    elev = dsElev.read_as_array()
     elev = np.flipud(elev)
     elev = m.transform_scalar(elev, lonElev, latElev, nx, ny)#, returnxy, checkbounds, order, masked)
     
@@ -3777,7 +3777,7 @@ def plotTwxDaymetPrismNorms():
         for mth in mths:
             
             ds = RasterDataset("".join([dataPath,"cce_%s_normal_%02d.tif"%(varName,mth)]))
-            a = ds.readAsArray()
+            a = ds.read_as_array()
             a.shape = (1,a.shape[0],a.shape[1])
             mthNorms.append(a)
             
@@ -3807,7 +3807,7 @@ def plotTwxDaymetPrismNorms():
     dsEx = RasterDataset('/projects/daymet2/cce_case_study/topowx_files/normals/mosaics/cce_%s_normal_%02d.tif'%(tairVar,1))
          
     dsGrid = dsEx
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -3873,19 +3873,19 @@ def plotTwxVariationsVsPrismDaymetNorms():
     dsPrismTmin = RasterDataset('/projects/daymet2/compare/prism_files/normals/cce_prism_tmax1981_2010norm.tif')
     dsDaymetTmin = RasterDataset('/projects/daymet2/compare/daymet_files/normals/cce_daymet_tmax19812010norm.tif')
     
-    twxTmin = dsTwxTmin.readAsArray()
-    tmxNoLstTmin = dsTwxNoLstTmin.readAsArray()
-    tmxNoHomogTmin = dsTwxNoHomogTmin.readAsArray()
-    tmxNoHomogLstTmin = dsTwxNoHomogLstTmin.readAsArray()
+    twxTmin = dsTwxTmin.read_as_array()
+    tmxNoLstTmin = dsTwxNoLstTmin.read_as_array()
+    tmxNoHomogTmin = dsTwxNoHomogTmin.read_as_array()
+    tmxNoHomogLstTmin = dsTwxNoHomogLstTmin.read_as_array()
     
-    prismTmin = dsPrismTmin.readAsArray()/100
-    daymetTmin = dsDaymetTmin.readAsArray()
+    prismTmin = dsPrismTmin.read_as_array()/100
+    daymetTmin = dsDaymetTmin.read_as_array()
     prismTmin = daymetTmin
     
     lsAllDs = [twxTmin,tmxNoLstTmin,tmxNoHomogTmin,tmxNoHomogLstTmin,prismTmin,daymetTmin]
         
     dsGrid = dsTwxTmin
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -3951,12 +3951,12 @@ def plotTwxVsPrismDaymetTmaxNorms():
     dsPrismTmax = RasterDataset('/projects/daymet2/compare/prism_files/normals/cce_prism_tmax1981_2010norm.tif')
     dsDaymetTmax = RasterDataset('/projects/daymet2/compare/daymet_files/normals/cce_daymet_tmax19812010norm.tif')
     
-    twxTmax = dsTwxTmax.readAsArray()
-    prismTmax = dsPrismTmax.readAsArray()/100
-    daymetTmax = dsDaymetTmax.readAsArray()
+    twxTmax = dsTwxTmax.read_as_array()
+    prismTmax = dsPrismTmax.read_as_array()/100
+    daymetTmax = dsDaymetTmax.read_as_array()
         
     dsGrid = dsTwxTmax
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -4038,13 +4038,13 @@ def plotTwxVsDaymetPRISMTrend():
     dsDaymetTmax = RasterDataset('/projects/daymet2/cce_case_study/daymet_files/trends/cce_daymet_tmax19812010trend.tif')
     dsPrismTmax = RasterDataset('/projects/daymet2/cce_case_study/prism_files/trends/cce_prism4km_tmax_trend1981-2010.tif')
     
-    twxTmin = dsTwxTmin.readAsArray()*30
-    prismTmin = dsPrismTmin.readAsArray()*30
-    daymetTmin = dsDaymetTmin.readAsArray()*30
+    twxTmin = dsTwxTmin.read_as_array()*30
+    prismTmin = dsPrismTmin.read_as_array()*30
+    daymetTmin = dsDaymetTmin.read_as_array()*30
     
-    twxTmax = dsTwxTmax.readAsArray()*30
-    prismTmax = dsPrismTmax.readAsArray()*30
-    daymetTmax = dsDaymetTmax.readAsArray()*30
+    twxTmax = dsTwxTmax.read_as_array()*30
+    prismTmax = dsPrismTmax.read_as_array()*30
+    daymetTmax = dsDaymetTmax.read_as_array()*30
     
     print np.min([np.min(twxTmin),np.min(twxTmax),np.min(prismTmin),np.min(prismTmax),np.min(daymetTmin),np.min(daymetTmax)])
     print np.max([np.max(twxTmin),np.max(twxTmax),np.max(prismTmin),np.max(prismTmax),np.max(daymetTmin),np.max(daymetTmax)])
@@ -4066,7 +4066,7 @@ def plotTwxVsDaymetPRISMTrend():
     percentTrend(daymetTmaxC,'daymet')
     
     dsGrid = dsTwxTmin
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -4168,16 +4168,16 @@ def plotTwxVsPRISMTrend2():
     dsTwxTmax = RasterDataset('/projects/daymet2/cce_case_study/topowx_files/trends/cce_topowx_tmax19482012trend.tif')
     dsPrismTmax = RasterDataset('/projects/daymet2/cce_case_study/prism_files/trends/cce_prism4km_tmax_trend1948-2012.tif')
     
-    twxTmin = dsTwxTmin.readAsArray()*65
-    prismTmin = dsPrismTmin.readAsArray()*65
-    twxTmax = dsTwxTmax.readAsArray()*65
-    prismTmax = dsPrismTmax.readAsArray()*65
+    twxTmin = dsTwxTmin.read_as_array()*65
+    prismTmin = dsPrismTmin.read_as_array()*65
+    twxTmax = dsTwxTmax.read_as_array()*65
+    prismTmax = dsPrismTmax.read_as_array()*65
     
     print np.min([np.min(twxTmin),np.min(twxTmax),np.min(prismTmin),np.min(prismTmax)])
     print np.max([np.max(twxTmin),np.max(twxTmax),np.max(prismTmin),np.max(prismTmax)])
     
     dsGrid = dsTwxTmin
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -4259,14 +4259,14 @@ def plotTwxVsPRISMTrend():
     dsTwxTmin = RasterDataset('/projects/daymet2/cce_case_study/topowx_files/trends/cce_topowx_tmin19482012trend.tif')
     dsPrismTmin = RasterDataset('/projects/daymet2/cce_case_study/prism_files/trends/cce_prism4km_tmin_trend1948-2012.tif')
     
-    twxTmin = dsTwxTmin.gdalDs.GetRasterBand(1).ReadAsArray()
-    twxTmin = np.ma.masked_equal(twxTmin, dsTwxTmin.gdalDs.GetRasterBand(1).GetNoDataValue())*65
+    twxTmin = dsTwxTmin.gdal_ds.GetRasterBand(1).ReadAsArray()
+    twxTmin = np.ma.masked_equal(twxTmin, dsTwxTmin.gdal_ds.GetRasterBand(1).GetNoDataValue())*65
     
-    prismTmin = dsPrismTmin.gdalDs.GetRasterBand(1).ReadAsArray()
-    prismTmin = np.ma.masked_equal(prismTmin, dsPrismTmin.gdalDs.GetRasterBand(1).GetNoDataValue())*65
+    prismTmin = dsPrismTmin.gdal_ds.GetRasterBand(1).ReadAsArray()
+    prismTmin = np.ma.masked_equal(prismTmin, dsPrismTmin.gdal_ds.GetRasterBand(1).GetNoDataValue())*65
     
     dsGrid = dsTwxTmin
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -4306,8 +4306,8 @@ def plotTwxVsPRISMTrend():
     x1, y1 = m1(*np.meshgrid(lon,lat))
     
     dsElev = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_elev.tif')
-    elev = dsElev.gdalDs.GetRasterBand(1).ReadAsArray()
-    elev = np.ma.masked_equal(elev, dsElev.gdalDs.GetRasterBand(1).GetNoDataValue())
+    elev = dsElev.gdal_ds.GetRasterBand(1).ReadAsArray()
+    elev = np.ma.masked_equal(elev, dsElev.gdal_ds.GetRasterBand(1).GetNoDataValue())
     print np.sum(~elev.mask)
     #plt.subplot(211)
     cf = plt.gcf()
@@ -4353,7 +4353,7 @@ def plotConusTrends():
                 lat_1=29.5,lat_2=45.5,lon_0=-96.0,lat_0=37.5,area_thresh= 10000)
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     x, y = m(*np.meshgrid(lon,lat))
 
     clrs = brewer2mpl.get_map('RdBu', 'Diverging', 11, reverse=True)
@@ -4456,9 +4456,9 @@ def calcConusTrendsTopoWx():
     tairAnom = tairAnn - normsAnn
         
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    gridMask = dsGrid.gdalDs.ReadAsArray() != 19
+    gridMask = dsGrid.gdal_ds.ReadAsArray() != 19
 
-    yGrid,xGrid = dsGrid.getCoordGrid1d()
+    yGrid,xGrid = dsGrid.get_coord_grid_1d()
     yGrid = np.sort(yGrid)
     
     allAnomGridHomog = np.zeros((uYrs.size,yGrid.size,xGrid.size))
@@ -4501,7 +4501,7 @@ def calcConusTrends():
     tairAgg = ushcn.TairAggregate(days)
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    gridMask = dsGrid.gdalDs.ReadAsArray() != 19
+    gridMask = dsGrid.gdal_ds.ReadAsArray() != 19
     
     #stns = stndaUS.stns[np.sum(stndaUS.data['raw_tmin'].mask,axis=0)==0]
     stns = stndaUS.stns
@@ -4525,7 +4525,7 @@ def calcConusTrends():
         anomFLs[:,x] = obsFLs
         anomRaw[:,x] = obsRaw
     
-    yGrid,xGrid = dsGrid.getCoordGrid1d()
+    yGrid,xGrid = dsGrid.get_coord_grid_1d()
     yGrid = np.sort(yGrid)
     
     allAnomGridHomog = np.zeros((uYrs.size,yGrid.size,xGrid.size))
@@ -4772,16 +4772,16 @@ def plotCcePredictors():
     dsTmax1 = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_tmax01.tif')
     dsTmax2 = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_tmax08.tif')
     
-    elev = dsElev.readAsArray()
-    tdi = dsTdi.readAsArray()
-    tmin1 = dsTmin1.readAsArray()
-    tmin2 = dsTmin2.readAsArray()
-    tmax1 = dsTmax1.readAsArray()
-    tmax2 = dsTmax2.readAsArray()
+    elev = dsElev.read_as_array()
+    tdi = dsTdi.read_as_array()
+    tmin1 = dsTmin1.read_as_array()
+    tmin2 = dsTmin2.read_as_array()
+    tmax1 = dsTmax1.read_as_array()
+    tmax2 = dsTmax2.read_as_array()
     
     
     dsGrid = dsElev
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -4837,13 +4837,13 @@ def plotCcePredictors2():
     dsTmin = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_tmin08.tif')
     dsTmax = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_tmax08.tif')
     
-    elev = dsElev.readAsArray()
-    tdi = dsTdi.readAsArray()
-    tmin = dsTmin.readAsArray()
-    tmax = dsTmax.readAsArray()
+    elev = dsElev.read_as_array()
+    tdi = dsTdi.read_as_array()
+    tmin = dsTmin.read_as_array()
+    tmax = dsTmax.read_as_array()
     
     dsGrid = dsElev
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -4895,7 +4895,7 @@ def plotCcePredictors2():
  
 def plotCcePredictorR2():
     dsMask = RasterDataset('/projects/daymet2/dem/interp_grids/cce/crp_cce_us_mask.tif')
-    cceMask = dsMask.readAsArray().data
+    cceMask = dsMask.read_as_array().data
     
 #    dsMask = input_raster('/projects/daymet2/dem/interp_grids/cce/crp_cce_us_mask.tif')
 #    cceMask = dsMask.readEntireRaster()
@@ -4909,7 +4909,7 @@ def plotCcePredictorR2():
         for stn,x in zip(stns,np.arange(stns.size)):
             
             try:
-                row,col = dsMask.getRowCol(stn[LON], stn[LAT])
+                row,col = dsMask.get_row_col(stn[LON], stn[LAT])
                 #col,row = dsMask.getGridCellOffset(stn[LON], stn[LAT])
                 
                 cceStnMask[x] = cceMask[row,col]
@@ -4982,7 +4982,7 @@ def plotCcePredictorR2():
 
 def cceMae():
     dsMask = RasterDataset('/projects/daymet2/dem/interp_grids/cce/crp_cce_us_mask.tif')
-    cceMask = dsMask.readAsArray().data
+    cceMask = dsMask.read_as_array().data
             
     def maskStnsToCCE(stnDa):
             
@@ -4992,7 +4992,7 @@ def cceMae():
         for stn,x in zip(stns,np.arange(stns.size)):
             
             try:
-                row,col = dsMask.getRowCol(stn[LON], stn[LAT])
+                row,col = dsMask.get_row_col(stn[LON], stn[LAT])
                 #col,row = dsMask.getGridCellOffset(stn[LON], stn[LAT])
                 
                 cceStnMask[x] = cceMask[row,col]
@@ -5330,7 +5330,7 @@ def cceBiasVsPlot2():
 def maskStnsToCCE(stnDa):
     
     dsMask = RasterDataset('/projects/daymet2/dem/interp_grids/cce/crp_cce_us_mask.tif')
-    cceMask = dsMask.readAsArray().data
+    cceMask = dsMask.read_as_array().data
     
     stns = stnDa.stns
     cceStnMask = np.zeros(stns.size,dtype=np.bool)
@@ -5338,7 +5338,7 @@ def maskStnsToCCE(stnDa):
     for stn,x in zip(stns,np.arange(stns.size)):
         
         try:
-            row,col = dsMask.getRowCol(stn[LON], stn[LAT])
+            row,col = dsMask.get_row_col(stn[LON], stn[LAT])
             #col,row = dsMask.getGridCellOffset(stn[LON], stn[LAT])
             
             cceStnMask[x] = cceMask[row,col]
@@ -5433,7 +5433,7 @@ def plotCceNormSeExamples():
         for mth in np.arange(1,13):
             
             ds = RasterDataset("".join([cceDataPath,"cce_",varName,"_%02d.tif"%mth]))
-            a = ds.readAsArray()
+            a = ds.read_as_array()
             mthMeans.append(np.ma.mean(a))
         
         mthMeans = np.array(mthMeans)
@@ -5452,10 +5452,10 @@ def plotCceNormSeExamples():
     dsTminNorm = RasterDataset("".join([cceDataPath,"cce_tmin_normal_%02d.tif"%mthTmin]))
     dsTmaxNorm = RasterDataset("".join([cceDataPath,"cce_tmax_normal_%02d.tif"%mthTmax]))
         
-    tminSe = dsTminSe.readAsArray()
-    tmaxSe = dsTmaxSe.readAsArray()
-    tminNorm = dsTminNorm.readAsArray()
-    tmaxNorm = dsTmaxNorm.readAsArray()
+    tminSe = dsTminSe.read_as_array()
+    tmaxSe = dsTmaxSe.read_as_array()
+    tminNorm = dsTminNorm.read_as_array()
+    tmaxNorm = dsTmaxNorm.read_as_array()
     
     vminSe = np.min([np.min(tminSe),np.min(tmaxSe)])
     vmaxSe = np.max([np.max(tminSe),np.max(tmaxSe)])
@@ -5481,7 +5481,7 @@ def plotCceNormSeExamples():
 #    smNormal.set_array(np.concatenate((np.ma.compressed(tminNorm),np.ma.compressed(tmaxNorm))))
         
     dsGrid = dsTminSe
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -5551,15 +5551,15 @@ def plotCceNormSeExamples2():
     dsTminNorm = RasterDataset("".join([cceDataPath,"cce_tmin_normal_%02d.tif"%mthTmin]))
     dsTmaxNorm = RasterDataset("".join([cceDataPath,"cce_tmax_normal_%02d.tif"%mthTmax]))
         
-    tminSe = dsTminSe.readAsArray()
-    tmaxSe = dsTmaxSe.readAsArray()
-    tminNorm = dsTminNorm.readAsArray()
-    tmaxNorm = dsTmaxNorm.readAsArray()
+    tminSe = dsTminSe.read_as_array()
+    tmaxSe = dsTmaxSe.read_as_array()
+    tminNorm = dsTminNorm.read_as_array()
+    tmaxNorm = dsTmaxNorm.read_as_array()
     
     print np.max(tmaxSe),np.min(tminSe)
     
     dsGrid = dsTminSe
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -5665,16 +5665,16 @@ def trendsBoxplot():
     dsDaymetTmax = RasterDataset('/projects/daymet2/cce_case_study/daymet_files/trends/cce_daymet_tmax19812010trend.tif')
     dsPrismTmax = RasterDataset('/projects/daymet2/cce_case_study/prism_files/trends/cce_prism4km_tmax_trend1981-2010.tif')
     
-    twxTmin = dsTwxTmin.readAsArray()*30
-    prismTmin = dsPrismTmin.readAsArray()*30
-    daymetTmin = dsDaymetTmin.readAsArray()*30
+    twxTmin = dsTwxTmin.read_as_array()*30
+    prismTmin = dsPrismTmin.read_as_array()*30
+    daymetTmin = dsDaymetTmin.read_as_array()*30
     
-    twxTmax = dsTwxTmax.readAsArray()*30
-    prismTmax = dsPrismTmax.readAsArray()*30
-    daymetTmax = dsDaymetTmax.readAsArray()*30
+    twxTmax = dsTwxTmax.read_as_array()*30
+    prismTmax = dsPrismTmax.read_as_array()*30
+    daymetTmax = dsDaymetTmax.read_as_array()*30
     
     ds = RasterDataset('/projects/daymet2/cce_case_study/predictors/cce_elev.tif')
-    elev = ds.readAsArray()
+    elev = ds.read_as_array()
     elev = np.ma.filled(elev, -1)
         
     twxTmin = twxTmin.data
@@ -5955,7 +5955,7 @@ def plotCceTransectNorms():
         for mth in mths:
             
             ds = RasterDataset("".join([dataPath,"cce_%s_normal_%02d.tif"%(varName,mth)]))
-            a = ds.readAsArray()
+            a = ds.read_as_array()
             a.shape = (1,a.shape[0],a.shape[1])
             mthNorms.append(a)
             
@@ -5979,13 +5979,13 @@ def plotCceTransectNorms():
     transLon = (-114.6,-112.5)
     transLat = (47.78,47.78)
     
-    lats,lons = dsElev.getCoordGrid1d()
+    lats,lons = dsElev.get_coord_grid_1d()
     
-    elev = dsElev.readAsArray()
-    tdi = dsTdi.readAsArray()
+    elev = dsElev.read_as_array()
+    tdi = dsTdi.read_as_array()
     
-    row,col1 = dsElev.getRowCol(transLon[0], transLat[0])
-    row,col2 = dsElev.getRowCol(transLon[1], transLat[1])
+    row,col1 = dsElev.get_row_col(transLon[0], transLat[0])
+    row,col2 = dsElev.get_row_col(transLon[1], transLat[1])
     
     lonsTrans =  np.around(lons[col1:col2],3)
     
@@ -6062,7 +6062,7 @@ def plotCceTransectNorms():
 
 def outputCceStnsToCsv():
     dsMask = RasterDataset('/projects/daymet2/dem/interp_grids/cce/crp_cce_us_mask.tif')
-    cceMask = dsMask.readAsArray().data
+    cceMask = dsMask.read_as_array().data
         
 #    dsMask = input_raster('/projects/daymet2/dem/interp_grids/cce/crp_cce_us_mask.tif')
 #    cceMask = dsMask.readEntireRaster()
@@ -6076,7 +6076,7 @@ def outputCceStnsToCsv():
         for stn,x in zip(stns,np.arange(stns.size)):
             
             try:
-                row,col = dsMask.getRowCol(stn[LON], stn[LAT])
+                row,col = dsMask.get_row_col(stn[LON], stn[LAT])
                 #col,row = dsMask.getGridCellOffset(stn[LON], stn[LAT])
                 
                 cceStnMask[x] = cceMask[row,col]
@@ -6189,10 +6189,10 @@ def flatheadLake():
         for mth in np.arange(1,13):
         
             ds = RasterDataset(prefix+'cce_%s_normal_%02d.tif'%('tmin',mth))
-            tmin.append(ds.getDataValue(lon, lat))
+            tmin.append(ds.get_data_value(lon, lat))
             
             ds = RasterDataset(prefix+'cce_%s_normal_%02d.tif'%('tmax',mth))
-            tmax.append(ds.getDataValue(lon, lat))
+            tmax.append(ds.get_data_value(lon, lat))
         
         tmin = np.array(tmin)
         tmax = np.array(tmax)
@@ -6206,10 +6206,10 @@ def flatheadLake():
         for mth in np.arange(1,13):
         
             ds = RasterDataset(prefix+'cce_%s_se_%02d.tif'%('tmin',mth))
-            tmin.append(ds.getDataValue(lon, lat))
+            tmin.append(ds.get_data_value(lon, lat))
             
             ds = RasterDataset(prefix+'cce_%s_se_%02d.tif'%('tmax',mth))
-            tmax.append(ds.getDataValue(lon, lat))
+            tmax.append(ds.get_data_value(lon, lat))
         
         tmin = np.array(tmin)
         tmax = np.array(tmax)
@@ -6262,10 +6262,10 @@ def cceSpecificStnCompareBarPlot():
         for mth in np.arange(1,13):
         
             ds = RasterDataset(prefix+'cce_%s_normal_%02d.tif'%('tmin',mth))
-            tmin.append(ds.getDataValue(lon, lat))
+            tmin.append(ds.get_data_value(lon, lat))
             
             ds = RasterDataset(prefix+'cce_%s_normal_%02d.tif'%('tmax',mth))
-            tmax.append(ds.getDataValue(lon, lat))
+            tmax.append(ds.get_data_value(lon, lat))
         
         tmin = np.array(tmin)
         tmax = np.array(tmax)
@@ -6392,9 +6392,9 @@ def plotOptimNnghsKriging():
                 lat_1=29.5,lat_2=45.5,lon_0=-96.0,lat_0=37.5,area_thresh= 10000)
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     x, y = m(*np.meshgrid(lon,lat))
-    gridMask = dsGrid.gdalDs.ReadAsArray() != 19
+    gridMask = dsGrid.gdal_ds.ReadAsArray() != 19
     latS = np.sort(lat) 
     
     

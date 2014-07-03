@@ -14,9 +14,9 @@ class OutsideExtent(Exception):
 
 class RasterDataset(object):
 
-    def __init__(self,dsPath):
+    def __init__(self,ds_path):
         
-        self.gdalDs = gdal.Open(dsPath)
+        self.gdal_ds = gdal.Open(ds_path)
         
         #GDAL GeoTransform. 
         #Top left x,y are for the upper left corner of upper left pixel
@@ -26,85 +26,85 @@ class RasterDataset(object):
         #GeoTransform[3] /* top left y */
         #GeoTransform[4] /* rotation, 0 if image is "north up" */
         #GeoTransform[5] /* n-s pixel resolution */
-        self.geoT = np.array(self.gdalDs.GetGeoTransform())
+        self.geo_t = np.array(self.gdal_ds.GetGeoTransform())
         
-        self.projection = self.gdalDs.GetProjection()
-        self.sourceSR = osr.SpatialReference()
-        self.sourceSR.ImportFromWkt(self.projection)
-        self.targetSR = osr.SpatialReference()
-        self.targetSR.ImportFromEPSG(PROJECTION_GEO_WGS84)
-        self.coordTrans_src_to_wgs84 = osr.CoordinateTransformation(self.sourceSR, self.targetSR)
-        self.coordTrans_wgs84_to_src = osr.CoordinateTransformation(self.targetSR, self.sourceSR)
+        self.projection = self.gdal_ds.GetProjection()
+        self.source_sr = osr.SpatialReference()
+        self.source_sr.ImportFromWkt(self.projection)
+        self.target_sr = osr.SpatialReference()
+        self.target_sr.ImportFromEPSG(PROJECTION_GEO_WGS84)
+        self.coordTrans_src_to_wgs84 = osr.CoordinateTransformation(self.source_sr, self.target_sr)
+        self.coordTrans_wgs84_to_src = osr.CoordinateTransformation(self.target_sr, self.source_sr)
         
-        #y,x = self.getCoordGrid1d()
+        #y,x = self.get_coord_grid_1d()
         
-#        self.min_x = x[0]-np.abs(self.geoT[1])
-#        self.max_x = x[-1]-np.abs(self.geoT[1])
-#        self.max_y = y[0]+np.abs(self.geoT[5])
-#        self.min_y =  y[-1]-np.abs(self.geoT[5])
+#        self.min_x = x[0]-np.abs(self.geo_t[1])
+#        self.max_x = x[-1]-np.abs(self.geo_t[1])
+#        self.max_y = y[0]+np.abs(self.geo_t[5])
+#        self.min_y =  y[-1]-np.abs(self.geo_t[5])
         
-        self.min_x = self.geoT[0]
-        self.max_x = self.min_x + (self.gdalDs.RasterXSize*self.geoT[1])
-        self.max_y =  self.geoT[3]
-        self.min_y =  self.max_y - (-self.gdalDs.RasterYSize*self.geoT[5])
+        self.min_x = self.geo_t[0]
+        self.max_x = self.min_x + (self.gdal_ds.RasterXSize*self.geo_t[1])
+        self.max_y =  self.geo_t[3]
+        self.min_y =  self.max_y - (-self.gdal_ds.RasterYSize*self.geo_t[5])
         
-        self.rows = self.gdalDs.RasterYSize
-        self.cols = self.gdalDs.RasterXSize
-        self.ndata = self.gdalDs.GetRasterBand(1).GetNoDataValue()
+        self.rows = self.gdal_ds.RasterYSize
+        self.cols = self.gdal_ds.RasterXSize
+        self.ndata = self.gdal_ds.GetRasterBand(1).GetNoDataValue()
         
     
-    def getCoordMeshGrid(self):
+    def get_coord_mesh_grid(self):
         
         #Get the upper left and right point x coordinates in the raster's projection
-        ulX = self.geoT[0] + (self.geoT[1] / 2.0)
-        urX = self.getCoord(0, self.gdalDs.RasterXSize-1)[1]
+        ulX = self.geo_t[0] + (self.geo_t[1] / 2.0)
+        urX = self.get_coord(0, self.gdal_ds.RasterXSize-1)[1]
         
         #Get the upper left and lower left y coordinates
-        ulY = self.geoT[3] + (self.geoT[5] / 2.0)
-        llY = self.getCoord(self.gdalDs.RasterYSize-1, 0)[0]
+        ulY = self.geo_t[3] + (self.geo_t[5] / 2.0)
+        llY = self.get_coord(self.gdal_ds.RasterYSize-1, 0)[0]
         
         #Build 1D arrays of x,y coords
-        x = np.linspace(ulX, urX, self.gdalDs.RasterXSize)
-        y = np.linspace(ulY, llY, self.gdalDs.RasterYSize)
+        x = np.linspace(ulX, urX, self.gdal_ds.RasterXSize)
+        y = np.linspace(ulY, llY, self.gdal_ds.RasterYSize)
         
         xGrid, yGrid = np.meshgrid(x, y)
         
         return yGrid, xGrid
     
-    def getCoordGrid1d(self):
+    def get_coord_grid_1d(self):
         
         #Get the upper left and right point x coordinates in the raster's projection
-        ulX = self.geoT[0] + (self.geoT[1] / 2.0)
-        urX = self.getCoord(0, self.gdalDs.RasterXSize-1)[1]
+        ulX = self.geo_t[0] + (self.geo_t[1] / 2.0)
+        urX = self.get_coord(0, self.gdal_ds.RasterXSize-1)[1]
         
         #Get the upper left and lower left y coordinates
-        ulY = self.geoT[3] + (self.geoT[5] / 2.0)
-        llY = self.getCoord(self.gdalDs.RasterYSize-1, 0)[0]
+        ulY = self.geo_t[3] + (self.geo_t[5] / 2.0)
+        llY = self.get_coord(self.gdal_ds.RasterYSize-1, 0)[0]
         
         #Build 1D arrays of x,y coords
-        x = np.linspace(ulX, urX, self.gdalDs.RasterXSize)
-        y = np.linspace(ulY, llY, self.gdalDs.RasterYSize)
+        x = np.linspace(ulX, urX, self.gdal_ds.RasterXSize)
+        y = np.linspace(ulY, llY, self.gdal_ds.RasterYSize)
         
         return y, x
         
-    def getCoord(self, row, col):
+    def get_coord(self, row, col):
         
-        xCoord = (self.geoT[0] + col*self.geoT[1] + row*self.geoT[2]) + self.geoT[1] / 2.0
-        yCoord = (self.geoT[3] + col*self.geoT[4] + row*self.geoT[5]) + self.geoT[5] / 2.0
+        xCoord = (self.geo_t[0] + col*self.geo_t[1] + row*self.geo_t[2]) + self.geo_t[1] / 2.0
+        yCoord = (self.geo_t[3] + col*self.geo_t[4] + row*self.geo_t[5]) + self.geo_t[5] / 2.0
         
         return yCoord,xCoord
 
-    def getRowCol(self,lon,lat):
+    def get_row_col(self,lon,lat):
         '''Returns the grid cell offset for this raster based on the input wgs84 lon/lat'''
         xGeo, yGeo, zGeo = self.coordTrans_wgs84_to_src.TransformPoint(lon,lat) 
         
-        if not self.isInbounds(xGeo, yGeo):
+        if not self.is_inbounds(xGeo, yGeo):
             raise OutsideExtent("lat/lon outside raster extent: "+str(lat)+","+str(lon))
         
-        originX = self.geoT[0]
-        originY = self.geoT[3]
-        pixelWidth = self.geoT[1]
-        pixelHeight = self.geoT[5]
+        originX = self.geo_t[0]
+        originY = self.geo_t[3]
+        pixelWidth = self.geo_t[1]
+        pixelHeight = self.geo_t[5]
         
         xOffset = np.abs(np.int((xGeo - originX) / pixelWidth))
         yOffset = np.abs(np.int((yGeo - originY) / pixelHeight))
@@ -114,20 +114,20 @@ class RasterDataset(object):
         
         return row,col
 
-    def getDataValue(self,lon,lat):
+    def get_data_value(self,lon,lat):
         
-        row,col = self.getRowCol(lon,lat)
-        data_val = self.gdalDs.ReadAsArray(col,row,1,1)[0,0] 
+        row,col = self.get_row_col(lon,lat)
+        data_val = self.gdal_ds.ReadAsArray(col,row,1,1)[0,0] 
         #data_val = self.readDataArray(col,row,1,1)[0,0]        
         return data_val
 
-    def readAsArray(self):
+    def read_as_array(self):
         
-        a = self.gdalDs.GetRasterBand(1).ReadAsArray()
-        a = np.ma.masked_equal(a, self.gdalDs.GetRasterBand(1).GetNoDataValue())
+        a = self.gdal_ds.GetRasterBand(1).ReadAsArray()
+        a = np.ma.masked_equal(a, self.gdal_ds.GetRasterBand(1).GetNoDataValue())
         return a
     
-    def isInbounds(self,x_geo,y_geo):
+    def is_inbounds(self,x_geo,y_geo):
         return x_geo >= self.min_x and x_geo <= self.max_x and y_geo >= self.min_y and y_geo <= self.max_y
 
 class input_raster(object):
@@ -156,12 +156,12 @@ class input_raster(object):
         self.projection = self.raster.GetProjection()
         self.rows = self.raster.RasterYSize
         self.cols = self.raster.RasterXSize
-        self.sourceSR = osr.SpatialReference()
-        self.sourceSR.ImportFromWkt(self.projection)
-        self.targetSR = osr.SpatialReference()
-        self.targetSR.ImportFromEPSG(PROJECTION_GEO_WGS84)
-        self.coordTrans_src_to_wgs84 = osr.CoordinateTransformation(self.sourceSR, self.targetSR)
-        self.coordTrans_wgs84_to_src = osr.CoordinateTransformation(self.targetSR, self.sourceSR)
+        self.source_sr = osr.SpatialReference()
+        self.source_sr.ImportFromWkt(self.projection)
+        self.target_sr = osr.SpatialReference()
+        self.target_sr.ImportFromEPSG(PROJECTION_GEO_WGS84)
+        self.coordTrans_src_to_wgs84 = osr.CoordinateTransformation(self.source_sr, self.target_sr)
+        self.coordTrans_wgs84_to_src = osr.CoordinateTransformation(self.target_sr, self.source_sr)
         self.data = self.raster.GetRasterBand(bandNum)
         self.dataCache = dict()
         self.min_x = self.geoTransform[0]
@@ -202,7 +202,7 @@ class input_raster(object):
     def is_inbounds(self,x_geo,y_geo):
         return x_geo >= self.min_x and x_geo <= self.max_x and y_geo >= self.min_y and y_geo <= self.max_y
     
-    def getDataValue(self,lon,lat,useCache=False):
+    def get_data_value(self,lon,lat,useCache=False):
         
         col,row = self.getGridCellOffset(lon,lat)
         

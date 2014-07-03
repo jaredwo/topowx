@@ -649,12 +649,12 @@ class InterpObsPRISM(InterpObs):
         
         if tairVar == 'tmin':
             
-            normTwx = self.dsTwxTmin.getDataValue(aPt[LON], aPt[LAT])
-            normPRISM = self.dsPrismTmin.getDataValue(aPt[LON], aPt[LAT])/100.0
+            normTwx = self.dsTwxTmin.get_data_value(aPt[LON], aPt[LAT])
+            normPRISM = self.dsPrismTmin.get_data_value(aPt[LON], aPt[LAT])/100.0
             return tmin_dly+(normPRISM-normTwx)
         elif tairVar == 'tmax':
-            normTwx = self.dsTwxTmax.getDataValue(aPt[LON], aPt[LAT])
-            normPRISM = self.dsPrismTmax.getDataValue(aPt[LON], aPt[LAT])/100.0
+            normTwx = self.dsTwxTmax.get_data_value(aPt[LON], aPt[LAT])
+            normPRISM = self.dsPrismTmax.get_data_value(aPt[LON], aPt[LAT])/100.0
             return tmax_dly+(normPRISM-normTwx)
         else:
             raise Exception("Unrecognized TairVar")
@@ -782,13 +782,13 @@ class DaymetTileRaster():
         
         sr = osr.SpatialReference()
         sr.ImportFromProj4("+proj=lcc +datum=WGS84 +lat_1=25n +lat_2=60n +lat_0=42.5n +lon_0=100w")
-        self.sourceSR = sr
+        self.source_sr = sr
         
-        self.targetSR = osr.SpatialReference()
-        self.targetSR.ImportFromEPSG(PROJ_GEO_WGS84)
+        self.target_sr = osr.SpatialReference()
+        self.target_sr.ImportFromEPSG(PROJ_GEO_WGS84)
         
-        self.coordTrans_src_to_wgs84 = osr.CoordinateTransformation(self.sourceSR, self.targetSR)
-        self.coordTrans_wgs84_to_src = osr.CoordinateTransformation(self.targetSR, self.sourceSR)
+        self.coordTrans_src_to_wgs84 = osr.CoordinateTransformation(self.source_sr, self.target_sr)
+        self.coordTrans_wgs84_to_src = osr.CoordinateTransformation(self.target_sr, self.source_sr)
         
         self.daysNoLeap = utld.get_days_metadata_dates(num2date(self.ds.variables['time'][:], self.ds.variables['time'].units))
         self.days = utld.get_days_metadata(self.daysNoLeap[DATE][0], self.daysNoLeap[DATE][-1])

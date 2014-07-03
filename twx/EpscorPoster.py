@@ -224,7 +224,7 @@ def plotStnTrendMaps():
 #        trends[x] = stats.linregress(uYrs,obsFLsAnom[:,x])[0]*10
 #    
 #    dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-#    lat,lon = dsGrid.getCoordGrid1d()
+#    lat,lon = dsGrid.get_coord_grid_1d()
 #    lonMask = np.nonzero(np.logical_and(lon>=llcrnrlon-2,lon<=urcrnrlon+2))[0]
 #    latMask = np.nonzero(np.logical_and(lat>=llcrnrlat-2,lat<=urcrnrlat+2))[0]
 #    lon = lon[lonMask]
@@ -587,7 +587,7 @@ def homogAdjBoxplot():
 def xvalErrMaps():
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     lonMask = np.nonzero(np.logical_and(lon>=llcrnrlon-2,lon<=urcrnrlon+2))[0]
     latMask = np.nonzero(np.logical_and(lat>=llcrnrlat-2,lat<=urcrnrlat+2))[0]
     lon = lon[lonMask]

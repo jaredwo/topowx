@@ -20,7 +20,7 @@ r = robjects.r
 def get_topo_disect_pt(lon,lat):
     #alter table stations add column NEON_RGN; 
     r_td = input_raster('/projects/daymet2/dem/topo_disect_msd.tif')
-    return r_td.getDataValue(lon, lat)
+    return r_td.get_data_value(lon, lat)
 
 def get_topo_disect(stns):
     #alter table stations add column NEON_RGN; 

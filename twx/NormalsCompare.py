@@ -105,14 +105,14 @@ def saveNpyNormStns():
     stns['method'] = method
     
     ds = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/climdivLccMerge.tif')
-    ndata = ds.gdalDs.GetRasterBand(1).GetNoDataValue()
+    ndata = ds.gdal_ds.GetRasterBand(1).GetNoDataValue()
     
     climDivs = np.ones(stns.size)*np.nan
     
     for stn,x in zip(stns,np.arange(stns.size)):
         
         try:
-            climDiv = ds.getDataValue(stn[LON],stn[LAT])
+            climDiv = ds.get_data_value(stn[LON],stn[LAT])
             
             if climDiv == ndata:
                 continue
@@ -238,9 +238,9 @@ def buildDaymetNorms():
     
     stnsRowCol = []
     for astn in stns:
-        stnsRowCol.append(egDs.getRowCol(astn[LON], astn[LAT]))
+        stnsRowCol.append(egDs.get_row_col(astn[LON], astn[LAT]))
     
-    yrArrays = np.zeros((12,egDs.gdalDs.RasterYSize,egDs.gdalDs.RasterXSize),dtype=np.float32)
+    yrArrays = np.zeros((12,egDs.gdal_ds.RasterYSize,egDs.gdal_ds.RasterXSize),dtype=np.float32)
     
     for yr in np.arange(1980,2013):
         
@@ -249,7 +249,7 @@ def buildDaymetNorms():
         print "Loading data for year "+str(yr)
         for j in np.arange(len(mthNames)):
             ads = RasterDataset("".join([dataPath,"tmax_",str(yr),"_",mthNames[j],".tif"]))
-            yrArrays[j,:,:] = ads.gdalDs.GetRasterBand(1).ReadAsArray()
+            yrArrays[j,:,:] = ads.gdal_ds.GetRasterBand(1).ReadAsArray()
     
         tmaxMthlyYr = np.zeros((12,stns.size))
         for x in np.arange(stns.size):
@@ -290,21 +290,21 @@ def buildPrismNorms():
 
     egDs = RasterDataset('/projects/daymet2/prism/new_norms/PRISM_tmax_30yr_normal_800mM2_01_bil.bil')
 
-    tmaxNormsPrism = np.zeros((12,egDs.gdalDs.RasterYSize,egDs.gdalDs.RasterXSize),dtype=np.float32)
-    tminNormsPrism = np.zeros((12,egDs.gdalDs.RasterYSize,egDs.gdalDs.RasterXSize),dtype=np.float32)
+    tmaxNormsPrism = np.zeros((12,egDs.gdal_ds.RasterYSize,egDs.gdal_ds.RasterXSize),dtype=np.float32)
+    tminNormsPrism = np.zeros((12,egDs.gdal_ds.RasterYSize,egDs.gdal_ds.RasterXSize),dtype=np.float32)
     
     print "Loading data...."
     for mth in np.arange(1,13):
         ds = RasterDataset("".join([prismFpath,'PRISM_tmax_30yr_normal_800mM2_%02d_bil.bil'%mth]))
-        tmaxNormsPrism[mth-1,:,:] = ds.readAsArray()
+        tmaxNormsPrism[mth-1,:,:] = ds.read_as_array()
         
         ds = RasterDataset("".join([prismFpath,'PRISM_tmin_30yr_normal_800mM2_%02d_bil.bil'%mth]))
-        tminNormsPrism[mth-1,:,:] = ds.readAsArray()
+        tminNormsPrism[mth-1,:,:] = ds.read_as_array()
     
     print "Getting station norms...."
     for x in np.arange(stns.size):
         try:
-            row,col = egDs.getRowCol(stns[LON][x],stns[LAT][x])
+            row,col = egDs.get_row_col(stns[LON][x],stns[LAT][x])
             tmaxNorms[:,x] = tmaxNormsPrism[:,row,col]
             tminNorms[:,x] = tminNormsPrism[:,row,col]
         except:

@@ -88,7 +88,7 @@ def plotConusTrends():
                 lat_1=29.5,lat_2=45.5,lon_0=-96.0,lat_0=37.5,area_thresh= 10000)
     
     dsGrid = RasterDataset('/projects/daymet2/dem/interp_grids/ConusQtrDeg/maskQtrDeg.tif')
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     x, y = m(*np.meshgrid(lon,lat))
 
     clrs = brewer2mpl.get_map('RdBu', 'Diverging', 11, reverse=True)
@@ -164,10 +164,10 @@ def plotPredictors():
     dsTmin = RasterDataset('/projects/daymet2/compare/predictors/cce_lst_tmin.tif')
     dsTmax = RasterDataset('/projects/daymet2/compare/predictors/cce_lst_tmax.tif')
     
-    elev = dsElev.readAsArray()
-    tdi = dsTdi.readAsArray()
-    lstTmin = dsTmin.readAsArray()
-    lstTmax = dsTmax.readAsArray()
+    elev = dsElev.read_as_array()
+    tdi = dsTdi.read_as_array()
+    lstTmin = dsTmin.read_as_array()
+    lstTmax = dsTmax.read_as_array()
     
     bases = [elev*10**-2,tdi,lstTmin,lstTmax]
     #cmaps = [plt.cm.gist_earth,plt.cm.gist_earth,plt.cm.jet,plt.cm.jet]
@@ -179,7 +179,7 @@ def plotPredictors():
     
         
     dsGrid = dsElev
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -220,10 +220,10 @@ def plotCceInterp():
     dsTminSe = RasterDataset('/projects/daymet2/docs/UsgsConfCall201309/cce_output/tmin_se/cce_final.tif')
     dsTmaxSe = RasterDataset('/projects/daymet2/docs/UsgsConfCall201309/cce_output/tmax_se/cce_final.tif')
     
-    tmin = dsTmin.readAsArray()
-    tmax = dsTmax.readAsArray()
-    tminSe = dsTminSe.readAsArray()
-    tmaxSe = dsTmaxSe.readAsArray()
+    tmin = dsTmin.read_as_array()
+    tmax = dsTmax.read_as_array()
+    tminSe = dsTminSe.read_as_array()
+    tmaxSe = dsTmaxSe.read_as_array()
     
     bases = [tmin,tmax,tminSe,tmaxSe]
     #cmaps = [plt.cm.gist_earth,plt.cm.gist_earth,plt.cm.jet,plt.cm.jet]
@@ -245,7 +245,7 @@ def plotCceInterp():
     levels = [None,None,np.linspace(seMin,seMax,100),np.linspace(seMin,seMax,100)]
       
     dsGrid = dsTmin
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -435,21 +435,21 @@ def plotTwxVsPRISMTmaxTrend():
     dsTwxTmax = RasterDataset('/projects/daymet2/compare/topowx_files/trends/cce_topowx_tmax19482012trend.tif')
     dsPrismTmax = RasterDataset('/projects/daymet2/compare/prism_files/trends/cce_prism4km_tmax_trend1948-2012.tif')
     
-    twxTmin = dsTwxTmin.gdalDs.GetRasterBand(1).ReadAsArray()
-    twxTmin = np.ma.masked_equal(twxTmin, dsTwxTmin.gdalDs.GetRasterBand(1).GetNoDataValue())*65
-    twxTmax = dsTwxTmax.gdalDs.GetRasterBand(1).ReadAsArray()
-    twxTmax = np.ma.masked_equal(twxTmax, dsTwxTmax.gdalDs.GetRasterBand(1).GetNoDataValue())*65
+    twxTmin = dsTwxTmin.gdal_ds.GetRasterBand(1).ReadAsArray()
+    twxTmin = np.ma.masked_equal(twxTmin, dsTwxTmin.gdal_ds.GetRasterBand(1).GetNoDataValue())*65
+    twxTmax = dsTwxTmax.gdal_ds.GetRasterBand(1).ReadAsArray()
+    twxTmax = np.ma.masked_equal(twxTmax, dsTwxTmax.gdal_ds.GetRasterBand(1).GetNoDataValue())*65
     
-    prismTmin = dsPrismTmin.gdalDs.GetRasterBand(1).ReadAsArray()
-    prismTmin = np.ma.masked_equal(prismTmin, dsPrismTmin.gdalDs.GetRasterBand(1).GetNoDataValue())*65
-    prismTmax = dsPrismTmax.gdalDs.GetRasterBand(1).ReadAsArray()
-    prismTmax = np.ma.masked_equal(prismTmax, dsPrismTmax.gdalDs.GetRasterBand(1).GetNoDataValue())*65
+    prismTmin = dsPrismTmin.gdal_ds.GetRasterBand(1).ReadAsArray()
+    prismTmin = np.ma.masked_equal(prismTmin, dsPrismTmin.gdal_ds.GetRasterBand(1).GetNoDataValue())*65
+    prismTmax = dsPrismTmax.gdal_ds.GetRasterBand(1).ReadAsArray()
+    prismTmax = np.ma.masked_equal(prismTmax, dsPrismTmax.gdal_ds.GetRasterBand(1).GetNoDataValue())*65
     
 #    print np.min(twxTmin),np.max(twxTmin)
 #    print np.min(prismTmin),np.max(prismTmin)
     
     dsGrid = dsTwxTmin
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -535,14 +535,14 @@ def plotTwxVsPRISMTrend():
     dsTwxTmin = RasterDataset('/projects/daymet2/compare/topowx_files/trends/cce_topowx_tmin19482012trend.tif')
     dsPrismTmin = RasterDataset('/projects/daymet2/compare/prism_files/trends/cce_prism4km_tmin_trend1948-2012.tif')
     
-    twxTmin = dsTwxTmin.gdalDs.GetRasterBand(1).ReadAsArray()
-    twxTmin = np.ma.masked_equal(twxTmin, dsTwxTmin.gdalDs.GetRasterBand(1).GetNoDataValue())*65
+    twxTmin = dsTwxTmin.gdal_ds.GetRasterBand(1).ReadAsArray()
+    twxTmin = np.ma.masked_equal(twxTmin, dsTwxTmin.gdal_ds.GetRasterBand(1).GetNoDataValue())*65
     
-    prismTmin = dsPrismTmin.gdalDs.GetRasterBand(1).ReadAsArray()
-    prismTmin = np.ma.masked_equal(prismTmin, dsPrismTmin.gdalDs.GetRasterBand(1).GetNoDataValue())*65
+    prismTmin = dsPrismTmin.gdal_ds.GetRasterBand(1).ReadAsArray()
+    prismTmin = np.ma.masked_equal(prismTmin, dsPrismTmin.gdal_ds.GetRasterBand(1).GetNoDataValue())*65
     
     dsGrid = dsTwxTmin
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)
@@ -613,16 +613,16 @@ def plotTwxVsPrismDaymetNorms():
     dsPrismTmax = RasterDataset('/projects/daymet2/compare/prism_files/normals/cce_prism_tmax1981_2010norm.tif')
     dsDaymetTmax = RasterDataset('/projects/daymet2/compare/daymet_files/normals/cce_daymet_tmax19812010norm.tif')
     
-    twxTmin = dsTwxTmin.readAsArray()
-    prismTmin = dsPrismTmin.readAsArray()/100
-    daymetTmin = dsDaymetTmin.readAsArray()
+    twxTmin = dsTwxTmin.read_as_array()
+    prismTmin = dsPrismTmin.read_as_array()/100
+    daymetTmin = dsDaymetTmin.read_as_array()
     
-    twxTmax = dsTwxTmax.readAsArray()
-    prismTmax = dsPrismTmax.readAsArray()/100
-    daymetTmax = dsDaymetTmax.readAsArray()
+    twxTmax = dsTwxTmax.read_as_array()
+    prismTmax = dsPrismTmax.read_as_array()/100
+    daymetTmax = dsDaymetTmax.read_as_array()
         
     dsGrid = dsTwxTmin
-    lat,lon = dsGrid.getCoordGrid1d()
+    lat,lon = dsGrid.get_coord_grid_1d()
     buf = 0.25
     llcrnrlat=np.min(lat-buf)
     urcrnrlat=np.max(lat+buf)

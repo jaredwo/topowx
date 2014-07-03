@@ -60,7 +60,7 @@ class ncdf_raster():
     def is_inbounds(self,x_geo,y_geo):
         return x_geo >= self.min_x and x_geo <= self.max_x and y_geo >= self.min_y and y_geo <= self.max_y
     
-    def getDataValue(self,lon,lat,useCache=False):
+    def get_data_value(self,lon,lat,useCache=False):
         
         col,row = self.getGridCellOffset(lon,lat)
         return self.vals[row,col]

@@ -533,7 +533,7 @@ def create_ncdf_topomet_crown():
 def create_ncdf_merra_crown():
     
     ds = RasterDataset('/projects/daymet2/cce_case_study/topowx_files/annual/cce_topowx_tmin19482012ann.tif')
-    cmask = ~ds.readAsArray().mask
+    cmask = ~ds.read_as_array().mask
     
     
 #    ncdf_cmask = Dataset("/projects/daymet2/dem/smoothed/ncdf/interp_mask_crown.nc","r")
@@ -546,7 +546,7 @@ def create_ncdf_merra_crown():
     nonzero_mask = nonzero_mask[:,nonzero_cols_cmask]
     cmask = nonzero_mask
     
-    lats,lons = ds.getCoordGrid1d()
+    lats,lons = ds.get_coord_grid_1d()
     
 #    lons = ncdf_cmask.variables['lon'][:]
 #    lats = ncdf_cmask.variables['lat'][:]
@@ -701,7 +701,7 @@ def create_ncdf_crown_mask():
         
         for i in np.arange(lons.size):
             
-            mask[x,i] = fmf.getDataValue(lons[i], lats[x])
+            mask[x,i] = fmf.get_data_value(lons[i], lats[x])
     
 
     ncdf_file = Dataset('/projects/daymet2/modis/crown_mask_crown.nc','w')
@@ -745,7 +745,7 @@ def create_ncdf_fmf_mask():
         
         for i in np.arange(lons.size):
             
-            mask[x,i] = fmf.getDataValue(lons[i], lats[x])
+            mask[x,i] = fmf.get_data_value(lons[i], lats[x])
     
 
     ncdf_file = Dataset('/projects/daymet2/modis/crown_mask_fmf.nc','w')
@@ -789,7 +789,7 @@ def create_ncdf_glac_mask():
         
         for i in np.arange(lons.size):
             
-            mask[x,i] = fmf.getDataValue(lons[i], lats[x])
+            mask[x,i] = fmf.get_data_value(lons[i], lats[x])
     
 
     ncdf_file = Dataset('/projects/daymet2/modis/crown_mask_glac.nc','w')

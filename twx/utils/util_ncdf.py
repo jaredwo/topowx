@@ -221,7 +221,7 @@ class GeoNc():
         self.lats = lats
         
     
-    def getRowCol(self,lon,lat):
+    def get_row_col(self,lon,lat):
                 
         originX = self.geoTransform[0]
         originY = self.geoTransform[3]
@@ -267,10 +267,10 @@ class NcdfRaster():
         self.geoTransform[0] = self.x[0] - (self.geoTransform[1]/2.0) 
         self.geoTransform[3] = self.y[0] + np.abs(self.geoTransform[5]/2.0)
                 
-        self.min_x = self.geoT[0]
-        self.max_x = self.min_x + (self.gdalDs.RasterXSize*self.geoT[1])
-        self.max_y =  self.geoT[3]
-        self.min_y =  self.max_y - (-self.gdalDs.RasterYSize*self.geoT[5])
+        self.min_x = self.geo_t[0]
+        self.max_x = self.min_x + (self.gdal_ds.RasterXSize*self.geo_t[1])
+        self.max_y =  self.geo_t[3]
+        self.min_y =  self.max_y - (-self.gdal_ds.RasterYSize*self.geo_t[5])
         
     def toGTiff(self,fpathOut,a,proj4='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'):
         
@@ -365,7 +365,7 @@ class ncdf_raster():
     def is_inbounds(self,x_geo,y_geo):
         return x_geo >= self.min_x and x_geo <= self.max_x and y_geo >= self.min_y and y_geo <= self.max_y
     
-    def getDataValue(self,lon,lat,useCache=False):
+    def get_data_value(self,lon,lat,useCache=False):
         
         col,row = self.getGridCellOffset(lon,lat)
         return self.vals[row,col]

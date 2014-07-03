@@ -481,12 +481,12 @@ def replace_with_nn_vals():
 def nnInterpClimDiv():
     
     ds = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/climdiv.tif')
-    a = ds.gdalDs.ReadAsArray()
-    lat,lon = ds.getCoordMeshGrid()
-    ndata = ds.gdalDs.GetRasterBand(1).GetNoDataValue()
+    a = ds.gdal_ds.ReadAsArray()
+    lat,lon = ds.get_coord_mesh_grid()
+    ndata = ds.gdal_ds.GetRasterBand(1).GetNoDataValue()
     ndataMask = a != ndata
-    proj = ds.gdalDs.GetProjection()
-    dtype = ds.gdalDs.GetRasterBand(1).DataType
+    proj = ds.gdal_ds.GetProjection()
+    dtype = ds.gdal_ds.GetRasterBand(1).DataType
     
     ptVals = a[ndataMask]
     ptLat = lat[ndataMask]
@@ -501,7 +501,7 @@ def nnInterpClimDiv():
     band_out = ds_out.GetRasterBand(1)
     band_out.Fill(ndata)
     band_out.SetNoDataValue(ndata)
-    ds_out.SetGeoTransform(ds.geoT)
+    ds_out.SetGeoTransform(ds.geo_t)
     ds_out.SetProjection(proj)
     band_out.WriteArray(newA.astype(np.uint16))
     ds_out.FlushCache()
@@ -514,13 +514,13 @@ def nnInterpClimDiv():
 def maskNnClimDiv():
     
     dsClimDiv = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/climdivNN.tif')
-    a = dsClimDiv.gdalDs.ReadAsArray()
-    ndata = dsClimDiv.gdalDs.GetRasterBand(1).GetNoDataValue()
-    proj = dsClimDiv.gdalDs.GetProjection()
-    dtype = dsClimDiv.gdalDs.GetRasterBand(1).DataType
+    a = dsClimDiv.gdal_ds.ReadAsArray()
+    ndata = dsClimDiv.gdal_ds.GetRasterBand(1).GetNoDataValue()
+    proj = dsClimDiv.gdal_ds.GetProjection()
+    dtype = dsClimDiv.gdal_ds.GetRasterBand(1).DataType
     
     dsMask = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/mask_all.tif')
-    mask = dsMask.gdalDs.ReadAsArray()
+    mask = dsMask.gdal_ds.ReadAsArray()
     
     a[mask==0] = ndata
     
@@ -531,7 +531,7 @@ def maskNnClimDiv():
     band_out = ds_out.GetRasterBand(1)
     band_out.Fill(ndata)
     band_out.SetNoDataValue(ndata)
-    ds_out.SetGeoTransform(dsClimDiv.geoT)
+    ds_out.SetGeoTransform(dsClimDiv.geo_t)
     ds_out.SetProjection(proj)
     band_out.WriteArray(a.astype(np.uint16))
     ds_out.FlushCache()
@@ -539,18 +539,18 @@ def maskNnClimDiv():
 def mergeClimDivLCC():
     
     dsClimDiv = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/climdivNnMasked.tif')
-    a = dsClimDiv.gdalDs.ReadAsArray()
-    ndata = dsClimDiv.gdalDs.GetRasterBand(1).GetNoDataValue()
-    proj = dsClimDiv.gdalDs.GetProjection()
-    dtype = dsClimDiv.gdalDs.GetRasterBand(1).DataType
+    a = dsClimDiv.gdal_ds.ReadAsArray()
+    ndata = dsClimDiv.gdal_ds.GetRasterBand(1).GetNoDataValue()
+    proj = dsClimDiv.gdal_ds.GetProjection()
+    dtype = dsClimDiv.gdal_ds.GetRasterBand(1).DataType
     
     dsLCC = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/fwpusgs_lcc.tif')
-    lcc = dsLCC.gdalDs.ReadAsArray()
+    lcc = dsLCC.gdal_ds.ReadAsArray()
     
     a[0:470,500:3300] = lcc[0:470,500:3300]
     
     dsMask = RasterDataset('/projects/daymet2/dem/interp_grids/tifs/mask_all.tif')
-    mask = dsMask.gdalDs.ReadAsArray()
+    mask = dsMask.gdal_ds.ReadAsArray()
     
     a[mask==0] = ndata
     
@@ -561,7 +561,7 @@ def mergeClimDivLCC():
     band_out = ds_out.GetRasterBand(1)
     band_out.Fill(ndata)
     band_out.SetNoDataValue(ndata)
-    ds_out.SetGeoTransform(dsClimDiv.geoT)
+    ds_out.SetGeoTransform(dsClimDiv.geo_t)
     ds_out.SetProjection(proj)
     band_out.WriteArray(a.astype(np.uint16))
     ds_out.FlushCache()

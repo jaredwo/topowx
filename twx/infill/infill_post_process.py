@@ -114,7 +114,7 @@ def has_ndata(rasts,ndata_vals,lon,lat):
     
     for x in np.arange(len(rasts)):
         
-        val = rasts[x].getDataValue(lon,lat)
+        val = rasts[x].get_data_value(lon,lat)
         
         for i in np.arange(len(ndata_vals[x])):
             
@@ -248,7 +248,7 @@ def update_waterlc_stn_locs(lc_fpath,ds_path,varname,log_path):
         
         stn = stns[stn_idx]
         
-        if a_rast.getDataValue(stn[LON],stn[LAT]) == 0:
+        if a_rast.get_data_value(stn[LON],stn[LAT]) == 0:
             
             x,y = a_rast.getGridCellOffset(stn[LON],stn[LAT])
             
@@ -314,7 +314,7 @@ def update_waterlc_stn_locs(lc_fpath,ds_path,varname,log_path):
             d = utlg.grt_circle_dist(stn[LON],stn[LAT], lons, lats)
             j = np.argsort(d)[0]
             nlat,nlon = lats[j],lons[j]
-            nlc = a_rast.getDataValue(nlon, nlat)
+            nlc = a_rast.get_data_value(nlon, nlat)
             
             #fout.write(",".join([stn[STN_ID],str(stn[LON]),str(stn[LAT]),
                                  #str(nlon),str(nlat),str(d[j]),str(nlc)+"\n"]))
@@ -566,7 +566,7 @@ def build_serial_complete_ds(ds_in,tair_var,out_path):
 #                newvar[x] = a_rast.ndata
 #                continue
 #        try:
-#            a = a_rast.getDataValue(lon[x], lat[x])
+#            a = a_rast.get_data_value(lon[x], lat[x])
 #            newvar[x] = a
 #            if a == a_rast.ndata:
 #                raise Exception('No data raster value')
@@ -604,12 +604,12 @@ def add_stn_raster_values(ds_path,var_name,name,units,a_rast,handle_ndata=True,n
     ds.sync()
     
     ###################################
-    a = a_rast.readAsArray()
+    a = a_rast.read_as_array()
     aflip = np.flipud(a)
     aflip = aflip.astype(np.float)
     a = a.data
     
-    yGrid,xGrid = a_rast.getCoordGrid1d()
+    yGrid,xGrid = a_rast.get_coord_grid_1d()
     yGrid = np.sort(yGrid)
     
     interpOrder = 0 if nn else 1
@@ -628,7 +628,7 @@ def add_stn_raster_values(ds_path,var_name,name,units,a_rast,handle_ndata=True,n
                 rval = bm.interp(aflip, xGrid, yGrid, np.array(lon[x]), np.array(lat[x]), checkbounds=False, masked=True, order=0)
                 
                 if np.ma.is_masked(rval):
-                    row,col = a_rast.getRowCol(lon[x], lat[x])
+                    row,col = a_rast.get_row_col(lon[x], lat[x])
                     rval = find_nn_data(a, a_rast, col, row)
             
             else:
@@ -703,8 +703,8 @@ def find_nn_data(a_data,a_rast,x,y):
 
     nn = np.array(nn)
     nn_vals = np.array(nn_vals)
-    lats,lons = a_rast.getCoord(nn[:,0], nn[:,1])#getLatLon(nn[:,1], nn[:,0], transform=False)
-    pt_lat,pt_lon = a_rast.getCoord(y,x)
+    lats,lons = a_rast.get_coord(nn[:,0], nn[:,1])#getLatLon(nn[:,1], nn[:,0], transform=False)
+    pt_lat,pt_lon = a_rast.get_coord(y,x)
     d = utlg.grt_circle_dist(pt_lon,pt_lat, lons, lats)
     j = np.argsort(d)[0]
     nval = nn_vals[j]

@@ -820,7 +820,7 @@ def test_ncdf_db():
 #    rgns = np.zeros(lons.size)
 #    for x in np.arange(lons.size):
 #        try:
-#            rgns[x] = dem.getDataValue(lons[x],lats[x])
+#            rgns[x] = dem.get_data_value(lons[x],lats[x])
 #        except:
 #            rgns[x] = np.nan
 #    
@@ -883,7 +883,7 @@ def hcn_map():
     rgns = np.zeros(lons.size)
     for x in np.arange(lons.size):
         try:
-            rgns[x] = neon_rast.getDataValue(lons[x],lats[x])
+            rgns[x] = neon_rast.get_data_value(lons[x],lats[x])
         except:
             rgns[x] = np.nan
             
@@ -3569,8 +3569,8 @@ def load_test_pca():
     pt_struct[LON] = a_pt[LON]
     pt_struct[LAT] = a_pt[LAT]
     pt_struct[ELEV] = a_pt[ELEV]
-    pt_struct[TDI] = tdi_rast.getDataValue(a_pt[LON][0], a_pt[LAT][0])
-    pt_struct[LST] = lst_rast.getDataValue(a_pt[LON][0], a_pt[LAT][0])
+    pt_struct[TDI] = tdi_rast.get_data_value(a_pt[LON][0], a_pt[LAT][0])
+    pt_struct[LST] = lst_rast.get_data_value(a_pt[LON][0], a_pt[LAT][0])
     pt_struct[MEAN_OBS] = a_pt[MEAN_OBS]
     
     a_pt = pt_struct[0]
@@ -3583,8 +3583,8 @@ def load_test_pca():
     tdi = []
     lst = []
     for x in np.arange(interp_stns.size):
-        tdi.append(tdi_rast.getDataValue(interp_stns[LON][x], interp_stns[LAT][x]))
-        lst.append(lst_rast.getDataValue(interp_stns[LON][x], interp_stns[LAT][x]))
+        tdi.append(tdi_rast.get_data_value(interp_stns[LON][x], interp_stns[LAT][x]))
+        lst.append(lst_rast.get_data_value(interp_stns[LON][x], interp_stns[LAT][x]))
     tdi = np.array(tdi)
     lst = np.array(lst)
     
@@ -3675,10 +3675,10 @@ def TEST_INTERP_TMINTMAX():
     
     x,y = ds_elev.getGridCellOffset(pt_lon, pt_lat)
     pt_lat,pt_lon = ds_elev.lats[y],ds_elev.lons[x]
-    pt_elev = ds_elev.getDataValue(pt_lon, pt_lat)
-    pt_tdi = ds_tdi.getDataValue(pt_lon, pt_lat)
-    pt_lsttmin = ds_lsttmin.getDataValue(pt_lon, pt_lat)
-    pt_lsttmax = ds_lsttmax.getDataValue(pt_lon, pt_lat)
+    pt_elev = ds_elev.get_data_value(pt_lon, pt_lat)
+    pt_tdi = ds_tdi.get_data_value(pt_lon, pt_lat)
+    pt_lsttmin = ds_lsttmin.get_data_value(pt_lon, pt_lat)
+    pt_lsttmax = ds_lsttmax.get_data_value(pt_lon, pt_lat)
     
     stn_da_tmin = StationSerialDataDb("/projects/daymet2/station_data/infill/impute_tair/serial_tmin.nc","tmin")
     stn_da_tmax = StationSerialDataDb("/projects/daymet2/station_data/infill/impute_tair/serial_tmax.nc","tmax")
@@ -4293,7 +4293,7 @@ def xval_stats_by_neon():
 
     neon = np.zeros(stns.size,dtype=np.int)
     for x in np.arange(stns.size):
-        neon[x] = neon_rast.getDataValue(stns[LON][x],stns[LAT][x])
+        neon[x] = neon_rast.get_data_value(stns[LON][x],stns[LAT][x])
     
     uneon = np.unique(neon)
     
@@ -4323,7 +4323,7 @@ def xval_stats_by_neon():
         
         
     
-    #neon_rast.getDataValue(lons[x],lats[x])
+    #neon_rast.get_data_value(lons[x],lats[x])
 
 def TEST_INFILL_PRCP():
     
@@ -4819,7 +4819,7 @@ def reset_imputes_by_mae():
 def test_modis_sin_rast():
     
     lst_rast = modis_sin_rast("/projects/daymet2/climate_office/modis/MYD11A2/mean_gtiffs/mosaic_mean_gdal2.tif")
-    print lst_rast.getDataValue(-124.167,49.35)
+    print lst_rast.get_data_value(-124.167,49.35)
 
 def testTopoDisectDEM():
     dem_rast = TopoDisectDEM('/projects/daymet2/dem/dem_orig.tif')
@@ -5831,8 +5831,8 @@ def fix_stn_loc_in_serial():
     stn_id = 'GHCN_USC00040824'
     new_lon = -118.666948
     new_lat = 37.365814
-    new_tdi = ds_tdi.getDataValue(new_lon, new_lat)
-    new_lst = ds_lst.getDataValue(new_lon, new_lat)
+    new_tdi = ds_tdi.get_data_value(new_lon, new_lat)
+    new_lst = ds_lst.get_data_value(new_lon, new_lat)
     print new_lst,new_tdi
     
     ds_stns = Dataset('/projects/daymet2/station_data/infill/impute_tair/serial_tmax.nc','r+')
@@ -5902,7 +5902,7 @@ def create_empty_neon_var():
         
         try:
         
-            elev_val = elev.getDataValue(lon[x], lat[x])
+            elev_val = elev.get_data_value(lon[x], lat[x])
             
             if elev_val != elev.ndata:
                 
@@ -6886,7 +6886,7 @@ def chk_lc_stns():
     cnt=0
     for stn in stns:
         
-        if a_rast.getDataValue(stn[LON],stn[LAT]) == 0:
+        if a_rast.get_data_value(stn[LON],stn[LAT]) == 0:
             
             x,y = a_rast.getGridCellOffset(stn[LON],stn[LAT])
             
@@ -6952,7 +6952,7 @@ def chk_lc_stns():
             d = utlg.grt_circle_dist(stn[LON],stn[LAT], lons, lats)
             j = np.argsort(d)[0]
             nlat,nlon = lats[j],lons[j]
-            nlc = a_rast.getDataValue(nlon, nlat)
+            nlc = a_rast.get_data_value(nlon, nlat)
             print stn[STN_ID],d[j],nlat,nlon,nlc       
                             
             cnt+=1
@@ -7001,7 +7001,7 @@ def chk_rastvals_stns():
     cnt=0
     for stn in stns:
         
-        if a_rast.getDataValue(stn[LON],stn[LAT]) == ndata:
+        if a_rast.get_data_value(stn[LON],stn[LAT]) == ndata:
             
             print stn
             cnt+=1
@@ -7728,8 +7728,8 @@ def discont_analysis():
     lon2,lat2 = -112.532766,45.276300
     
     gds = GeoNc(ds)      
-    row1,col1 =  gds.getRowCol(lon1,lat1)  
-    row2,col2 =  gds.getRowCol(lon2,lat2)  
+    row1,col1 =  gds.get_row_col(lon1,lat1)  
+    row2,col2 =  gds.get_row_col(lon2,lat2)  
     
     a1 = ds.variables['tmin'][:,row1,col1].astype(np.float)
     a2 = ds.variables['tmin'][:,row2,col2].astype(np.float)
@@ -9151,7 +9151,7 @@ def tmaxShiftValidation():
 def nearestGridCellTest():
     
     r = input_raster('/projects/daymet2/dem/interp_grids/conus/tifs/crop_elev.tif')
-    r.getDataValue(-124.5550003,47.9375)
+    r.get_data_value(-124.5550003,47.9375)
 
 
 
@@ -9159,7 +9159,7 @@ def nearestGridCellTest():
 def randomCcePts():
     PATH_CCE_MASK = '/projects/daymet2/dem/interp_grids/cce/crp_cce_us_mask.tif'
     ds = RasterDataset(PATH_CCE_MASK)
-    a = ds.readAsArray()
+    a = ds.read_as_array()
     
     r = np.random.randint(low=0,high=a.shape[0]-1,size=500)
     c = np.random.randint(low=0,high=a.shape[1]-1,size=500)
@@ -9187,7 +9187,7 @@ def randomCcePts():
     
     for x in np.arange(r.size):
         
-        lat,lon = ds.getCoord(r[x], c[x])
+        lat,lon = ds.get_coord(r[x], c[x])
         ptInterper.interpLonLatPt(lon,lat)
         print x
 
