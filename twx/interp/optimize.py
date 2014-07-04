@@ -6,15 +6,13 @@ Created on Sep 25, 2013
 
 import numpy as np
 from twx.db import StationSerialDataDb,STN_ID,get_norm_varname,\
-get_optim_varname, get_optim_anom_varname,BAD,dbDataset
+get_optim_varname, get_optim_anom_varname,BAD,dbDataset,CLIMDIV
 from twx.interp import StationSelect
-import twx.interp as it
 from netCDF4 import Dataset
 import netCDF4
 from twx.utils import StatusCheck
 import scipy.stats as stats
 import os
-from twx.db.station_data import CLIMDIV
 
 def create_climdiv_optim_nstns_db(path_out,tair_var,stn_ids,nstns_rng,climdiv):
     '''
@@ -84,7 +82,7 @@ class OptimKrigBwNstns(object):
         mask_stns = np.isnan(stn_da.stns[BAD])         
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
                      
-        self.krig = it.KrigTairAll(stn_slct)
+        self.krig = KrigTairAll(stn_slct)
         self.stn_da = stn_da
         
     def run_xval(self,stn_id,abw_nngh):
@@ -155,37 +153,54 @@ class OptimGwrNormBwNstns(object):
         return err
 
 def set_optim_nstns_tair_norm(stnda,path_xval_ds):
+    '''
+    Set the local optimal number of stations to be used for each
+    U.S. climate division based on cross-validation mean absolute
+    error.
+    
+    Parameters
+    ----------
+    stnda : twx.db.StationSerialDataDb
+        A StationSerialDataDb object pointing to the
+        database for which the local optimal number of
+        neighbors should be set. 
+    path_xval_ds : str
+        Path where netCDF cross-validation MAE files from
+        create_climdiv_optim_nstns_db are located
+    '''
 
     climdiv_stns = stnda.stns[CLIMDIV]
     
     vars_optim = {}
     for mth in np.arange(1,13):
         
-        varNameOptim = get_optim_varname(mth)
+        varname_optim = get_optim_varname(mth)
         long_name = "Optimal number of neighbors to use for monthly normal interpolation for month %d"%mth            
-        varOptim = stnda.add_stn_variable(varNameOptim,long_name,"",'f8',
+        var_optim = stnda.add_stn_variable(varname_optim,long_name,"",'f8',
                                           fill_value=netCDF4.default_fillvals['f8'])
-        vars_optim[mth] = varOptim
+        vars_optim[mth] = var_optim
     
     divs = np.unique(climdiv_stns[np.isfinite(climdiv_stns)])
     
     stchk = StatusCheck(divs.size, 10)
     
     for clim_div in divs:
+                
+        fpath = os.path.join(path_xval_ds,"optim_nstns_%s_climdiv%d.nc"%(stnda.var_name,clim_div))
         
-        fpath = "".join([pathXvalDs,"_",str(clim_div),".nc"])
-        dsClimDiv = Dataset(fpath)
+        ds_climdiv = Dataset(fpath)
         
-        maeClimDiv = dsClimDiv.variables['mae'][:]
-        nnghsClimDiv = dsClimDiv.variables['min_nghs'][:]
+        mae_climdiv = ds_climdiv.variables['mae'][:]
+        nnghs_climdiv = ds_climdiv.variables['min_nghs'][:]
         
-        climDivMask = np.nonzero(climdiv_stns==clim_div)[0]
+        climdiv_mask = np.nonzero(climdiv_stns==clim_div)[0]
         
         for mth in np.arange(1,13):
-            maeClimDivMth = maeClimDiv[mth-1,:,:]
-            mmae = np.mean(maeClimDivMth,axis=1)
-            minIdx = np.argmin(mmae)
-            vars_optim[mth][climDivMask] = nnghsClimDiv[minIdx]
+            
+            mae_climdiv_mth = mae_climdiv[mth-1,:,:]
+            mmae = np.mean(mae_climdiv_mth,axis=1)
+            min_idx = np.argmin(mmae)
+            vars_optim[mth][climdiv_mask] = nnghs_climdiv[min_idx]
         
         stchk.increment()
     
@@ -231,7 +246,28 @@ def setOptimTairAnomParams(pathDb,pathXvalDs):
         stchk.increment()
     dsStns.sync()
 
-def build_min_ngh_windows(rng_min,rng_max,pct_step):
+def build_nstn_bandwidths(rng_min,rng_max,pct_step):
+    '''
+    Build a range of bandwidths within a given interval 
+    for the number of stations to use in interpolation.
+    
+    Parameters
+    ----------
+    rng_min : int
+        The minimum bandwidth for the interval
+    rng_max : int
+        The maximum bandwidth for the interval
+    pct_step : float
+        A fractional step increase from 0.0-1.0 for
+        specifying the spacing between bandwidths within
+        the interval 
+    
+    Returns
+    ----------
+    ndarray
+        An array of station bandwidths.
+    
+    '''
     
     min_nghs = []
     n = rng_min
@@ -464,7 +500,7 @@ def perfOptimTairAnom():
     
     optim = OptimTairAnom("/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc", 'tmin')
     
-    min_ngh_wins = build_min_ngh_windows(10, 150, 0.10)
+    min_ngh_wins = build_nstn_bandwidths(10, 150, 0.10)
     
     #biasAll, maeAll, r2All = optim.run_xval('SNOTEL_13C01S', min_ngh_wins)
     #biasAll, maeAll, r2All = optim.run_xval('GHCN_USC00244558', min_ngh_wins) #Kalispell
@@ -626,7 +662,7 @@ def perftOptimKrigBwStns():
      
     optim = OptimKrigBwNstns('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
     
-    abw_nngh = build_min_ngh_windows(35,150, 0.10)
+    abw_nngh = build_nstn_bandwidths(35,150, 0.10)
     
     err = optim.run_xval('GHCN_USC00244558', abw_nngh)
     #err = optim.run_xval('SNOTEL_13C01S', abw_nngh)
@@ -641,7 +677,7 @@ def perftOptimKrigBwStns():
 #    
 #    #aStn = optim.stn_da.stns[optim.stn_da.stns[STN_ID]=='SNOTEL_13C01S'][0]
 #    
-#    rngMinNghs = build_min_ngh_windows(100,150, 0.10)
+#    rngMinNghs = build_nstn_bandwidths(100,150, 0.10)
  
 if __name__ == '__main__':
 

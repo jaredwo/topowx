@@ -219,7 +219,7 @@ def create_ncdf(params,stn_ids,neon):
         
     return ds
 
-def build_min_ngh_windows(rng_min,rng_max,pct_step):
+def build_nstn_bandwidths(rng_min,rng_max,pct_step):
     
     min_nghs = []
     n = rng_min
@@ -242,7 +242,7 @@ if __name__ == '__main__':
     
     params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc"
     params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/serial_fnl/xval/optimTairAnom/tmin/xval_tmin_anom'   
-    params[P_NGH_RNG] = build_min_ngh_windows(10, 150, 0.10)
+    params[P_NGH_RNG] = build_nstn_bandwidths(10, 150, 0.10)
     params[P_VARNAME] = 'tmin'
     
     ds = Dataset(params[P_PATH_DB])

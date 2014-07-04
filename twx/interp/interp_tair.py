@@ -1,17 +1,18 @@
 '''
 Classes and functions for performing Tair interpolation
 '''
+
+__all__ = ["KrigTairAll"]
+
 import numpy as np
-from twx.db.station_data import LON,LAT,ELEV,TDI,LST,MEAN_OBS,NEON,OPTIM_NNGH,\
+from twx.db.station_data import LON,LAT,ELEV,TDI,LST,MEAN_OBS,OPTIM_NNGH,\
     VARIO_NUG, VARIO_PSILL, VARIO_RNG, OPTIM_NNGH_ANOM, BAD, MASK, StationSerialDataDb,STN_ID,MONTH,get_norm_varname,\
     get_optim_varname, get_krigparam_varname, get_lst_varname,\
-    get_optim_anom_varname, DTYPE_NORMS, DTYPE_OPTIM, DTYPE_LST,DTYPE_STN_MEAN_LST_TDI_OPTIMNNGH_VARIO_OPTIMNNGHANOM,DTYPE_ANOM_OPTIM,YEAR,\
-    DTYPE_INTERP_OPTIM_ALL
+    get_optim_anom_varname,YEAR,CLIMDIV
 from twx.interp.clibs import clib_wxTopo
 import scipy.stats as stats
 from twx.utils.util_ncdf import GeoNc
 from netCDF4 import Dataset
-from twx.interp.station_select import StationSelect
 from matplotlib.mlab import griddata 
 import matplotlib.pyplot as plt
 import twx.utils.util_dates as utld
@@ -166,11 +167,11 @@ def tmin_tmax_fixer(tmin,tmax,tail=15):
 
 def build_empty_pt():
     
-    ptDtype = [(LON, np.float64), (LAT, np.float64), (ELEV, np.float64),(TDI, np.float64),(NEON, np.float64),(MASK,np.float64)]
-    ptDtype.extend(DTYPE_NORMS)
-    ptDtype.extend(DTYPE_OPTIM)
-    ptDtype.extend(DTYPE_LST)
-    ptDtype.extend(DTYPE_ANOM_OPTIM)
+    ptDtype = [(LON, np.float64), (LAT, np.float64), (ELEV, np.float64),(TDI, np.float64),(CLIMDIV, np.float64),(MASK,np.float64)]
+    #ptDtype.extend(DTYPE_NORMS)
+    #ptDtype.extend(DTYPE_OPTIM)
+    #ptDtype.extend(DTYPE_LST)
+    #ptDtype.extend(DTYPE_ANOM_OPTIM)
     ptDtype.extend([("tmin%02d"%mth,np.float64) for mth in np.arange(1,13)]) 
     ptDtype.extend([("tmax%02d"%mth,np.float64) for mth in np.arange(1,13)]) 
     a_pt = np.empty(1, dtype=ptDtype)
@@ -434,7 +435,7 @@ class PtInterpTair(object):
         for mth in np.arange(1,13):
             
             self.a_pt[get_lst_varname(mth)] = self.a_pt["tmin%02d"%mth]
-            self.a_pt[get_optim_varname(mth)],self.a_pt[get_optim_anom_varname(mth)] = self.nnghparams_tmin[self.a_pt[NEON]][mth]
+            self.a_pt[get_optim_varname(mth)],self.a_pt[get_optim_anom_varname(mth)] = self.nnghparams_tmin[self.a_pt[CLIMDIV]][mth]
 
         #Perform Tmin interpolation
         tmin_dly, tmin_norms, tmin_se = self.interp_tmin.interp(self.a_pt,stns_rm=stns_rm)
@@ -443,7 +444,7 @@ class PtInterpTair(object):
         for mth in np.arange(1,13):
             
             self.a_pt[get_lst_varname(mth)] = self.a_pt["tmax%02d"%mth]
-            self.a_pt[get_optim_varname(mth)],self.a_pt[get_optim_anom_varname(mth)] = self.nnghparams_tmax[self.a_pt[NEON]][mth]
+            self.a_pt[get_optim_varname(mth)],self.a_pt[get_optim_anom_varname(mth)] = self.nnghparams_tmax[self.a_pt[CLIMDIV]][mth]
         
         #Perform Tmax interpolation
         tmax_dly, tmax_norms, tmax_se = self.interp_tmax.interp(self.a_pt,stns_rm=stns_rm)
@@ -467,13 +468,13 @@ class PtInterpTair(object):
 
 def get_rgn_nnghs_dict(stns):
     
-    rgns = np.unique(stns[NEON][np.isfinite(stns[NEON])])
+    rgns = np.unique(stns[CLIMDIV][np.isfinite(stns[CLIMDIV])])
     
     nnghsAll = {}
     
     for rgn in rgns:
         
-        rgn_mask = stns[NEON]==rgn
+        rgn_mask = stns[CLIMDIV]==rgn
         nnghsRgn = {}
         
         for mth in np.arange(1,13):
@@ -761,9 +762,9 @@ class StationDataWrkChk(StationSerialDataDb):
     A station_data class for accessing stations and observations from a single variable infilled netcdf weather station database.
     '''
     
-    def __init__(self, nc_path, var_name,vcc_size=None,vcc_nelems=None,vcc_preemption=None,stn_dtype=DTYPE_INTERP_OPTIM_ALL):
+    def __init__(self, nc_path, var_name,vcc_size=None,vcc_nelems=None,vcc_preemption=None):
         
-        StationSerialDataDb.__init__(self, nc_path, var_name, vcc_size, vcc_nelems, vcc_preemption, stn_dtype)
+        StationSerialDataDb.__init__(self, nc_path, var_name, vcc_size, vcc_nelems, vcc_preemption)
         self.chkStnIds = None
         self.chkObs = None
         self.chkDegBuf = None

@@ -1,8 +1,13 @@
 '''
-A MPI driver for performing "leave one out" cross-validation of monthly Tair normals to optimize the
-number of stations to use in each climate division.
+MPI script for running a leave-one-out cross validation
+of monthly temperature normals interpolated using 
+moving window regression kriging. Once cross validation
+is complete, the script uses the mean absolute error of
+the cross validation results to set the optimal bandwidth
+for the local number of station to be used for point interpolation
+in each U.S. climate division.
 
-@author: jared.oyler
+Must be run using mpiexec or mpirun.
 '''
 
 import numpy as np
@@ -11,7 +16,8 @@ import sys
 from twx.db import StationSerialDataDb,STN_ID,MASK,BAD,CLIMDIV
 from twx.utils import StatusCheck, Unbuffered
 from netCDF4 import Dataset
-from twx.interp import OptimKrigBwNstns, set_optim_nstns_tair_norm, build_min_ngh_windows,create_climdiv_optim_nstns_db
+from twx.interp import OptimKrigBwNstns, set_optim_nstns_tair_norm,\
+build_nstn_bandwidths,create_climdiv_optim_nstns_db
 import os
 
 TAG_DOWORK = 1
@@ -183,9 +189,10 @@ if __name__ == '__main__':
     
     params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmin.nc')
     params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill', 'optim')  
-    params[P_NGH_RNG] = build_min_ngh_windows(35, 150, 0.10)
+    params[P_NGH_RNG] = build_nstn_bandwidths(35, 150, 0.10)
     params[P_VARNAME] = 'tmin'
     
+    #Run for all climate divisions
     ds = Dataset(params[P_PATH_DB])
     divs = ds.variables[CLIMDIV][:]
     params[P_CLIMDIVS] = np.unique(divs.data[np.logical_not(divs.mask)])#np.array([2401])

@@ -156,7 +156,7 @@ def proc_coord(params,nwrkers):
         
     print "coord_proc: done"
 
-def build_min_ngh_windows(rng_min,rng_max,pct_step):
+def build_nstn_bandwidths(rng_min,rng_max,pct_step):
     
     min_nghs = []
     n = rng_min
