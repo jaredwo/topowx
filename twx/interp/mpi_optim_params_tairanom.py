@@ -7,12 +7,12 @@ A MPI driver for performing "leave one out" cross-validation of tair interpolati
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import StationSerialDataDb,STN_ID,NEON,MASK,BAD
-from twx.utils.status_check import StatusCheck
+from twx.db import StationSerialDataDb,STN_ID,CLIMDIV,MASK,BAD,dbDataset
+from twx.utils import StatusCheck, Unbuffered
 import netCDF4
-from twx.db.create_db_all_stations import dbDataset
 from netCDF4 import Dataset
-from twx.interp.optimize import OptimTairAnom, setOptimTairAnomParams
+from twx.interp.optimize import XvalTairAnom, setOptimTairAnomParams,build_nstn_bandwidths
+import os
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -25,29 +25,18 @@ N_NON_WRKRS = 2
 P_PATH_DB = 'P_PATH_DB'
 P_PATH_OUT = 'P_PATH_OUT'
 
-P_MAX_NNGH_DELTA = 'P_MAX_NNGH_DELTA'
 P_NGH_RNG = 'P_NGH_RNG'
 P_VARNAME = 'P_VARNAME'
-P_NEON_ECORGN = 'P_NEON_ECORGN'
+P_CLIMDIVS = 'P_CLIMDIVS'
 
-class Unbuffered:
-    def __init__(self, stream):
-        self.stream = stream
-    def write(self, data):
-        self.stream.write(data)
-        self.stream.flush()
-    def __getattr__(self, attr):
-        return getattr(self.stream, attr)
 sys.stdout=Unbuffered(sys.stdout)
 
 def proc_work(params,rank):
     
     status = MPI.Status()
     
-    optim = OptimTairAnom(params[P_PATH_DB], params[P_VARNAME])
-    
-    min_ngh_wins = params[P_NGH_RNG]
-    
+    optim = XvalTairAnom(params[P_PATH_DB], params[P_VARNAME])
+        
     bcast_msg = None
     bcast_msg = MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)    
     print "".join(["Worker ",str(rank),": Received broadcast msg"])
@@ -64,15 +53,15 @@ def proc_work(params,rank):
             
             try:
                 
-                bias,mae,r2 = optim.run_xval(stn_id, min_ngh_wins)
+                bias,mae,r2 = optim.run_xval(stn_id, params[P_NGH_RNG])
                                             
             except Exception as e:
             
                 print "".join(["ERROR: Worker ",str(rank),": could not xval ",stn_id,"...",str(e)])
                 
-                mae = np.ones((min_ngh_wins.size,12))*netCDF4.default_fillvals['f8']
-                bias = np.ones((min_ngh_wins.size,12))*netCDF4.default_fillvals['f8']
-                r2 = np.ones((min_ngh_wins.size,12))*netCDF4.default_fillvals['f8']
+                mae = np.ones((params[P_NGH_RNG].size,12))*netCDF4.default_fillvals['f8']
+                bias = np.ones((params[P_NGH_RNG].size,12))*netCDF4.default_fillvals['f8']
+                r2 = np.ones((params[P_NGH_RNG].size,12))*netCDF4.default_fillvals['f8']
             
             MPI.COMM_WORLD.send((stn_id,mae,bias,r2), dest=RANK_WRITE, tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
@@ -153,20 +142,21 @@ def proc_write(params,nwrkers):
 def proc_coord(params,nwrkers):
     
     stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
+    #Only run xval optimization for stations within mask and that are not marked as bad
     mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD])) 
     stns = stn_da.stns[mask_stns]
         
     #Send stn ids to all processes
     MPI.COMM_WORLD.bcast(stns[STN_ID], root=RANK_COORD)
         
-    print "Coord: Done initialization. Starting to send work."
+    print "COORD: Done initialization. Starting to send work."
     
     cnt = 0
-    nrec = 0     
-        
-    for neon in params[P_NEON_ECORGN]:
+    nrec = 0
+                    
+    for climdiv in params[P_CLIMDIVS]:
     
-        mask_stns_xval = np.logical_and(stn_da.stns[NEON]==neon,mask_stns)
+        mask_stns_xval = np.logical_and(stn_da.stns[CLIMDIV]==climdiv,mask_stns)
         stn_ids_xval = stn_da.stn_ids[mask_stns_xval]
     
         for stn_id in stn_ids_xval:
@@ -180,10 +170,12 @@ def proc_coord(params,nwrkers):
             MPI.COMM_WORLD.send(stn_id, dest=dest, tag=TAG_DOWORK)
             cnt+=1
     
+        print "".join(["COORD: Finished xval of climate division: ",str(climdiv)])
+    
     for w in np.arange(nwrkers):
         MPI.COMM_WORLD.send(None, dest=w+N_NON_WRKRS, tag=TAG_STOPWORK)
         
-    print "coord_proc: done"
+    print "COORD: done"
 
 def create_ncdf(params,stn_ids,neon):
     
@@ -219,19 +211,12 @@ def create_ncdf(params,stn_ids,neon):
         
     return ds
 
-def build_nstn_bandwidths(rng_min,rng_max,pct_step):
-    
-    min_nghs = []
-    n = rng_min
-    
-    while n <= rng_max:
-        min_nghs.append(n)
-        n = n + np.round(pct_step*n)
-    
-    return np.array(min_nghs)
 
 if __name__ == '__main__':
-        
+
+    PROJECT_ROOT = "/projects/topowx"
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+
     np.seterr(all='raise')
     np.seterr(under='ignore')
     
@@ -240,15 +225,15 @@ if __name__ == '__main__':
 
     params = {}
     
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc"
-    params[P_PATH_OUT] = '/projects/daymet2/station_data/infill/serial_fnl/xval/optimTairAnom/tmin/xval_tmin_anom'   
-    params[P_NGH_RNG] = build_nstn_bandwidths(10, 150, 0.10)
+    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmin.nc')
+    params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill', 'optim_anoms')  #xval_tmin_anom' 
+    params[P_NGH_RNG] = build_nstn_bandwidths(35, 150, 0.10)
     params[P_VARNAME] = 'tmin'
     
+    #Run for all climate divisions
     ds = Dataset(params[P_PATH_DB])
-    divs = ds.variables['neon'][:]
-    params[P_NEON_ECORGN] = np.unique(divs.data[np.logical_not(divs.mask)])
-    
+    divs = ds.variables[CLIMDIV][:]
+    params[P_CLIMDIVS] = np.unique(divs.data[np.logical_not(divs.mask)])
     ds.close()
     ds = None
     

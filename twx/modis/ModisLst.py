@@ -1197,13 +1197,13 @@ class ImputeLST():
         self.stns = self.stnda.stns
         self.sinTrans = modis_sin_latlon_transform()
         
-        self.mthMasks = []
+        self.mth_masks = []
         self.u_yrs = np.unique(self.stnda.days[YEAR])
         
             
         for mth in np.arange(1,13):
             
-            self.mthMasks.append(self.stnda.days[MONTH]==mth)
+            self.mth_masks.append(self.stnda.days[MONTH]==mth)
         
     def infill(self,x,y,lst,nstns=7):
         lon, lat, Z = self.sinTrans.trans_sin_to_wgs84.TransformPoint(x,y)
@@ -1247,7 +1247,7 @@ class ImputeLST():
         
         lstFnl = np.copy(lst.data)
         
-        for maskMth in self.mthMasks:
+        for maskMth in self.mth_masks:
             
             maskLstFinMth = np.logical_and(maskLstFin,maskMth)
             

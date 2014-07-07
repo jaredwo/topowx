@@ -6,7 +6,7 @@ __all__ = ["TMAX","TMIN","TMIN_FLAG","TMAX_FLAG","LON","LAT","ELEV","STN_ID",
            "STN_NAME","STATE","UTC_OFFSET","StationDataDb","StationSerialDataDb",
            "MEAN_TMAX","MEAN_TMIN","VAR_TMIN","VAR_TMAX","BAD","CLIMDIV",
            "MASK","TDI","get_norm_varname","get_optim_varname","get_optim_anom_varname",
-           "get_lst_varname"]
+           "get_lst_varname","get_krigparam_varname", "VARIO_NUG", "VARIO_PSILL", "VARIO_RNG"]
 
 import numpy as np
 from twx.utils import get_days_metadata, get_days_metadata_dates
@@ -87,8 +87,6 @@ def get_krigparam_varname(mth,krigParam):
         
         return "".join([krigParam,"%02d"%mth])
         
-        return "optim_nnghs%02d"%mth
-
 def _build_stn_struct(ds):
     
     varnames = ds.variables.keys()
@@ -435,7 +433,7 @@ class StationSerialDataDb(object):
         for mth in np.arange(1,13):
             mthIdx[mth] = np.nonzero(self.days[MONTH]==mth)[0]
         mthIdx[None] = np.arange(self.days.size)
-        self.mthIdx = mthIdx
+        self.mth_idx = mthIdx
         
         self.stn_ids = np.array(self.ds.variables['stn_id'][:], dtype="<S16")
         self.var = self.ds.variables[var_name]
@@ -509,7 +507,7 @@ class StationSerialDataDb(object):
             obs = self.var[:,self.stn_idxs[stn_ids]]
         
         if mth != None:            
-            obs = np.take(obs, self.mthIdx[mth], axis=0)
+            obs = np.take(obs, self.mth_idx[mth], axis=0)
 
         if num_stns == 1:
             obs.shape = (obs.shape[0],)

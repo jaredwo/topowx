@@ -16,7 +16,7 @@ import sys
 from twx.db import StationSerialDataDb,STN_ID,MASK,BAD,CLIMDIV
 from twx.utils import StatusCheck, Unbuffered
 from netCDF4 import Dataset
-from twx.interp import OptimKrigBwNstns, set_optim_nstns_tair_norm,\
+from twx.interp import XvalKrigBwNstns, set_optim_nstns_tair_norm,\
 build_nstn_bandwidths,create_climdiv_optim_nstns_db
 import os
 
@@ -40,7 +40,7 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    optim = OptimKrigBwNstns(params[P_PATH_DB], params[P_VARNAME])
+    optim = XvalKrigBwNstns(params[P_PATH_DB], params[P_VARNAME])
     #optim = OptimGwrNormBwNstns(params[P_PATH_DB], params[P_VARNAME])
     
     bcast_msg = None
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     #Run for all climate divisions
     ds = Dataset(params[P_PATH_DB])
     divs = ds.variables[CLIMDIV][:]
-    params[P_CLIMDIVS] = np.unique(divs.data[np.logical_not(divs.mask)])#np.array([2401])
+    params[P_CLIMDIVS] = np.unique(divs.data[np.logical_not(divs.mask)])
     ds.close()
     ds = None
     

@@ -1,19 +1,23 @@
 '''
-A MPI driver for performing "leave one out" cross-validation of tair interpolation in interp_tair
+MPI script for setting moving window regression kriging variogram
+parameters at each station location based on the U.S. climate
+division optimal station bandwidths from step13_mpi_optim_nstns_norms.py.
+Adds an exponential variogram nugget, partial sill,
+and range station attribute for each month to the serially-complete
+station database.
 
-@author: jared.oyler
+Must be run using mpiexec or mpirun.
 '''
 
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import StationSerialDataDb,STN_ID,MASK,BAD,get_krigparam_varname, VARIO_NUG, VARIO_PSILL, VARIO_RNG
-from twx.utils.status_check import StatusCheck
+from twx.db import StationSerialDataDb,\
+STN_ID,MASK,BAD,get_krigparam_varname, VARIO_NUG, VARIO_PSILL, VARIO_RNG
+from twx.utils import StatusCheck, Unbuffered
 import netCDF4
-from netCDF4 import Dataset
-import rpy2.robjects as robjects
-from twx.interp.optimize import OptimKrigParams
-r = robjects.r
+from twx.interp import OptimKrigParams
+import os
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -26,21 +30,13 @@ N_NON_WRKRS = 2
 P_PATH_DB = 'P_PATH_DB'
 P_VARNAME = 'P_VARNAME'
 
-class Unbuffered:
-    def __init__(self, stream):
-        self.stream = stream
-    def write(self, data):
-        self.stream.write(data)
-        self.stream.flush()
-    def __getattr__(self, attr):
-        return getattr(self.stream, attr)
 sys.stdout=Unbuffered(sys.stdout)
 
 def proc_work(params,rank):
     
     status = MPI.Status()
     
-    optim = OptimKrigParams(params[P_PATH_DB], params[P_VARNAME])
+    kparams = OptimKrigParams(params[P_PATH_DB], params[P_VARNAME])
                 
     while 1:
     
@@ -56,11 +52,11 @@ def proc_work(params,rank):
             
             try:
                 
-                nug,psill,rng = optim.getKrigParams(stn_id)
+                nug,psill,rng = kparams.get_krig_params(stn_id)
                                 
             except Exception as e:
             
-                print "".join(["ERROR: Worker ",str(rank),": could not optim ",stn_id,str(e)])
+                print "".join(["ERROR: WORKER ",str(rank),": could not get krig params for ",stn_id,str(e)])
                 nug = np.ones(12)*netCDF4.default_fillvals['f8']
                 psill = np.ones(12)*netCDF4.default_fillvals['f8']
                 rng = np.ones(12)*netCDF4.default_fillvals['f8']
@@ -73,38 +69,23 @@ def proc_write(params,nwrkers):
     status = MPI.Status()
     nwrkrs_done = 0
         
-    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME],mode="r+")
     mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD])) 
     nstns = np.sum(mask_stns)
-    stn_ids = stn_da.stn_ids
-    stn_da.ds.close()
-    stn_da = None
-        
-    ds = Dataset(params[P_PATH_DB],'r+')
-    
+
     dsvars = {}
     for mth in np.arange(1,13):
-        dsvars[get_krigparam_varname(mth, VARIO_NUG)] = None
-        dsvars[get_krigparam_varname(mth, VARIO_PSILL)] = None
-        dsvars[get_krigparam_varname(mth, VARIO_RNG)] = None
-    
-    for avarname in dsvars.keys():
-    
-        if avarname not in ds.variables.keys():
                 
-            avar = ds.createVariable(avarname,'f8',('stn_id',),fill_value=netCDF4.default_fillvals['f8'])
-            avar.long_name = " ".join(['variogram',avarname])
-            avar.units = 'NA'
-                
-        else:
-                
-            avar = ds.variables[avarname]
-            avar[:] = avar._FillValue
-            ds.sync()
+        vname_nug = get_krigparam_varname(mth, VARIO_NUG)
+        vname_psill = get_krigparam_varname(mth, VARIO_PSILL)
+        vname_rng = get_krigparam_varname(mth, VARIO_RNG)
         
-        dsvars[avarname] = avar
-    
+        dsvars[vname_nug] = stn_da.add_stn_variable(vname_nug, vname_nug, "C**2", 'f8')
+        dsvars[vname_psill] = stn_da.add_stn_variable(vname_psill, vname_nug, "C**2", 'f8')
+        dsvars[vname_rng] = stn_da.add_stn_variable(vname_rng, vname_nug, "km", 'f8')
+        
     stat_chk = StatusCheck(nstns, 250)    
+    
     while 1:
        
         stn_id,nug,psill,rng = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
@@ -113,29 +94,30 @@ def proc_write(params,nwrkers):
             
             nwrkrs_done+=1
             if nwrkrs_done == nwrkers:
-                print "Writer: Finished"
+                print "WRITER: Finished"
                 return 0
         else:
             
-            x = np.nonzero(stn_ids==stn_id)[0][0]
+            x = stn_da.stn_idxs[stn_id]
             
             for mth in np.arange(1,13):
                 
                 dsvars[get_krigparam_varname(mth, VARIO_NUG)][x] = nug[mth-1]
                 dsvars[get_krigparam_varname(mth, VARIO_PSILL)][x] = psill[mth-1]
                 dsvars[get_krigparam_varname(mth, VARIO_RNG)][x] = rng[mth-1]
-
-            ds.sync()
             
+            stn_da.ds.sync()
+                        
             stat_chk.increment()
                 
 def proc_coord(params,nwrkers):
     
     stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
+    #Only set kriging params for stations within mask and that are not marked as bad
     mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD])) 
     stns = stn_da.stns[mask_stns]
                     
-    print "Coord: Done initialization. Starting to send work."
+    print "COORD: Done initialization. Starting to send work."
     
     cnt = 0
     nrec = 0
@@ -154,20 +136,12 @@ def proc_coord(params,nwrkers):
     for w in np.arange(nwrkers):
         MPI.COMM_WORLD.send(None, dest=w+N_NON_WRKRS, tag=TAG_STOPWORK)
         
-    print "coord_proc: done"
-
-def build_nstn_bandwidths(rng_min,rng_max,pct_step):
-    
-    min_nghs = []
-    n = rng_min
-    
-    while n <= rng_max:
-        min_nghs.append(n)
-        n = n + np.round(pct_step*n)
-    
-    return np.array(min_nghs)
+    print "COORD: done"
 
 if __name__ == '__main__':
+    
+    PROJECT_ROOT = "/projects/topowx"
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
     
     np.seterr(all='raise')
     np.seterr(under='ignore')
@@ -176,7 +150,7 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = "/projects/daymet2/station_data/infill/serial_nolst/serial_tmin.nc"
+    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmin.nc')
     params[P_VARNAME] = 'tmin'
 
     if rank == RANK_COORD:        

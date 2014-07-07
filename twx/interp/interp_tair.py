@@ -2,7 +2,7 @@
 Classes and functions for performing Tair interpolation
 '''
 
-__all__ = ["KrigTairAll"]
+__all__ = ["KrigTairAll","BuildKrigParams"]
 
 import numpy as np
 from twx.db.station_data import LON,LAT,ELEV,TDI,LST,MEAN_OBS,OPTIM_NNGH,\
@@ -186,27 +186,27 @@ class GwrTairAnom(object):
         self.days = days
         self.aclib = clib_wxTopo()
         
-        mthlyPredictors = {}
+        mthly_predictors = {}
         predictors = np.array(GWR_TREND_VARS,dtype="<S16")
-        mthlyPredictors[None] = predictors
+        mthly_predictors[None] = predictors
         
         for mth in np.arange(1,13):
             
             mthP = np.copy(predictors)
             mthP[mthP==LST] = get_lst_varname(mth)
-            mthlyPredictors[mth] = mthP
+            mthly_predictors[mth] = mthP
         
-        self.mthlyPredictors = mthlyPredictors
+        self.mthly_predictors = mthly_predictors
         
-        mthMasks = {}
-        mthIdx = {}
+        mth_masks = {}
+        mth_idx = {}
         for mth in np.arange(1,13):
-            mthMasks[mth] = days[MONTH] == mth
-            mthIdx[mth] = np.nonzero(mthMasks[mth])[0]
-        mthMasks[None] = np.ones(days.size,dtype=np.bool)
-        mthIdx[None] = np.nonzero(mthMasks[None])[0]
-        self.mthMasks = mthMasks
-        self.mthIdx = mthIdx
+            mth_masks[mth] = days[MONTH] == mth
+            mth_idx[mth] = np.nonzero(mth_masks[mth])[0]
+        mth_masks[None] = np.ones(days.size,dtype=np.bool)
+        mth_idx[None] = np.nonzero(mth_masks[None])[0]
+        self.mth_masks = mth_masks
+        self.mth_idx = mth_idx
     
     def __get_nnghs(self,pt,mth,stns_rm=None):
         
@@ -233,18 +233,18 @@ class GwrTairAnom(object):
         self.stn_slct.set_ngh_stns(pt[LAT],pt[LON],nnghs,load_obs=True,stns_rm=stns_rm,obs_mth=mth)
         
         ngh_obs = self.stn_slct.ngh_obs
-        #ngh_obs = np.take(self.stn_slct.ngh_obs, self.mthIdx[mth], 0)
+        #ngh_obs = np.take(self.stn_slct.ngh_obs, self.mth_idx[mth], 0)
         ngh_stns = self.stn_slct.ngh_stns
         ngh_wgt = self.stn_slct.ngh_wgt
            
         ngh_obs_cntr = ngh_obs - ngh_stns[get_norm_varname(mth)]
         
         #Perform a GWR for each day
-        X = [ngh_stns[avar] for avar in self.mthlyPredictors[mth]]
+        X = [ngh_stns[avar] for avar in self.mthly_predictors[mth]]
         X.insert(0,np.ones(ngh_stns.size))
         X = np.column_stack(X)
         
-        x = [pt[avar] for avar in self.mthlyPredictors[mth]]
+        x = [pt[avar] for avar in self.mthly_predictors[mth]]
         x.insert(0,1)
         x = np.array(x)
                 
@@ -287,7 +287,7 @@ class GwrTairAnomR(GwrTairAnom):
         
         self.stn_slct.set_ngh_stns(pt[LAT],pt[LON],nnghs,load_obs=True,stns_rm=stns_rm)
         
-        ngh_obs = np.take(self.stn_slct.ngh_obs, self.mthIdx[mth], 0)
+        ngh_obs = np.take(self.stn_slct.ngh_obs, self.mth_idx[mth], 0)
         ngh_stns = self.stn_slct.ngh_stns
         ngh_wgt = self.stn_slct.ngh_wgt
         a_pt = np.array([pt[LON],pt[LAT],pt[ELEV],pt[TDI],pt[get_lst_varname(mth)]])
@@ -328,7 +328,7 @@ class GwrTairAnomBlank(GwrTairAnom):
         GwrTairAnom.__init__(self, stn_slct, days)
         self.blank_vals = {}
         for mth in np.arange(1,13):
-            self.blank_vals[mth] = np.zeros(self.mthIdx[mth].size)
+            self.blank_vals[mth] = np.zeros(self.mth_idx[mth].size)
         
     
     def gwr_mth(self,pt,mth,nnghs=None,stns_rm=None):  
@@ -340,7 +340,7 @@ class InterpTair(object):
         
         self.krig_tair = krig_tair
         self.gwr_tair = gwr_tair
-        self.mthMasks = gwr_tair.mthMasks
+        self.mth_masks = gwr_tair.mth_masks
         self.ndays = gwr_tair.days.size
         
     def interp(self,pt,stns_rm=None):
@@ -357,7 +357,7 @@ class InterpTair(object):
             tair_norms[mth-1] = tair_mean
             tair_se[mth-1] = std_err
     
-            tair_daily[self.mthMasks[mth]] = self.gwr_tair.gwr_mth(pt,mth,stns_rm=stns_rm)
+            tair_daily[self.mth_masks[mth]] = self.gwr_tair.gwr_mth(pt,mth,stns_rm=stns_rm)
         
         return tair_daily,tair_norms,tair_se
 
@@ -382,9 +382,9 @@ class PtInterpTair(object):
             for aMth in np.arange(1,13):
                 self.yrMthsMasks.append(np.nonzero(np.logical_and(daysNorm[YEAR]==aYr,daysNorm[MONTH]==aMth))[0])
         
-        self.mthMasks = []
+        self.mth_masks = []
         for mth in np.arange(1,13):
-            self.mthMasks.append(np.nonzero(self.yr_mths[MONTH]==mth)[0])
+            self.mth_masks.append(np.nonzero(self.yr_mths[MONTH]==mth)[0])
         
         mask_stns_tmin = np.isnan(stn_da_tmin.stns[BAD]) 
         mask_stns_tmax = np.isnan(stn_da_tmax.stns[BAD])
@@ -461,8 +461,8 @@ class PtInterpTair(object):
                 tmax_dly_norm = np.take(tmax_dly, self.daysNormMask)
                 tmin_mthly = np.array([np.mean(np.take(tmin_dly_norm,amask)) for amask in self.yrMthsMasks])
                 tmax_mthly = np.array([np.mean(np.take(tmax_dly_norm,amask)) for amask in self.yrMthsMasks])
-                tmin_norms = np.array([np.mean(np.take(tmin_mthly,amask)) for amask in self.mthMasks])
-                tmax_norms = np.array([np.mean(np.take(tmax_mthly,amask)) for amask in self.mthMasks])
+                tmin_norms = np.array([np.mean(np.take(tmin_mthly,amask)) for amask in self.mth_masks])
+                tmax_norms = np.array([np.mean(np.take(tmax_mthly,amask)) for amask in self.mth_masks])
         
         return tmin_dly, tmax_dly, tmin_norms, tmax_norms, tmin_se, tmax_se, ninvalid
 
@@ -485,16 +485,60 @@ def get_rgn_nnghs_dict(stns):
     return nnghsAll
     
 class BuildKrigParams(object):
+    '''
+    Class to build moving window regression kriging
+    variogram parameters for a specific point. This is mainly
+    used to determine the monthly normal regression kriging
+    parameters at each station location once the optimal station
+    bandwidths have been set.
+    '''
     
     def __init__(self,stn_slct):
+        '''
+        Parameters
+        ----------
+        stn_slct : StationSelect
+            A StationSelect object for finding and
+            selecting neighboring stations to a point.
+        '''
         
+        _init_interp_R_env()
         self.stn_slct = stn_slct
-        self.r_kparam_func = ri.globalenv.get('get_vario_params')
+        self.r_func = ri.globalenv.get('get_vario_params')
+        
         
     def get_krig_params(self,pt,mth,rm_stnid=None):
+        '''
+        Get the moving window regression kriging variogram
+        parameters for a specific point and month. Currently
+        assumes an exponential variogram
+                
+        Parameters
+        ----------
+        pt : structured array
+            A structured array containing the point's latitude, longitude,
+            elevation, topographic dissection index, and average land skin 
+            temperatures for each month. An empty point can be initialized
+            with build_empty_pt()
+        mth : int
+            The specific month as an integer (1-12)
+        rm_stnid : ndarray or str, optional
+            An array of station ids or a single station id for stations that
+            should not be considered neighbors for the specific point.
+        
+        Returns
+        ----------
+        nug : float
+            Exponential variogram nugget.
+        psill : float
+            Exponential variogram partial sill.
+        rng : float
+            Exponential variogram range.
+        
+        '''
         
         #First determine the nnghs to use based on smoothed weighted average of 
-        #the optimal nnghs at each station point.
+        #the optimal nnghs bandwidth at each station point.
         self.stn_slct.set_ngh_stns(pt[LAT], pt[LON], DFLT_INIT_NNGHS, load_obs=False)
         
         indomain_mask = np.isfinite(self.stn_slct.ngh_stns[get_optim_varname(mth)])
@@ -521,7 +565,7 @@ class BuildKrigParams(object):
         ngh_wgt = ri.FloatSexpVector(self.stn_slct.ngh_wgt)
         ngh_dists = ri.FloatSexpVector(self.stn_slct.ngh_dists)
         
-        rslt = self.r_kparam_func(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,ngh_dists)
+        rslt = self.r_func(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,ngh_dists)
         nug = rslt[0]
         psill = rslt[1]
         rng = rslt[2]
@@ -785,7 +829,7 @@ class StationDataWrkChk(StationSerialDataDb):
         achkObs = self.var[:,maskStns]
         self.chkObs = {}
         for mth in np.arange(1,13):
-            self.chkObs[mth] = np.take(achkObs, self.mthIdx[mth], axis=0)
+            self.chkObs[mth] = np.take(achkObs, self.mth_idx[mth], axis=0)
             
         self.chkDegBuf = degBuf
         self.chkBnds = bnds
@@ -838,3 +882,52 @@ def buildDefaultPtInterp(norms_only=False):
     #interpOrders = None
     ptInterp = PtInterpTair(stndaTmin,stndaTmax,auxFpaths,interpOrders,norms_only) 
     return ptInterp
+
+def _gwr_series(model_x,predict_x,y,wgt):
+    '''
+    A performance-optimized method for repeatedly running a geographically weighted
+    regression over a time series where the independent predictors of the regression
+    remain constant but the dependent variable varies at each point in time. 
+    
+    Parameters
+    ----------
+    model_x : ndarray
+        A N*M array where N is the # of observation points and M is the # of predictors
+    predict_x : ndarray
+        A 1-D array of M predictor values for the prediction point
+    y : ndarray
+        A K*N array where K is the number of observations in the time series
+        and N is the number of observation points.
+    wgt : ndarray
+        A 1-D array of size N containing a weight for each observation point
+    
+    Returns
+    ----------
+    predict_y : ndarray
+        A 1-D array of size K containing the predicted values for the prediciton
+        point specified by predict_x.
+    '''
+    model_x = np.require(model_x,dtype=np.float64,requirements=['C','A','W','O'])
+    predict_x = np.require(predict_x,dtype=np.float64,requirements=['C','A','W','O'])
+    y = np.require(y,dtype=np.float64,requirements=['C','A','W','O'])
+    wgt = np.require(wgt,dtype=np.float64,requirements=['C','A','W','O'])
+    
+    X = np.column_stack((np.ones(model_x.shape[0]),model_x))
+    x = np.insert(predict_x,0,1)
+    x.shape = (x.shape[0],1)
+    
+    W = np.diag(wgt)
+    
+    X_t = np.transpose(X)
+    
+    m1 = np.linalg.inv(np.dot(np.dot(X_t,W),X))
+    m2 = np.dot(X_t,W)
+    m3 = np.dot(m1,m2)
+    
+    z = np.dot(np.transpose(x),m3)
+    #Z = np.dot(X,m3)
+        
+    predict_y = np.inner(z,y).ravel()    
+    #fit_y = np.inner(Z,y).T
+    
+    return predict_y#,fit_y

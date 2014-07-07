@@ -73,7 +73,7 @@ gwr_anomaly <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_wgt,obs_mat
 #Parameters
 #----------
 #ngh_lon : vector
-#	A vector containing station longitudes.
+# A vector containing station longitudes.
 #ngh_lat : vector
 #	A vector containing station latitudes.
 #ngh_elev : vector
