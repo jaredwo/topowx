@@ -4,13 +4,13 @@ Created on May 15, 2013
 @author: jared.oyler
 '''
 from twx.db.station_data import STN_ID,LON,LAT,BAD,StationSerialDataDb,STATE,STN_NAME,ELEV,\
-    StationDataDb,YMD,DATE,DAY,DTYPE_STN_BASIC
+    StationDataDb,YMD,DATE,DAY
 import numpy as np
 from twx.utils.util_dates import YEAR,MONTH
 from twx.utils.status_check import StatusCheck
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
-import obs_por as por
+#import obs_por as por
 import twx.utils.util_dates as utld
 from datetime import datetime
 import twx.db.create_db_all_stations as createDB
@@ -19,14 +19,14 @@ from netCDF4 import date2num
 import netCDF4
 
 
-class insert_homog(createDB.insert):
+class insert_homog(createDB.Insert):
     '''
     Class for inserting homogenized stations and observations
     '''
     
     def __init__(self,stnda,homog_dly_tmin,homog_dly_tmax,fpathPor,fpathUnusableTmin,fpathUnusableTmax ):
         
-        createDB.insert.__init__(self,stnda.days[DATE][0],stnda.days[DATE][-1])
+        createDB.Insert.__init__(self,stnda.days[DATE][0],stnda.days[DATE][-1])
         
         self.homog_tmin = homog_dly_tmin
         self.homog_tmax = homog_dly_tmax
@@ -109,7 +109,7 @@ def tobsShiftTmax(tmax,tobs):
     
     return tmax
  
-class insert_tobs(createDB.insert):
+class insert_tobs(createDB.Insert):
     '''
     Class for inserting stations observations that have been modified for time-of-observation
     '''

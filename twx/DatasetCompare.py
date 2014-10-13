@@ -767,18 +767,18 @@ class DaymetTileRaster():
         GeoTransform[4] /* rotation, 0 if image is "north up" */
         GeoTransform[5] /* n-s pixel resolution */
         '''
-        self.geoTransform = [None]*6
+        self.geo_t = [None]*6
         #n-s pixel height/resolution needs to be negative.  not sure why?
-        self.geoTransform[5] = -np.abs(self.y[0] - self.y[1])   
-        self.geoTransform[1] = np.abs(self.x[0] - self.x[1])
-        self.geoTransform[2],self.geoTransform[4] = (0.0,0.0)
-        self.geoTransform[0] = self.x[0] - (self.geoTransform[1]/2.0) 
-        self.geoTransform[3] = self.y[0] + np.abs(self.geoTransform[5]/2.0)
+        self.geo_t[5] = -np.abs(self.y[0] - self.y[1])   
+        self.geo_t[1] = np.abs(self.x[0] - self.x[1])
+        self.geo_t[2],self.geo_t[4] = (0.0,0.0)
+        self.geo_t[0] = self.x[0] - (self.geo_t[1]/2.0) 
+        self.geo_t[3] = self.y[0] + np.abs(self.geo_t[5]/2.0)
                 
-        self.min_x = self.geoTransform[0]
-        self.max_x = self.min_x + (self.x.size*self.geoTransform[1])
-        self.max_y =  self.geoTransform[3]
-        self.min_y =  self.max_y - (-self.y.size*self.geoTransform[5])
+        self.min_x = self.geo_t[0]
+        self.max_x = self.min_x + (self.x.size*self.geo_t[1])
+        self.max_y =  self.geo_t[3]
+        self.min_y =  self.max_y - (-self.y.size*self.geo_t[5])
         
         sr = osr.SpatialReference()
         sr.ImportFromProj4("+proj=lcc +datum=WGS84 +lat_1=25n +lat_2=60n +lat_0=42.5n +lon_0=100w")
@@ -801,10 +801,10 @@ class DaymetTileRaster():
         if not self.__is_inbounds(x, y):
             raise Exception("Lon/Lat outside raster extent")
         
-        originX = self.geoTransform[0]
-        originY = self.geoTransform[3]
-        pixelWidth = self.geoTransform[1]
-        pixelHeight = self.geoTransform[5]
+        originX = self.geo_t[0]
+        originY = self.geo_t[3]
+        pixelWidth = self.geo_t[1]
+        pixelHeight = self.geo_t[5]
         
         xOffset = abs(int((x - originX) / pixelWidth))
         yOffset = abs(int((y - originY) / pixelHeight))
@@ -871,18 +871,18 @@ class PrismTileRaster():
         GeoTransform[4] /* rotation, 0 if image is "north up" */
         GeoTransform[5] /* n-s pixel resolution */
         '''
-        self.geoTransform = [None]*6
+        self.geo_t = [None]*6
         #n-s pixel height/resolution needs to be negative.  not sure why?
-        self.geoTransform[5] = -np.abs(self.y[0] - self.y[1])   
-        self.geoTransform[1] = np.abs(self.x[0] - self.x[1])
-        self.geoTransform[2],self.geoTransform[4] = (0.0,0.0)
-        self.geoTransform[0] = self.x[0] - (self.geoTransform[1]/2.0) 
-        self.geoTransform[3] = self.y[0] + np.abs(self.geoTransform[5]/2.0)
+        self.geo_t[5] = -np.abs(self.y[0] - self.y[1])   
+        self.geo_t[1] = np.abs(self.x[0] - self.x[1])
+        self.geo_t[2],self.geo_t[4] = (0.0,0.0)
+        self.geo_t[0] = self.x[0] - (self.geo_t[1]/2.0) 
+        self.geo_t[3] = self.y[0] + np.abs(self.geo_t[5]/2.0)
                 
-        self.min_x = self.geoTransform[0]
-        self.max_x = self.min_x + (self.x.size*self.geoTransform[1])
-        self.max_y =  self.geoTransform[3]
-        self.min_y =  self.max_y - (-self.y.size*self.geoTransform[5])
+        self.min_x = self.geo_t[0]
+        self.max_x = self.min_x + (self.x.size*self.geo_t[1])
+        self.max_y =  self.geo_t[3]
+        self.min_y =  self.max_y - (-self.y.size*self.geo_t[5])
                 
         self.days = utld.get_days_metadata_dates(num2date(self.ds.variables['time'][:], self.ds.variables['time'].units))
           
@@ -893,10 +893,10 @@ class PrismTileRaster():
         if not self.__is_inbounds(x, y):
             raise Exception("Lon/Lat outside raster extent")
         
-        originX = self.geoTransform[0]
-        originY = self.geoTransform[3]
-        pixelWidth = self.geoTransform[1]
-        pixelHeight = self.geoTransform[5]
+        originX = self.geo_t[0]
+        originY = self.geo_t[3]
+        pixelWidth = self.geo_t[1]
+        pixelHeight = self.geo_t[5]
         
         xOffset = abs(int((x - originX) / pixelWidth))
         yOffset = abs(int((y - originY) / pixelHeight))

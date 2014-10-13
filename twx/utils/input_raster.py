@@ -152,7 +152,7 @@ class input_raster(object):
         self.raster = gdal.Open(filePath, gdalconst.GA_ReadOnly)
         if self.raster is None:
             raise Exception ('the raster file could not be opened')
-        self.geoTransform = self.raster.GetGeoTransform()
+        self.geo_t = self.raster.GetGeoTransform()
         self.projection = self.raster.GetProjection()
         self.rows = self.raster.RasterYSize
         self.cols = self.raster.RasterXSize
@@ -164,10 +164,10 @@ class input_raster(object):
         self.coordTrans_wgs84_to_src = osr.CoordinateTransformation(self.target_sr, self.source_sr)
         self.data = self.raster.GetRasterBand(bandNum)
         self.dataCache = dict()
-        self.min_x = self.geoTransform[0]
-        self.max_x = self.min_x + (self.cols*self.geoTransform[1])
-        self.max_y =  self.geoTransform[3]
-        self.min_y =  self.max_y - (-self.rows*self.geoTransform[5])
+        self.min_x = self.geo_t[0]
+        self.max_x = self.min_x + (self.cols*self.geo_t[1])
+        self.max_y =  self.geo_t[3]
+        self.min_y =  self.max_y - (-self.rows*self.geo_t[5])
         self.ndata = self.data.GetNoDataValue()
     
     def __del__(self):
@@ -175,12 +175,12 @@ class input_raster(object):
         self.raster = None
     
     def res(self):
-        return self.geoTransform[1],self.geoTransform[1]
+        return self.geo_t[1],self.geo_t[1]
     
     def getGeoLocation(self, xPixel,yLine):
         '''Affine Transfrom: Converts pixel row and column to spatially referenced coordinates (in native projection)'''
-        Xgeo = (self.geoTransform[0] + xPixel*self.geoTransform[1] + yLine*self.geoTransform[2]) + self.geoTransform[1] / 2.0
-        Ygeo = (self.geoTransform[3] + xPixel*self.geoTransform[4] + yLine*self.geoTransform[5]) + self.geoTransform[5] / 2.0
+        Xgeo = (self.geo_t[0] + xPixel*self.geo_t[1] + yLine*self.geo_t[2]) + self.geo_t[1] / 2.0
+        Ygeo = (self.geo_t[3] + xPixel*self.geo_t[4] + yLine*self.geo_t[5]) + self.geo_t[5] / 2.0
         return Xgeo,Ygeo
     
     def getGridCellOffset(self,lon,lat):
@@ -190,10 +190,10 @@ class input_raster(object):
         if not self.__is_inbounds(xGeo, yGeo):
             raise OutsideExtent("lat/lon outside raster extent: "+str(lat)+","+str(lon))
         
-        originX = self.geoTransform[0]
-        originY = self.geoTransform[3]
-        pixelWidth = self.geoTransform[1]
-        pixelHeight = self.geoTransform[5]
+        originX = self.geo_t[0]
+        originY = self.geo_t[3]
+        pixelWidth = self.geo_t[1]
+        pixelHeight = self.geo_t[5]
         
         xOffset = abs(int((xGeo - originX) / pixelWidth))
         yOffset = abs(int((yGeo - originY) / pixelHeight))

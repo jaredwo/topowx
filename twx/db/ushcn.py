@@ -10,6 +10,8 @@ from netCDF4 import Dataset, date2num, num2date
 from twx.utils.status_check import StatusCheck
 import netCDF4
 
+DTYPE_STN_BASIC = [(STN_ID, "<S16"), (STATE, "<S2"), (STN_NAME, "<S30"), (LON, np.float64), (LAT, np.float64), (ELEV, np.float64)]
+
 class StationDataUSHCN(object):
     
     def __init__(self, nc_path):
@@ -384,7 +386,12 @@ if __name__ == '__main__':
 #                  '/projects/daymet2/station_data/ushcn/ushcn.v2.5.0.20130622/',
 #                  '/projects/daymet2/station_data/ushcn/ushcn.nc')
     
-    createUshcnDs('/projects/daymet2/station_data/ushcn/ushcn-v2.5-stations.txt',
-              '/projects/daymet2/station_data/ushcn/ushcn.v2.5.0.20130622/',
-              '/projects/daymet2/station_data/ushcn/ushcn1895_2012.nc',minYr=1895, maxYr=2012)
+#     createUshcnDs('/projects/daymet2/station_data/ushcn/ushcn-v2.5-stations.txt',
+#               '/projects/daymet2/station_data/ushcn/ushcn.v2.5.0.20130622/',
+#               '/projects/daymet2/station_data/ushcn/ushcn1895_2012.nc',minYr=1895, maxYr=2012)
+    
+    createUshcnDs('/projects/daymet2/station_data/ushcn/ushcn.v2.5.0.20140715/ushcn-v2.5-stations.txt',
+                  '/projects/daymet2/station_data/ushcn/ushcn.v2.5.0.20140715/ushcn.v2.5.0.20140715/',
+                  '/projects/daymet2/station_data/ushcn/ushcn.v2.5.0.20140715/ushcn.nc',minYr=1895, maxYr=2013)
+    
     

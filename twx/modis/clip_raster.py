@@ -219,7 +219,7 @@ def crop_to_bbox(fpath_rast,fpath_out,bbox):
     GeoTransform[4] /* rotation, 0 if image is "north up" */
     GeoTransform[5] /* n-s pixel resolution */
     '''
-    in_geot = list(r_in.geoTransform)
+    in_geot = list(r_in.geo_t)
     in_geot[0] = lon[0] - (in_geot[1]/2.0) 
     in_geot[3] = lat[0] + np.abs(in_geot[5]/2.0)
     

@@ -27,31 +27,31 @@ class ncdf_raster():
         GeoTransform[4] /* rotation, 0 if image is "north up" */
         GeoTransform[5] /* n-s pixel resolution */
         '''
-        self.geoTransform = [None]*6
+        self.geo_t = [None]*6
         #n-s pixel height/resolution needs to be negative.  not sure why?
-        self.geoTransform[5] = -np.abs(self.lats[0] - self.lats[1])   
-        self.geoTransform[1] = np.abs(self.lons[0] - self.lons[1])
-        self.geoTransform[2],self.geoTransform[4] = (0.0,0.0)
-        self.geoTransform[0] = self.lons[0] - (self.geoTransform[1]/2.0) 
-        self.geoTransform[3] = self.lats[0] + np.abs(self.geoTransform[5]/2.0)
+        self.geo_t[5] = -np.abs(self.lats[0] - self.lats[1])   
+        self.geo_t[1] = np.abs(self.lons[0] - self.lons[1])
+        self.geo_t[2],self.geo_t[4] = (0.0,0.0)
+        self.geo_t[0] = self.lons[0] - (self.geo_t[1]/2.0) 
+        self.geo_t[3] = self.lats[0] + np.abs(self.geo_t[5]/2.0)
         
         self.cols = self.lons.size
         self.rows = self.lats.size
         
-        self.min_x = self.geoTransform[0]
-        self.max_x = self.min_x + (self.cols*self.geoTransform[1])
-        self.max_y =  self.geoTransform[3]
-        self.min_y =  self.max_y - (-self.rows*self.geoTransform[5])
+        self.min_x = self.geo_t[0]
+        self.max_x = self.min_x + (self.cols*self.geo_t[1])
+        self.max_y =  self.geo_t[3]
+        self.min_y =  self.max_y - (-self.rows*self.geo_t[5])
     
     def getGridCellOffset(self,lon,lat):
         
         if not self.__is_inbounds(lon, lat):
             raise Exception("Lon/Lat outside raster extent")
         
-        originX = self.geoTransform[0]
-        originY = self.geoTransform[3]
-        pixelWidth = self.geoTransform[1]
-        pixelHeight = self.geoTransform[5]
+        originX = self.geo_t[0]
+        originY = self.geo_t[3]
+        pixelWidth = self.geo_t[1]
+        pixelHeight = self.geo_t[5]
         
         xOffset = abs(int((lon - originX) / pixelWidth))
         yOffset = abs(int((lat - originY) / pixelHeight))

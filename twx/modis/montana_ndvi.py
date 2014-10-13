@@ -1235,10 +1235,10 @@ class EOSGridSD():
         
         x_sin, y_sin, z_sin = self.trans_wgs84_to_sin(lon,lat)
             
-        originX = self.geoTransform[0]
-        originY = self.geoTransform[3]
-        pixelWidth = self.geoTransform[1]
-        pixelHeight = self.geoTransform[5]
+        originX = self.geo_t[0]
+        originY = self.geo_t[3]
+        pixelWidth = self.geo_t[1]
+        pixelHeight = self.geo_t[5]
         
         xOffset = abs(int((x_sin - originX) / pixelWidth))
         yOffset = abs(int((y_sin - originY) / pixelHeight))

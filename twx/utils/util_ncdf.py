@@ -209,13 +209,13 @@ class GeoNc():
         GeoTransform[4] /* rotation, 0 if image is "north up" */
         GeoTransform[5] /* n-s pixel resolution */
         '''
-        self.geoTransform = [None]*6
+        self.geo_t = [None]*6
         #n-s pixel height/resolution needs to be negative.
-        self.geoTransform[5] = -np.abs(lats[0] - lats[1])   
-        self.geoTransform[1] = np.abs(lons[0] - lons[1])
-        self.geoTransform[2],self.geoTransform[4] = (0.0,0.0)
-        self.geoTransform[0] = lons[0] - (self.geoTransform[1]/2.0) 
-        self.geoTransform[3] = lats[0] + np.abs(self.geoTransform[5]/2.0)
+        self.geo_t[5] = -np.abs(lats[0] - lats[1])   
+        self.geo_t[1] = np.abs(lons[0] - lons[1])
+        self.geo_t[2],self.geo_t[4] = (0.0,0.0)
+        self.geo_t[0] = lons[0] - (self.geo_t[1]/2.0) 
+        self.geo_t[3] = lats[0] + np.abs(self.geo_t[5]/2.0)
         
         self.lons = lons
         self.lats = lats
@@ -223,10 +223,10 @@ class GeoNc():
     
     def get_row_col(self,lon,lat):
                 
-        originX = self.geoTransform[0]
-        originY = self.geoTransform[3]
-        pixelWidth = self.geoTransform[1]
-        pixelHeight = self.geoTransform[5]
+        originX = self.geo_t[0]
+        originY = self.geo_t[3]
+        pixelWidth = self.geo_t[1]
+        pixelHeight = self.geo_t[5]
         
         col = abs(int((lon - originX) / pixelWidth))
         row = abs(int((lat - originY) / pixelHeight))
@@ -259,18 +259,18 @@ class NcdfRaster():
         GeoTransform[4] /* rotation, 0 if image is "north up" */
         GeoTransform[5] /* n-s pixel resolution */
         '''
-        self.geoTransform = [None]*6
+        self.geo_t = [None]*6
         #n-s pixel height/resolution needs to be negative.  not sure why?
-        self.geoTransform[5] = -np.abs(self.y[0] - self.y[1])   
-        self.geoTransform[1] = np.abs(self.x [0] - self.x[1])
-        self.geoTransform[2],self.geoTransform[4] = (0.0,0.0)
-        self.geoTransform[0] = self.x[0] - (self.geoTransform[1]/2.0) 
-        self.geoTransform[3] = self.y[0] + np.abs(self.geoTransform[5]/2.0)
+        self.geo_t[5] = -np.abs(self.y[0] - self.y[1])   
+        self.geo_t[1] = np.abs(self.x [0] - self.x[1])
+        self.geo_t[2],self.geo_t[4] = (0.0,0.0)
+        self.geo_t[0] = self.x[0] - (self.geo_t[1]/2.0) 
+        self.geo_t[3] = self.y[0] + np.abs(self.geo_t[5]/2.0)
                 
         self.min_x = self.geo_t[0]
-        self.max_x = self.min_x + (self.gdal_ds.RasterXSize*self.geo_t[1])
+        self.max_x = self.min_x + (self.x.size*self.geo_t[1])
         self.max_y =  self.geo_t[3]
-        self.min_y =  self.max_y - (-self.gdal_ds.RasterYSize*self.geo_t[5])
+        self.min_y =  self.max_y - (-self.y.size*self.geo_t[5])
         
     def toGTiff(self,fpathOut,a,proj4='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'):
         
@@ -280,13 +280,13 @@ class NcdfRaster():
         sr = osr.SpatialReference()
         sr.ImportFromProj4(proj4)
         dsOut.SetProjection(sr.ExportToWkt())
-        dsOut.SetGeoTransform(self.geoTransform)
+        dsOut.SetGeoTransform(self.geo_t)
         
         bandOut = dsOut.GetRasterBand(1)
         
         if np.ma.isMA(a):
-            bandOut.Fill(a.fill_value)
-            bandOut.SetNoDataValue(a.fill_value)
+            bandOut.Fill(float(a.fill_value))
+            bandOut.SetNoDataValue(float(a.fill_value))
             a = np.ma.filled(a)
     
         bandOut.WriteArray(np.ma.filled(a),0,0) 
@@ -297,10 +297,10 @@ class NcdfRaster():
         if not self.__is_inbounds(x, y):
             raise Exception("Lon/Lat outside raster extent")
         
-        originX = self.geoTransform[0]
-        originY = self.geoTransform[3]
-        pixelWidth = self.geoTransform[1]
-        pixelHeight = self.geoTransform[5]
+        originX = self.geo_t[0]
+        originY = self.geo_t[3]
+        pixelWidth = self.geo_t[1]
+        pixelHeight = self.geo_t[5]
         
         xOffset = abs(int((x - originX) / pixelWidth))
         yOffset = abs(int((y - originY) / pixelHeight))
@@ -332,31 +332,31 @@ class ncdf_raster():
         GeoTransform[4] /* rotation, 0 if image is "north up" */
         GeoTransform[5] /* n-s pixel resolution */
         '''
-        self.geoTransform = [None]*6
+        self.geo_t = [None]*6
         #n-s pixel height/resolution needs to be negative.  not sure why?
-        self.geoTransform[5] = -np.abs(self.lats[0] - self.lats[1])   
-        self.geoTransform[1] = np.abs(self.lons[0] - self.lons[1])
-        self.geoTransform[2],self.geoTransform[4] = (0.0,0.0)
-        self.geoTransform[0] = self.lons[0] - (self.geoTransform[1]/2.0) 
-        self.geoTransform[3] = self.lats[0] + np.abs(self.geoTransform[5]/2.0)
+        self.geo_t[5] = -np.abs(self.lats[0] - self.lats[1])   
+        self.geo_t[1] = np.abs(self.lons[0] - self.lons[1])
+        self.geo_t[2],self.geo_t[4] = (0.0,0.0)
+        self.geo_t[0] = self.lons[0] - (self.geo_t[1]/2.0) 
+        self.geo_t[3] = self.lats[0] + np.abs(self.geo_t[5]/2.0)
         
         self.cols = self.lons.size
         self.rows = self.lats.size
         
-        self.min_x = self.geoTransform[0]
-        self.max_x = self.min_x + (self.cols*self.geoTransform[1])
-        self.max_y =  self.geoTransform[3]
-        self.min_y =  self.max_y - (-self.rows*self.geoTransform[5])
+        self.min_x = self.geo_t[0]
+        self.max_x = self.min_x + (self.cols*self.geo_t[1])
+        self.max_y =  self.geo_t[3]
+        self.min_y =  self.max_y - (-self.rows*self.geo_t[5])
     
     def getGridCellOffset(self,lon,lat):
         
         if not self.__is_inbounds(lon, lat):
             raise Exception("Lon/Lat outside raster extent")
         
-        originX = self.geoTransform[0]
-        originY = self.geoTransform[3]
-        pixelWidth = self.geoTransform[1]
-        pixelHeight = self.geoTransform[5]
+        originX = self.geo_t[0]
+        originY = self.geo_t[3]
+        pixelWidth = self.geo_t[1]
+        pixelHeight = self.geo_t[5]
         
         xOffset = abs(int((lon - originX) / pixelWidth))
         yOffset = abs(int((lat - originY) / pixelHeight))
@@ -587,7 +587,7 @@ if __name__ == '__main__':
     #expand_grid(ds, 'elev', (3000,7000), '/projects/daymet2/dem/smoothed/ncdf/dem_orig_expand.nc',ds.variables['elev'].missing,mask)
     
 #    r_neon = input_raster('/projects/daymet2/dem/interp_mask_crown.tif')
-#    print r_neon.geoTransform
+#    print r_neon.geo_t
 #    #print r_neon.getGridCellOffset(-188.0,46.8)
 #    print r_neon.readEntireRaster().shape
 #    sys.exit()

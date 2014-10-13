@@ -1,10 +1,12 @@
 '''
-Utility functions to download weather station data.  Current main weather
+Utility functions to download weather station data. Current main weather
 station datasources are:
 
 1.) Global Historical Climate Network Daily (GHCN-Daily)
 
 2.) SNOTEL Current Tab Card Files (tab delimited files)
+TODO: Need to figure out new main source of SNOTEL data as
+this has been discontinued by NRCS.
 
 3.) SNOTEL Historical. No download function written as this does not appear to
     be updated regularly. Downloaded manually from
@@ -49,7 +51,7 @@ def snotel_mirror_tabdata(local_path, remote_path=RPATH_SNOTEL_TABDATA):
         The remote path to mirror from.
     '''
 
-    subprocess.call(['/usr/local/bin/wget', '--no-verbose', '--mirror',
+    subprocess.call(['wget', '--no-verbose', '--mirror',
                      '--directory-prefix=' + local_path, remote_path])
 
 
@@ -119,8 +121,6 @@ def raws_save_stnid_list(out_fpath):
     ----------
     out_fpath : str
         The filename to which to save the station id list.
-    remote_path : str, optional
-        The remote path to mirror from.
     '''
 
     path_root = os.path.dirname(__file__)
@@ -264,7 +264,7 @@ def raws_build_stn_metadata(fpath_stnids, fpath_out):
 
 def raws_save_all_dly_series(fpath_meta, path_out):
     '''
-    Webcraw and download RAWS daily station from WRCC
+    Webcrawl and download RAWS daily station from WRCC
 
     Parameters
     ----------

@@ -6,7 +6,7 @@ Created on Nov 19, 2013
 import numpy as np
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
-from twx.db.station_data import DTYPE_STN_BASIC,STN_NAME,STN_ID,LON,LAT,ELEV,STATE,StationSerialDataDb,NEON,MASK,BAD
+from twx.db.station_data import STN_NAME,STN_ID,LON,LAT,ELEV,STATE,StationSerialDataDb,MASK,BAD
 from twx.utils.input_raster import RasterDataset,OutsideExtent
 from copy import copy
 import twx.interp.interp_tair as it

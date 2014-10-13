@@ -30,7 +30,7 @@ class output_raster(object):
                                         inputRaster.rows,
                                         numbands, datatype) 
                                         #numbands, gdalconst.GDT_Float32)
-            self.raster.SetGeoTransform(inputRaster.geoTransform)
+            self.raster.SetGeoTransform(inputRaster.geo_t)
             self.raster.SetProjection(inputRaster.projection)
             [self.initBand(bandNum) for bandNum in range(1,numbands+1)]
         elif reuseExisting:
