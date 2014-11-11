@@ -91,7 +91,7 @@ def create_serially_complete_db(fpath_infill_db,tair_var,fpath_out_serial_db):
     
     for x in np.arange(stns.size):
         
-        infill_mask = ds_infill.variables['flag_infilled'][:,x].astype(np.bool)
+        infill_mask = ds_infill.variables['flag_impute'][:,x].astype(np.bool)
         infill_runs = _runs_of_ones_array(infill_mask)
         
         if infill_runs.size > 0:
@@ -104,7 +104,8 @@ def create_serially_complete_db(fpath_infill_db,tair_var,fpath_out_serial_db):
             #This station has greater than USE_ALL_INFILL_THRESHOLD continuous
             #years of missing data. Use all infilled values for this station to avoid 
             #discontinuities between infilled and observed portions of time series
-            tair_stn = ds_infill.variables["".join([tair_var,"_infilled"])][:,x]
+            #tair_stn = ds_infill.variables["".join([tair_var,"_infilled"])][:,x]
+            tair_stn = ds_infill.variables["".join([tair_var,"_imp"])][:,x]
             flag_stn = all_infill_flags
             
             all_infill_stns[x] = True
@@ -201,7 +202,7 @@ def find_dup_stns(stnda):
                 stn_ids_load = np.sort(np.concatenate([np.array([stn[STN_ID]]).ravel(),np.array([dup_nghs[STN_ID]]).ravel()]))
                 #print stn_ids_load
                 stn_idxs = np.nonzero(np.in1d(stnda.stn_ids, stn_ids_load, True))[0]
-                imp_flgs = stnda.ds.variables['flag_infilled'][:,stn_idxs]
+                imp_flgs = stnda.ds.variables['flag_impute'][:,stn_idxs]
                 imp_flg_sum = np.sum(imp_flgs, axis=0)
                 
                 stn_ids_rm = stn_ids_load[imp_flg_sum != np.min(imp_flg_sum)]

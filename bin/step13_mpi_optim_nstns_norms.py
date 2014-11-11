@@ -16,7 +16,7 @@ import sys
 from twx.db import StationSerialDataDb,STN_ID,MASK,BAD,CLIMDIV
 from twx.utils import StatusCheck, Unbuffered
 from netCDF4 import Dataset
-from twx.interp import XvalKrigBwNstns, set_optim_nstns_tair_norm,\
+from twx.interp import XvalTairNorm, set_optim_nstns_tair_norm,\
 build_nstn_bandwidths,create_climdiv_optim_nstns_db
 import os
 
@@ -40,7 +40,7 @@ def proc_work(params,rank):
     
     status = MPI.Status()
     
-    optim = XvalKrigBwNstns(params[P_PATH_DB], params[P_VARNAME])
+    optim = XvalTairNorm(params[P_PATH_DB], params[P_VARNAME])
     #optim = OptimGwrNormBwNstns(params[P_PATH_DB], params[P_VARNAME])
     
     bcast_msg = None
@@ -59,12 +59,12 @@ def proc_work(params,rank):
             try:
       
                 err = optim.run_xval(stn_id, params[P_NGH_RNG])
+                MPI.COMM_WORLD.send((stn_id,err), dest=RANK_WRITE, tag=TAG_DOWORK)
                                             
             except Exception as e:
             
                 print "".join(["ERROR: WORKER ",str(rank),": could not xval ",stn_id,str(e)])
                             
-            MPI.COMM_WORLD.send((stn_id,err), dest=RANK_WRITE, tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
                 
 def proc_write(params,nwrkers):
@@ -116,11 +116,11 @@ def proc_write(params,nwrkers):
                 ######################################################
                 print "WRITER: Setting the optim # of nghs..."
                 
-                stn_da.ds.close()
-                stn_da.ds = None
-                stn_da = None
+#                 stn_da.ds.close()
+#                 stn_da.ds = None
+#                 stn_da = None
                 
-                set_optim_nstns_tair_norm(params[P_PATH_DB], params[P_PATH_OUT])
+                set_optim_nstns_tair_norm(stn_da, params[P_PATH_OUT])
             
                 ######################################################
                 
@@ -176,9 +176,10 @@ def proc_coord(params,nwrkers):
 
 if __name__ == '__main__':
     
-    PROJECT_ROOT = "/projects/topowx"
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
-        
+    #PROJECT_ROOT = "/projects/topowx"
+    #FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+    FPATH_STNDATA = "/projects/topowx/refactor_test"
+    
     np.seterr(all='raise')
     np.seterr(under='ignore')
     
@@ -189,7 +190,8 @@ if __name__ == '__main__':
     
     params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmin.nc')
     params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill', 'optim')  
-    params[P_NGH_RNG] = build_nstn_bandwidths(35, 150, 0.10)
+    #params[P_NGH_RNG] = build_nstn_bandwidths(35, 150, 0.10)
+    params[P_NGH_RNG] = build_nstn_bandwidths(35, 50, 0.10)
     params[P_VARNAME] = 'tmin'
     
     #Run for all climate divisions

@@ -29,7 +29,7 @@ class RasterDataset(object):
         '''
 
         self.gdal_ds = gdal.Open(ds_path)
-
+        self.ds_path = ds_path
         # GDAL GeoTransform.
         # Top left x,y are for the upper left corner of upper left pixel
         # GeoTransform[0] /* top left x */
@@ -217,6 +217,94 @@ class RasterDataset(object):
         a = self.gdal_ds.GetRasterBand(1).ReadAsArray()
         a = np.ma.masked_equal(a, self.gdal_ds.GetRasterBand(1).GetNoDataValue())
         return a
+    
+    def output_new_ds(self, fpath, a, gdal_dtype, ndata, gdal_driver="GTiff"):
+        '''
+        Output a new raster with same geotransform and projection as this RasterDataset
+        
+        Parameters
+        ----------
+        fpath : str
+            The filepath for the new raster.
+        a : ndarray or MaskedArray
+            A 2-D array of the raster data to be output.
+            If MaskedArray, masked values are set to ndata
+        gdal_dtype : str
+            A gdal datatype from gdalconst.GDT_*.
+        ndata : num
+            The no data value for the raster
+        gdal_driver : str, optional
+            The GDAL driver for the output raster data format
+        '''
+        
+        ds_out = gdal.GetDriverByName(gdal_driver).Create(fpath, int(a.shape[1]), int(a.shape[0]), 1, gdal_dtype)
+        ds_out.SetGeoTransform(self.gdal_ds.GetGeoTransform())
+        ds_out.SetProjection(self.gdal_ds.GetProjection())
+        
+        band_out = ds_out.GetRasterBand(1)
+        band_out.SetNoDataValue(ndata)
+        
+        if np.ma.isMaskedArray(a):
+            band_out.WriteArray(np.ma.filled(a, ndata))
+        else:
+            band_out.WriteArray(a)
+            
+        ds_out.FlushCache()
+        ds_out = None
 
+    def resample_to_ds(self, fpath, ds_src, gdal_gra, gdal_driver="GTiff"):
+        '''
+        Resample a different RasterDataset to this RasterDataset's grid
+        
+        Parameters
+        ----------
+        fpath : str
+            The filepath for the new resampled raster.
+        ds_src : RasterDataset
+            The RasterDataset to  be resampled
+        gdal_gra : str
+            A gdal resampling algorithm from gdalconst.GRA_*.
+        gdal_driver : str, optional
+            The GDAL driver for the output raster data format
+            
+        Returns
+        ----------
+        grid_out : RasterDataset
+            A RasterDataset pointing to the resampled raster  
+        '''
+        
+        grid_src = ds_src.gdal_ds
+        grid_dst = self.gdal_ds
+        
+        proj_src = grid_src.GetProjection()
+        dtype_src = grid_src.GetRasterBand(1).DataType
+        ndata_src = grid_src.GetRasterBand(1).GetNoDataValue()
+        
+        proj_dst = grid_dst.GetProjection()
+        geot_dst = grid_dst.GetGeoTransform()
+            
+        grid_out = gdal.GetDriverByName(gdal_driver).Create(fpath, grid_dst.RasterXSize,
+                                                        grid_dst.RasterYSize, 1, dtype_src)
+        
+        if ndata_src is not None:
+            band = grid_out.GetRasterBand(1)
+            band.Fill(ndata_src)
+            band.SetNoDataValue(ndata_src)
+        
+        grid_out.SetGeoTransform(geot_dst)
+        grid_out.SetProjection(proj_dst)
+        grid_out.FlushCache()
+        
+        gdal.ReprojectImage(grid_src, grid_out, proj_src, proj_dst, gdal_gra)
+        grid_out.FlushCache()
+        #Make sure entire grid is written by setting to None. 
+        #FlushCache doesn't seem to write the entire grid after resampling?
+        grid_out = None
+        
+        #return as RasterDataset
+        grid_out = RasterDataset(fpath)
+        
+        return grid_out
+        
     def __is_inbounds(self, x_geo, y_geo):
         return x_geo >= self.min_x and x_geo <= self.max_x and y_geo >= self.min_y and y_geo <= self.max_y

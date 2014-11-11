@@ -32,7 +32,7 @@ if __name__ == '__main__':
     #Create final output serially-complete netCDF4 databases
     print "Creating final serially-complete databases..."
     create_serially_complete_db(path_infill_db_tmin, 'tmin', path_serial_db_tmin)
-    create_serially_complete_db(path_infill_db_tmax, 'tmin', path_serial_db_tmin)
+    create_serially_complete_db(path_infill_db_tmax, 'tmax', path_serial_db_tmax)
     
     #Load new serially complete dbs
     stnda_tmin = StationSerialDataDb(path_serial_db_tmin, 'tmin', mode='r+')
