@@ -55,14 +55,14 @@ class StationSelect(object):
         if isinstance(stns_rm, str) or isinstance(stns_rm, unicode):
             stns_rm = np.array([stns_rm])
         elif not isinstance(stns_rm, np.ndarray) and not stns_rm is None:
-            raise Exception("stns_rm must  be str, unicode, or numpy array of str/unicode")
+            raise Exception("stns_rm must be str, unicode, or numpy array of str/unicode")
 
         do_set_pt = True
 
         if self.pt_lat == lat and self.pt_lon == lon:
 
             try:
-                if self.pt_stns_rm == None and stns_rm == None:
+                if self.pt_stns_rm is None and stns_rm is None:
                     do_set_pt = False
                 elif np.alltrue(self.pt_stns_rm == stns_rm):
                     do_set_pt = False

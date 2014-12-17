@@ -13,7 +13,7 @@ import twx.utils.util_dates as utld
 import numpy as np
 from twx.utils.status_check import StatusCheck
 from twx.utils.input_raster import input_raster, OutsideExtent, RasterDataset
-from twx.modis.montana_ndvi import modis_sin_rast
+from twx.raster_sandbox.montana_ndvi import modis_sin_rast
 import twx.utils.util_geo as utlg
 from twx.infill.infill_daily import InfillMatrixPPCA,source_r
 import matplotlib.pyplot as plt

@@ -318,14 +318,14 @@ class StationDataDb(object):
     
     def get_stn_mean(self,tair_var,x=None):
         
-        if x == None:
+        if x is None:
             return self.stns["_".join(["mean",tair_var])]
         else:
             return self.stns["_".join(["mean",tair_var])][x]
     
     def get_stn_std(self,tair_var,x=None):
         
-        if x == None:   
+        if x is None:   
             return np.sqrt(self.stns["_".join(["var",tair_var])])
         else:
             return np.sqrt(self.stns["_".join(["var",tair_var])][x])

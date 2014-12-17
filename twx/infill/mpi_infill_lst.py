@@ -11,7 +11,7 @@ from twx.utils.status_check import StatusCheck
 from netCDF4 import Dataset,num2date
 import os
 import numpy as np
-from twx.modis.ModisLst import ImputeLST,ImputeLstNorm,LstData,MYD11A2_MTH_DAYS8
+from twx.raster_sandbox.ModisLst import ImputeLST,ImputeLstNorm,LstData,MYD11A2_MTH_DAYS8
 import twx.utils.util_dates as utld
 from twx.utils.util_dates import MONTH
 from twx.db.ushcn import TairAggregate

@@ -7,12 +7,14 @@ Created on Sep 25, 2013
 import numpy as np
 from twx.db import StationSerialDataDb, STN_ID, get_norm_varname, \
 get_optim_varname, get_optim_anom_varname, BAD, dbDataset, CLIMDIV
-from twx.interp import StationSelect, KrigTairAll, BuildKrigParams
+from twx.interp import StationSelect, KrigTairAll, BuildKrigParams, \
+GwrTairAnom
 from netCDF4 import Dataset
 import netCDF4
 from twx.utils import StatusCheck
 import scipy.stats as stats
 import os
+from twx.interp.interp_tair import KrigTair, InterpTair
 
 def create_climdiv_optim_nstns_db(path_out, tair_var, stn_ids, nstns_rng, climdiv):
     '''
@@ -154,9 +156,9 @@ class OptimGwrNormBwNstns(object):
 
 def set_optim_nstns_tair_norm(stnda, path_xval_ds):
     '''
-    Set the local optimal number of stations to be used for each
-    U.S. climate division based on cross-validation mean absolute
-    error.
+    Set the local optimal number of stations to be used for monthly
+    normal interpolation for each U.S. climate division based on 
+    cross-validation mean absolute error.
     
     Parameters
     ----------
@@ -206,45 +208,59 @@ def set_optim_nstns_tair_norm(stnda, path_xval_ds):
 
     stnda.ds.sync()
 
-def setOptimTairAnomParams(pathDb, pathXvalDs):
-#    '/projects/daymet2/station_data/infill/infill_20130725/xval/optimTairMean/tmax/xval_tmax_mean'
-    dsStns = Dataset(pathDb, 'r+')
-    climDivStns = dsStns.variables['neon'][:].data
+def set_optim_nstns_tair_anom(stnda, path_xval_ds):
+    '''
+    Set the local optimal number of stations to be used for anomaly
+    interpolation each U.S. climate division based on cross-validation
+    mean absolute error.
+    
+    Parameters
+    ----------
+    stnda : twx.db.StationSerialDataDb
+        A StationSerialDataDb object pointing to the
+        database for which the local optimal number of
+        neighbors should be set. 
+    path_xval_ds : str
+        Path where netCDF cross-validation MAE files from
+        create_climdiv_optim_nstns_db are located
+    '''
+    
+    climdiv_stns = stnda.stns[CLIMDIV]
 
-    varsOptim = {}
+    vars_optim = {}
     for mth in np.arange(1, 13):
 
-        varNameOptim = get_optim_anom_varname(mth)
-        if varNameOptim not in dsStns.variables.keys():
-            varOptim = dsStns.createVariable(varNameOptim, 'f8', ('stn_id',), fill_value=netCDF4.default_fillvals['f8'])
-        else:
-            varOptim = dsStns.variables[varNameOptim]
-        varOptim[:] = netCDF4.default_fillvals['f8']
-        varsOptim[mth] = varOptim
-
-    divs = dsStns.variables['neon'][:]
-    divs = np.unique(divs.data[np.logical_not(divs.mask)])
+        var_name_optim = get_optim_anom_varname(mth)
+        long_name = "Optimal number of neighbors to use for daily anomaly interpolation for month %d" % mth
+        var_optim = stnda.add_stn_variable(var_name_optim, long_name, "", 'f8',
+                                          fill_value=netCDF4.default_fillvals['f8'])
+        vars_optim[mth] = var_optim
+        
+    divs = np.unique(climdiv_stns[np.isfinite(climdiv_stns)])
 
     stchk = StatusCheck(divs.size, 10)
 
-    for climDiv in divs:
+    for clim_div in divs:
 
-        fpath = "".join([pathXvalDs, "_", str(climDiv), ".nc"])
-        dsClimDiv = Dataset(fpath)
+        fpath = os.path.join(path_xval_ds, "optim_nstns_%s_climdiv%d.nc" % (stnda.var_name, clim_div))
 
-        maeClimDiv = dsClimDiv.variables['mae'][:]
-        nnghsClimDiv = dsClimDiv.variables['min_nghs'][:]
+        ds_climdiv = Dataset(fpath)
 
-        climDivMask = np.nonzero(climDivStns == climDiv)[0]
+        mae_climdiv = ds_climdiv.variables['mae'][:]
+        nnghs_climdiv = ds_climdiv.variables['min_nghs'][:]
+
+        climdiv_mask = np.nonzero(climdiv_stns == clim_div)[0]
 
         for mth in np.arange(1, 13):
-            maeClimDivMth = maeClimDiv[:, mth - 1, :]
-            mmae = np.mean(maeClimDivMth, axis=1)
-            minIdx = np.argmin(mmae)
-            varsOptim[mth][climDivMask] = nnghsClimDiv[minIdx]
+
+            mae_climdiv_mth = mae_climdiv[mth - 1, :, :]
+            mmae = np.mean(mae_climdiv_mth, axis=1)
+            min_idx = np.argmin(mmae)
+            vars_optim[mth][climdiv_mask] = nnghs_climdiv[min_idx]
 
         stchk.increment()
-    dsStns.sync()
+
+    stnda.ds.sync()
 
 def build_nstn_bandwidths(rng_min, rng_max, pct_step):
     '''
@@ -370,7 +386,7 @@ class XvalTairAnom(object):
         mask_stns = np.isnan(stn_da.stns[BAD])
 
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
-        gwr = it.GwrTairAnom(stn_slct, stn_da.days)
+        gwr = GwrTairAnom(stn_slct)
 
         self.stn_da = stn_da
         self.gwr = gwr
@@ -393,8 +409,8 @@ class XvalTairAnom(object):
             r2Mths = np.zeros(12)
 
             for mth in np.arange(1, 13):
-
-                xval_anom = xval_obs[self.gwr.mth_masks[mth]] - xval_stn[get_norm_varname(mth)]
+                
+                xval_anom = xval_obs[self.stn_da.mth_idx[mth]] - xval_stn[get_norm_varname(mth)]
 
                 interp_tair = self.gwr.gwr_mth(xval_stn, mth, nnghs, stns_rm=xval_stn[STN_ID])
                 interp_anom = interp_tair - xval_stn[get_norm_varname(mth)]
@@ -418,8 +434,14 @@ class XvalTairAnom(object):
         return biasAll, maeAll, r2All
 
 class XvalTairOverall():
+    '''
+    Class for running a cross validation of interpolated
+    monthly temperature normals and daily temperatures using
+    previously optimized variogram and number of stations bandwidth
+    parameters.
+    '''
 
-    def __init__(self, pathDb, tairVar):
+    def __init__(self, path_db, tair_var):
         '''
         Parameters
         ----------
@@ -431,63 +453,44 @@ class XvalTairOverall():
             The temperature variable for interpolation ('tmin' or 'tmax')
         '''
 
-        stn_da = StationSerialDataDb(pathDb, tairVar, stn_dtype=DTYPE_INTERP_OPTIM_ALL, vcc_size=470560000 * 2)
+        stn_da = StationSerialDataDb(path_db, tair_var, vcc_size=470560000 * 2)
         mask_stns = np.isnan(stn_da.stns[BAD])
         stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
 
-        krig_tair = it.KrigTair(stn_slct)
-        gwr_tair = it.GwrTairAnom(stn_slct, stn_da.days)
-        interp_tair = it.InterpTair(krig_tair, gwr_tair)
+        krig_tair = KrigTair(stn_slct)
+        gwr_tair = GwrTairAnom(stn_slct)
+        interp_tair = InterpTair(krig_tair, gwr_tair)
 
         self.stn_da = stn_da
         self.interp_tair = interp_tair
-        self.mth_masks = gwr_tair.mth_masks
+        self.mth_masks = stn_da.mth_idx
 
     def run_interp(self, stn_id):
+        '''
+        Run leave-one-out cross validations 
+        for a specific station id.
+        
+        Parameters
+        ----------
+        stn_id : str
+            Station id for cross validation
+        
+        Returns
+        ----------
+        tair_daily : ndarray
+            A 1-D array of interpolated daily temperatures.
+        tair_norms : ndarray
+            A 1-D array of size 12 with the interpolated 
+            monthly temperature normals.
+        tair_se : ndarray
+            A 1-D array of size 12 with the kriging standard
+            errors for the interpolated monthly temperature
+            normals.
+        '''
 
         xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
         tair_daily, tair_norms, tair_se = self.interp_tair.interp(xval_stn, xval_stn[STN_ID])
         return tair_daily, tair_norms, tair_se
-
-    def run_xval(self, stn_id):
-
-        xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
-        xval_obs = self.stn_da.load_obs(xval_stn[STN_ID])
-        xval_norms = np.array([xval_stn[get_norm_varname(mth)] for mth in np.arange(1, 13)])
-
-        tair_daily, tair_norms, tair_se = self.run_interp(stn_id)
-
-        # Monthly + Annual error stats
-        maeDly = np.zeros(13)
-        biasDly = np.zeros(13)
-        r2Dly = np.zeros(13)
-        maeNorm = np.zeros(13)
-        biasNorm = np.zeros(13)
-
-        difsNorm = tair_norms - xval_norms
-        biasNorm[0:12] = difsNorm
-        maeNorm[0:12] = np.abs(difsNorm)
-        biasNorm[-1] = np.mean(tair_norms) - np.mean(xval_norms)
-        maeNorm[-1] = np.abs(biasNorm[-1])
-
-        difsDly = tair_daily - xval_obs
-
-        # Monthly Error Stats
-        for mth in np.arange(1, 13):
-
-            biasDly[mth - 1] = np.mean(difsDly[self.mth_masks[mth]])
-            maeDly[mth - 1] = np.mean(np.abs(difsDly[self.mth_masks[mth]]))
-
-            r_value = stats.linregress(tair_daily[self.mth_masks[mth]], xval_obs[self.mth_masks[mth]])[2]
-            r2Dly[mth - 1] = r_value ** 2  # r-squared value; variance explained
-
-        # Annual Error Stats
-        biasDly[-1] = np.mean(difsDly)
-        maeDly[-1] = np.mean(np.abs(difsDly))
-        r_value = stats.linregress(tair_daily, xval_obs)[2]
-        r2Dly[-1] = r_value ** 2
-
-        return biasNorm, maeNorm, maeDly, biasDly, r2Dly, tair_se
 
 class XvalGwrNormOverall(object):
     '''
@@ -702,7 +705,7 @@ def perfPtInterpTair():
                                '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C', auxFpaths)
 
     lon, lat = -114.02853698, 47.87532492
-    tmin_dly, tmax_dly, tmin_norms, tmax_norms, tmin_se, tmax_se, ninvalid = ptInterp.interpLonLatPt(lon, lat, fixInvalid=False)
+    tmin_dly, tmax_dly, tmin_norms, tmax_norms, tmin_se, tmax_se, ninvalid = ptInterp.interp_to_lonlat(lon, lat, fixInvalid=False)
     print tmin_norms
 
 #    print ninvalid

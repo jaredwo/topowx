@@ -1,71 +1,10 @@
-# Functions for kriging mean Tair
+# Functions for kriging of air temperature
 # 
-# Author: jared.oyler
 ###############################################################################
 
 options(warn = -1)
 library(sp)
 library(gstat)
-library(GWmodel)
-#library(mgcv)
-
-#gwr_meantair <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,pt)
-#{
-#	#Build dataframes
-#	stns_ngh <- data.frame(lon=ngh_lon,lat=ngh_lat,elev=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,tair=ngh_tair,ngh_wgt=ngh_wgt)
-#	pt <- data.frame(lon=pt[1],lat=pt[2],elev=pt[3],tdi=pt[4],lst=pt[5],neon=pt[6])
-#	
-#	#GWR
-#	#a.lm <- lm(FORMULA,stns_ngh,weights=ngh_wgt)
-#	#Changed to perform a regular linear regression
-#	a.lm <- lm(FORMULA,stns_ngh)
-#	tair_mean <- as.numeric(predict.lm(a.lm,pt))
-#	
-#	#tair.gam <- gam(FORMULA,data=stns_ngh)
-#	#tair.gam <- gam(tair~lst,data=stns_ngh)
-#	#tair_mean <- as.numeric(predict(tair.gam,pt))
-#	
-#	return(c(tair_mean,0))
-#}
-
-gwr_anomaly <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_wgt,obs_matrix,pt)
-{
-	#Build dataframes
-	stns_ngh <- data.frame(lon=ngh_lon,lat=ngh_lat,elev=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,ngh_wgt=ngh_wgt)
-	pt <- data.frame(lon=pt[1],lat=pt[2],elev=pt[3],tdi=pt[4],lst=pt[5],neon=pt[6])
-	
-	pt_anom <- rep(0,nrow(obs_matrix))
-	pt_r2 <- rep(0,nrow(obs_matrix))
-	fit_anom = matrix(nrow=nrow(obs_matrix),ncol=ncol(obs_matrix))
-	
-	for (x in seq(nrow(obs_matrix)))
-	{
-		stns_ngh$anom <- obs_matrix[x,]
-		
-		#pt_anom[x] <- weighted.mean(stns_ngh$anom,stns_ngh$ngh_wgt)
-		
-		a.lm <- lm(anom~lon+lat+elev+tdi+lst,stns_ngh,weights=ngh_wgt)
-		pt_anom[x] <- predict.lm(a.lm,pt)
-		pt_r2[x] <- summary(a.lm)$r.squared
-		
-		fitvals = predict.lm(a.lm)
-		
-		fit_anom[x,] <- fitvals
-		
-#		if (is.null(fit_anom))
-#			fit_anom = fitvals
-#		else
-#			fit_anom = rbind(fit_anom,fitvals)
-	}
-	
-	#fit_anom = as.numeric(fit_anom)
-	
-	#print(fit_anom[1,])
-	
-	print(mean(pt_r2))
-	
-	return(list(pt_anom=pt_anom,fit_anom=as.numeric(fit_anom),fit_nrow=nrow(fit_anom),fit_ncol=ncol(fit_anom)))
-}
 
 # Get exponential variogram nugget, psill and range for regression kriging
 # residuals on a set of station points.
@@ -313,30 +252,6 @@ krig_meantair <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_
 	
 }
 
-gwr_meantair <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,pt)
-{  
-	#Build dataframes
-	stns_ngh <- data.frame(lon=ngh_lon,lat=ngh_lat,elev=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,tair=ngh_tair,ngh_wgt=ngh_wgt)
-	pt <- data.frame(lon=pt[1],lat=pt[2],elev=pt[3],tdi=pt[4],lst=pt[5])
-	
-	n_stns <- length(ngh_lon)
-	
-	#Turn dataframes into spatial dataframes
-	coordinates(stns_ngh) <- ~lon+lat
-	proj4string(stns_ngh)=CRS("+proj=longlat +datum=WGS84")
-	coordinates(pt) <- ~lon+lat
-	proj4string(pt)=CRS("+proj=longlat +datum=WGS84")
-	
-	a.predict <- gwr.predict(FORMULA,data=stns_ngh,predictdata=pt,bw=n_stns,adaptive=TRUE,longlat=TRUE)
-	
-	tair_mean <- a.predict$SDF$prediction
-	tair_var <- a.predict$SDF$prediction_var
-	
-	return(c(tair_mean,tair_var,0))
-	
-}
-
-
 build_formula <- function(y_var,x_vars)
 {
 	return(as.formula(paste(paste(y_var,"~"),paste(x_vars,collapse="+"))))
@@ -493,4 +408,45 @@ my.autofit.gwvario <- function(experimental_variogram, model = c("Sph", "Exp", "
 	class(result) = c("autofitVariogram","list")    
 	
 	return(result)
+}
+
+# Test function for interpolating daily anomalies with
+# geographically weighted regression
+gwr_anomaly <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_wgt,obs_matrix,pt)
+{
+	#Build dataframes
+	stns_ngh <- data.frame(lon=ngh_lon,lat=ngh_lat,elev=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,ngh_wgt=ngh_wgt)
+	pt <- data.frame(lon=pt[1],lat=pt[2],elev=pt[3],tdi=pt[4],lst=pt[5],neon=pt[6])
+	
+	pt_anom <- rep(0,nrow(obs_matrix))
+	pt_r2 <- rep(0,nrow(obs_matrix))
+	fit_anom = matrix(nrow=nrow(obs_matrix),ncol=ncol(obs_matrix))
+	
+	for (x in seq(nrow(obs_matrix)))
+	{
+		stns_ngh$anom <- obs_matrix[x,]
+		
+		#pt_anom[x] <- weighted.mean(stns_ngh$anom,stns_ngh$ngh_wgt)
+		
+		a.lm <- lm(anom~lon+lat+elev+tdi+lst,stns_ngh,weights=ngh_wgt)
+		pt_anom[x] <- predict.lm(a.lm,pt)
+		pt_r2[x] <- summary(a.lm)$r.squared
+		
+		fitvals = predict.lm(a.lm)
+		
+		fit_anom[x,] <- fitvals
+		
+#		if (is.null(fit_anom))
+#			fit_anom = fitvals
+#		else
+#			fit_anom = rbind(fit_anom,fitvals)
+	}
+	
+	#fit_anom = as.numeric(fit_anom)
+	
+	#print(fit_anom[1,])
+	
+	#print(mean(pt_r2))
+	
+	return(list(pt_anom=pt_anom,fit_anom=as.numeric(fit_anom),fit_nrow=nrow(fit_anom),fit_ncol=ncol(fit_anom)))
 }

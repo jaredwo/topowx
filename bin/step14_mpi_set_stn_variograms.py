@@ -45,7 +45,7 @@ def proc_work(params, rank):
         if status.tag == TAG_STOPWORK:
 
             MPI.COMM_WORLD.send([None] * 4, dest=RANK_WRITE, tag=TAG_STOPWORK)
-            print "".join(["Worker ", str(rank), ": Finished"])
+            print "".join(["WORKER ", str(rank), ": Finished"])
             return 0
 
         else:
@@ -140,9 +140,8 @@ def proc_coord(params, nwrkers):
 
 if __name__ == '__main__':
 
-    # PROJECT_ROOT = "/projects/topowx"
-    # FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
-    FPATH_STNDATA = "/projects/topowx/refactor_test"
+    PROJECT_ROOT = "/projects/topowx"
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
 
     np.seterr(all='raise')
     np.seterr(under='ignore')
@@ -151,6 +150,7 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
+    #Run for Tmin or Tmax
     params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmin.nc')
     params[P_VARNAME] = 'tmin'
 
