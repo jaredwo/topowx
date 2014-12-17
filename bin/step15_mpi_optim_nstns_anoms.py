@@ -17,7 +17,7 @@ from twx.db import StationSerialDataDb, STN_ID, CLIMDIV, MASK, BAD
 from twx.utils import StatusCheck, Unbuffered
 import netCDF4
 from netCDF4 import Dataset
-from twx.interp.optimize import XvalTairAnom, build_nstn_bandwidths, \
+from twx.interp import XvalTairAnom, build_nstn_bandwidths, \
     create_climdiv_optim_nstns_db, set_optim_nstns_tair_anom
 import os
 

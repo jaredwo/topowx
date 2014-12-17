@@ -7,18 +7,19 @@ pcaMethods-a bioconductor package providing PCA methods for incomplete data.
 Bioinformatics 23: 1164-1167. DOI: 10.1093/bioinformatics/btm069.
 '''
 
+__all__ = ['InfillMatrixPPCA']
+
 import numpy as np
 from twx.db import STN_ID, LON, LAT, UTC_OFFSET
 from twx.utils import pca_svd, grt_circle_dist
 import os
 from scipy import stats
 #rpy2
-import rpy2
-import rpy2.robjects as robjects
-from rpy2.robjects.numpy2ri import numpy2ri
-robjects.conversion.py2ri = numpy2ri
-r = robjects.r
-
+robjects = None
+numpy2ri = None
+r = None
+ri = None
+R_LOADED = False
 
 MIN_POR_OVERLAP = 2.0 / 3.0
 MAX_DISTANCE = 100
@@ -26,7 +27,6 @@ MAX_NNR_VAR = 0.99
 MIN_NNR_VAR = 0.90
 MIN_DAILY_NGHBRS = 3
 NNGH_NNR = 4
-R_LOADED = False
 
 
 class InfillMatrixPPCA(object):
@@ -537,6 +537,21 @@ def _load_R():
     global R_LOADED
 
     if not R_LOADED:
+        
+        global robjects
+        global numpy2ri
+        global r
+        global ri
+        
+        import rpy2
+        import rpy2.robjects
+        robjects = rpy2.robjects
+        from rpy2.robjects.numpy2ri import numpy2ri as np2ri
+        numpy2ri = np2ri
+        robjects.conversion.py2ri = numpy2ri
+        r = robjects.r
+        import rpy2.rinterface
+        ri = rpy2.rinterface
 
         path_root = os.path.dirname(__file__)
         fpath_rscript = os.path.join(path_root, 'rpy', 'pca_infill.R')

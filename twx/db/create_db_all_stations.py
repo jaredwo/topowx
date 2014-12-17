@@ -1156,7 +1156,7 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
         ds.sync()
         stchk.increment()
 
-def add_utc_offset(ds_path,geonames_usrname=None):
+def add_utc_offset(ds_path, fpath_timezone_shp, geonames_usrname=None):
     '''
     Add a UTC offset station attribute to a netCDF database
     
@@ -1164,6 +1164,9 @@ def add_utc_offset(ds_path,geonames_usrname=None):
     ----------
     ds_path : str
         File path to a netCDF station database
+    fpath_timezone_shp : str
+        Path to world_timezones.shp shapefile that defines
+        UTC offsets. Downloaded from http://www.sharegeo.ac.uk/handle/10672/285.
     geonames_usrname : str, optional
         A Geonames username. If not None,
         the Geonames time zone data web service will be
@@ -1177,7 +1180,7 @@ def add_utc_offset(ds_path,geonames_usrname=None):
     
     ndata = netCDF4.default_fillvals['i2']
     
-    utc = twx.db.UtcOffset(ndata, geonames_usrname)
+    utc = twx.db.UtcOffset(fpath_timezone_shp, ndata, geonames_usrname)
     
     print "Starting to get station UTC offset data..."
     

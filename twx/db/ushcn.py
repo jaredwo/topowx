@@ -1,7 +1,6 @@
 '''
-Created on Jun 21, 2013
-
-@author: jared.oyler
+Classes and utilities for working with USHCN data:
+http://www.ncdc.noaa.gov/oa/climate/research/ushcn/
 '''
 import numpy as np
 from twx.db.station_data import STN_ID,STATE,STN_NAME,LON,LAT,ELEV,YEAR,MONTH,DATE,YDAY,_build_stn_struct

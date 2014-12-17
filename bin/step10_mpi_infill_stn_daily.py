@@ -45,13 +45,6 @@ P_VERBOSE = 'P_VERBOSE'
 
 LAST_VAR_WRITTEN = 'mae'
 
-# rpy2
-import rpy2
-import rpy2.robjects as robjects
-from rpy2.robjects.numpy2ri import numpy2ri
-robjects.conversion.py2ri = numpy2ri
-r = robjects.r
-
 sys.stdout = Unbuffered(sys.stdout)
 
 def proc_work(params, rank):

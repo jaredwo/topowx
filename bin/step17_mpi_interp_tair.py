@@ -7,16 +7,14 @@ Must be run using mpiexec or mpirun.
 
 from mpi4py import MPI
 import sys
-from twx.db.station_data import LON, LAT, CLIMDIV, ELEV, TDI
-from twx.utils.status_check import StatusCheck
+from twx.db import LON, LAT, CLIMDIV, ELEV, TDI
+from twx.utils import StatusCheck, Unbuffered
 from netCDF4 import Dataset
 import netCDF4
 from collections import deque
 import numpy as np
 import os
-from twx.interp.tiling import Tiler, TileWriter
-from twx.utils.util_misc import Unbuffered
-from twx.interp.interp_tair import StationDataWrkChk, PtInterpTair
+from twx.interp import Tiler, TileWriter, StationDataWrkChk, PtInterpTair
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 1000

@@ -11,7 +11,6 @@ import urllib2
 import json
 import fiona
 from shapely.geometry import shape, MultiPolygon, Point
-import os
 
 class UtcOffset():
     '''
@@ -19,10 +18,13 @@ class UtcOffset():
     Coordinated Universial Time (UTC) for a specific point.
     '''
 
-    def __init__(self, ndata=-32767, geonames_usrname=None):
+    def __init__(self, fpath_timezone_shp, ndata=-32767, geonames_usrname=None):
         '''
         Parameters
         ----------
+        fpath_timezone_shp : str
+            Path to world_timezones.shp shapefile that defines
+            UTC offsets. Downloaded from http://www.sharegeo.ac.uk/handle/10672/285.
         ndata : int, optional
             The value that should be returned if no time zone
             information can be found for the point of interest.
@@ -33,8 +35,7 @@ class UtcOffset():
             be found via the local shapefile.
         '''
 
-        path_root = os.path.dirname(__file__)
-        fpath_utc_shpfile = os.path.join(path_root, 'data', 'timezones', 'world_timezones.shp')
+        fpath_utc_shpfile = fpath_timezone_shp
 
         tz_shp = fiona.open(fpath_utc_shpfile)
 

@@ -1,2 +1,2 @@
-from twx.homog.tobs import *
+from tobs import *
 from pha import *

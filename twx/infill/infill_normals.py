@@ -2,6 +2,9 @@
 Functions and classes for infilling the mean and variance of 
 an incomplete station time series.
 '''
+
+__all__ = ['infill_mean_variance']
+
 import numpy as np
 from twx.db import STN_ID, LON, LAT, UTC_OFFSET
 import os
@@ -14,11 +17,10 @@ NNGH_NNR = 4
 MAX_COLS_NORM_IMPUTE = 31
 
 # rpy2
-import rpy2
-import rpy2.robjects as robjects
-from rpy2.robjects.numpy2ri import numpy2ri
-robjects.conversion.py2ri = numpy2ri
-r = robjects.r
+robjects = None
+numpy2ri = None
+r = None
+ri = None
 R_LOADED = False
 
 
@@ -422,6 +424,21 @@ def _load_R():
     global R_LOADED
 
     if not R_LOADED:
+        
+        global robjects
+        global numpy2ri
+        global r
+        global ri
+        
+        import rpy2
+        import rpy2.robjects
+        robjects = rpy2.robjects
+        from rpy2.robjects.numpy2ri import numpy2ri as np2ri
+        numpy2ri = np2ri
+        robjects.conversion.py2ri = numpy2ri
+        r = robjects.r
+        import rpy2.rinterface
+        ri = rpy2.rinterface
 
         path_root = os.path.dirname(__file__)
         fpath_rscript = os.path.join(path_root, 'rpy', 'norm_infill.R')

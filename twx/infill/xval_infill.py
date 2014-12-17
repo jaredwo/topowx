@@ -2,6 +2,9 @@
 Classes and functions for performing cross validation
 of the infilling procedures in infill_daily.py.
 '''
+
+__all__ = ['XvalInfill', 'XvalInfillParams']
+
 import os
 import numpy as np
 from twx.infill import infill_mean_variance, InfillMatrixPPCA

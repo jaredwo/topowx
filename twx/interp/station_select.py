@@ -3,6 +3,8 @@ Utility class for finding, selecting, weighting, and loading observation data
 for neighboring stations around a point location.
 '''
 
+__all__ = ['StationSelect']
+
 from twx.db import LON, LAT, STN_ID
 import numpy as np
 from twx.utils import grt_circle_dist

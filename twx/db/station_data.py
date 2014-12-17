@@ -6,7 +6,8 @@ __all__ = ["TMAX","TMIN","TMIN_FLAG","TMAX_FLAG","LON","LAT","ELEV","STN_ID",
            "STN_NAME","STATE","UTC_OFFSET","StationDataDb","StationSerialDataDb",
            "MEAN_TMAX","MEAN_TMIN","VAR_TMIN","VAR_TMAX","BAD","CLIMDIV",
            "MASK","TDI","get_norm_varname","get_optim_varname","get_optim_anom_varname",
-           "get_lst_varname","get_krigparam_varname", "VARIO_NUG", "VARIO_PSILL", "VARIO_RNG"]
+           "get_lst_varname","get_krigparam_varname", "VARIO_NUG", "VARIO_PSILL", "VARIO_RNG",
+           'LST']
 
 import numpy as np
 from twx.utils import get_days_metadata, get_days_metadata_dates

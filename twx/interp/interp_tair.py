@@ -2,28 +2,28 @@
 Classes and functions for performing Tair interpolation
 '''
 
-__all__ = ["KrigTairAll", "BuildKrigParams", "GwrTairAnom"]
+__all__ = ["KrigTairAll", "BuildKrigParams", "GwrTairAnom",
+           'KrigTair', 'InterpTair', 'StationDataWrkChk',
+           'PtInterpTair']
 
-from twx.interp.station_select import StationSelect
+from twx.interp import StationSelect
 import numpy as np
-from twx.db.station_data import LON, LAT, ELEV, TDI, LST, \
+from twx.db import LON, LAT, ELEV, TDI, LST, \
     VARIO_NUG, VARIO_PSILL, VARIO_RNG, BAD, MASK, \
-    StationSerialDataDb, MONTH, get_norm_varname, \
+    StationSerialDataDb, get_norm_varname, \
     get_optim_varname, get_krigparam_varname, get_lst_varname, \
-    get_optim_anom_varname, YEAR, CLIMDIV
+    get_optim_anom_varname, CLIMDIV
 import scipy.stats as stats
 from twx.utils.util_ncdf import GeoNc
 from netCDF4 import Dataset
-import twx.utils.util_dates as utld
+from twx.utils import MONTH, YEAR, get_mth_metadata
 import mpl_toolkits.basemap as bm
 import os
 # rpy2
-import rpy2
-import rpy2.robjects as robjects
-from rpy2.robjects.numpy2ri import numpy2ri
-robjects.conversion.py2ri = numpy2ri
-r = robjects.r
-import rpy2.rinterface as ri
+robjects = None
+numpy2ri = None
+r = None
+ri = None
 
 KRIG_TREND_VARS = (LON, LAT, ELEV, LST)
 GWR_TREND_VARS = (LON, LAT, ELEV, TDI, LST)
@@ -41,6 +41,21 @@ def _init_interp_R_env():
     if not R_LOADED:
     
         print "Loading R environment for interp_tair..."
+        
+        global robjects
+        global numpy2ri
+        global r
+        global ri
+        
+        import rpy2
+        import rpy2.robjects
+        robjects = rpy2.robjects
+        from rpy2.robjects.numpy2ri import numpy2ri as np2ri
+        numpy2ri = np2ri
+        robjects.conversion.py2ri = numpy2ri
+        r = robjects.r
+        import rpy2.rinterface
+        ri = rpy2.rinterface
         
         # get system path to twx
         twx_path = os.path.split(os.path.split(__file__)[0])[0]
@@ -438,7 +453,7 @@ class PtInterpTair(object):
         daysNorm = self.days[self.daysNormMask]
         
         uYrs = np.unique(daysNorm[YEAR])
-        self.yr_mths = utld.get_mth_metadata(uYrs[0], uYrs[-1])
+        self.yr_mths = get_mth_metadata(uYrs[0], uYrs[-1])
         
         self.yrMthsMasks = []
         for aYr in uYrs:

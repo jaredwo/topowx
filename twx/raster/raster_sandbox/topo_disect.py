@@ -1,7 +1,6 @@
 '''
-Created on Nov 26, 2012
-
-@author: jared.oyler
+Class for creating a topographic dissection index grid (TDI).
+TDI describes the height of a grid cell relative to surrounding terrain
 '''
 from twx.utils.input_raster import input_raster
 import twx.utils.util_geo as utlg

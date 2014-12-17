@@ -8,12 +8,11 @@ predictors and other raster-based variables for each station.
 '''
 
 from twx.db import StationSerialDataDb, BAD, CLIMDIV
-from twx.infill import create_serially_complete_db,\
-set_bad_stations, find_dup_stns,add_stn_raster_values
+from twx.infill import create_serially_complete_db, \
+set_bad_stations, find_dup_stns, add_stn_raster_values, add_monthly_normals
 from twx.raster import RasterDataset
 import os
 import numpy as np
-from twx.infill.post_infill import add_monthly_normals
 
 if __name__ == '__main__':
     

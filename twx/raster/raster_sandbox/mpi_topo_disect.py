@@ -1,12 +1,11 @@
 '''
-Created on Nov 15, 2011
-
-@author: jared.oyler
+MPI script using TopoDisectDEM to create topographic dissection index grid (TDI).
+TDI describes the height of a grid cell relative to surrounding terrain
 '''
 import numpy as np
 from twx.utils.input_raster import input_raster
 from twx.utils.output_raster import output_raster
-from twx.interp.topo_disect import TopoDisectDEM 
+from twx.raster.raster_sandbox.topo_disect import TopoDisectDEM 
 from mpi4py import MPI
 import sys
 from twx.utils.status_check import StatusCheck

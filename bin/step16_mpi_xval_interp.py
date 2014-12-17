@@ -10,14 +10,13 @@ Must be run using mpiexec or mpirun.
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db.station_data import StationSerialDataDb, STN_ID, MASK, BAD, \
+from twx.db import StationSerialDataDb, STN_ID, MASK, BAD, \
     get_norm_varname
-from twx.utils.status_check import StatusCheck
+from twx.utils import StatusCheck, Unbuffered
 import netCDF4
-from twx.interp.optimize import XvalTairOverall
+from twx.interp import XvalTairOverall
 import os
-from twx.utils.util_misc import Unbuffered
-from twx.db.create_db_all_stations import create_quick_db
+from twx.db import create_quick_db
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2

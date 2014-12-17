@@ -4,17 +4,21 @@ Created on Sep 25, 2013
 @author: jared.oyler
 '''
 
+__all__ = ['create_climdiv_optim_nstns_db', 'XvalTairNorm',
+           'set_optim_nstns_tair_norm', 'set_optim_nstns_tair_anom',
+           'build_nstn_bandwidths', 'StationKrigParams',
+           'XvalTairAnom', 'XvalTairOverall']
+
 import numpy as np
 from twx.db import StationSerialDataDb, STN_ID, get_norm_varname, \
 get_optim_varname, get_optim_anom_varname, BAD, dbDataset, CLIMDIV
 from twx.interp import StationSelect, KrigTairAll, BuildKrigParams, \
-GwrTairAnom
+GwrTairAnom, KrigTair, InterpTair
 from netCDF4 import Dataset
 import netCDF4
 from twx.utils import StatusCheck
 import scipy.stats as stats
 import os
-from twx.interp.interp_tair import KrigTair, InterpTair
 
 def create_climdiv_optim_nstns_db(path_out, tair_var, stn_ids, nstns_rng, climdiv):
     '''
@@ -115,41 +119,6 @@ class XvalTairNorm(object):
         for bw_nngh, x in zip(abw_nngh, np.arange(abw_nngh.size)):
 
             interp_norms = self.krig.krigall(xval_stn, bw_nngh, stns_rm=xval_stn[STN_ID])
-            err[:, x] = interp_norms - xvalNorms
-
-        return err
-
-class OptimGwrNormBwNstns(object):
-    '''
-    classdocs
-    '''
-
-    def __init__(self, pathDb, tairVar):
-
-        stn_da = StationSerialDataDb(pathDb, tairVar)
-        mask_stns = np.isnan(stn_da.stns[BAD])
-        stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
-
-        self.gwr_norm = it.GwrTairNorm(stn_slct)
-        self.stn_da = stn_da
-
-    def run_xval(self, stnId, abw_nngh):
-
-        xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stnId]]
-
-        err = np.zeros((12, abw_nngh.size))
-        xvalNorms = np.array([xval_stn[get_norm_varname(mth)] for mth in np.arange(1, 13)])
-
-        for bw_nngh, x in zip(abw_nngh, np.arange(abw_nngh.size)):
-
-            interp_norms = np.zeros(12)
-
-            for i in np.arange(interp_norms.size):
-
-                mth = i + 1
-                interp_mth = self.gwr_norm.gwr_predict(xval_stn, mth, nnghs=bw_nngh, stns_rm=xval_stn[STN_ID])[0]
-                interp_norms[i] = interp_mth
-
             err[:, x] = interp_norms - xvalNorms
 
         return err
@@ -491,263 +460,3 @@ class XvalTairOverall():
         xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
         tair_daily, tair_norms, tair_se = self.interp_tair.interp(xval_stn, xval_stn[STN_ID])
         return tair_daily, tair_norms, tair_se
-
-class XvalGwrNormOverall(object):
-    '''
-    classdocs
-    '''
-
-    def __init__(self, pathDb, tairVar):
-
-        stn_da = StationSerialDataDb(pathDb, tairVar)
-        mask_stns = np.isnan(stn_da.stns[BAD])
-        stn_slct = StationSelect(stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
-
-        self.gwr_norm = it.GwrTairNorm(stn_slct)
-        self.stn_da = stn_da
-        self.blank_err = np.zeros(13)
-
-    def run_xval(self, stnId):
-
-        xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stnId]]
-
-        xval_norms = np.array([xval_stn[get_norm_varname(mth)] for mth in np.arange(1, 13)])
-        xval_norms = np.concatenate((xval_norms, np.array([np.mean(xval_norms)])))
-
-        interp_norms = np.zeros(13)
-        interp_se = np.zeros(12)
-
-        for i in np.arange(12):
-
-            mth = i + 1
-            interp_mth, vary_mth = self.gwr_norm.gwr_predict(xval_stn, mth, stns_rm=xval_stn[STN_ID])
-            interp_norms[i] = interp_mth
-            interp_se[i] = np.sqrt(vary_mth) if vary_mth >= 0 else 0
-
-        interp_norms[-1] = np.mean(interp_norms[0:12])
-
-        err = interp_norms - xval_norms
-
-        biasNorm = err
-        maeNorm = np.abs(err)
-        maeDly = self.blank_err
-        biasDly = self.blank_err
-        r2Dly = self.blank_err
-        tair_se = interp_se
-
-        return biasNorm, maeNorm, maeDly, biasDly, r2Dly, tair_se
-
-def perfXvalTairOverall():
-
-    optim = XvalTairOverall("/Users/jaredwo/Documents/data/serial_tmax.nc", 'tmax')
-
-    biasNorm, maeNorm, maeDly, biasDly, r2Dly, seNorm = optim.run_xval('GHCN_USC00244558')
-
-    print "MAE Norm"
-    print maeNorm
-    print "SE Norm"
-    print seNorm
-    print "MAE Daily"
-    print maeDly
-
-#    def runPerf():
-#        biasNorm,maeNorm,maeDly,biasDly,r2Dly = optim.run_xval('SNOTEL_13C01S')
-#
-#    global runAPerf
-#    runAPerf = runPerf
-#
-#    cProfile.run('runAPerf()')
-
-def perfOptimTairAnom():
-
-    optim = XvalTairAnom("/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc", 'tmin')
-
-    min_ngh_wins = build_nstn_bandwidths(10, 150, 0.10)
-
-    # biasAll, maeAll, r2All = optim.run_xval('SNOTEL_13C01S', min_ngh_wins)
-    # biasAll, maeAll, r2All = optim.run_xval('GHCN_USC00244558', min_ngh_wins) #Kalispell
-    biasAll, maeAll, r2All = optim.run_xval('GHCN_USC00247448', min_ngh_wins)  # Seeley Lake
-    # biasAll, maeAll, r2All = optim.run_xval('GHCN_USW00014755', min_ngh_wins)
-
-    mae_argmin = np.argmin(maeAll, 0)
-    cols = np.arange(maeAll.shape[1])
-
-    print "NNGHS"
-    print min_ngh_wins[mae_argmin]
-    print "MAE"
-    print maeAll[mae_argmin, cols]
-    print "BIAS"
-    print biasAll[mae_argmin, cols]
-    print "R2"
-    print r2All[mae_argmin, cols]
-
-#    print min_ngh_wins
-#    maeMth = maeAll[:,7]
-#    print maeMth
-#    print min_ngh_wins[np.argmin(maeMth)]
-#    print np.min(maeMth)
-#    def runPerf():
-#        optim.run_xval('SNOTEL_13C01S',min_ngh_wins,0.20)
-#
-#    global runAPerf
-#    runAPerf = runPerf
-#
-#    cProfile.run('runAPerf()')
-
-def perfOptimKrigParams():
-
-    optim = StationKrigParams("/projects/daymet2/station_data/infill/serial_fnl/serial_tmax.nc", 'tmax')
-
-    nugs, psills, rngs = optim.get_krig_params('RAWS_CCRN')  # ('SNOTEL_19L43S')GHCN_USC00049043
-    print nugs
-#    def runPerf():
-#        print optim.get_krig_params('SNOTEL_13C01S')
-#
-#    global runAPerf
-#    runAPerf = runPerf
-#
-#    cProfile.run('runAPerf()')
-
-
-def analyze_xval_tairmean():
-    ds = Dataset('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc')
-    se = ds.variables['xval_stderr_mthly'][:]
-    climDiv = ds.variables['neon'][:].data
-    maskClimDiv = climDiv == 2401
-
-    maskStns = np.logical_and(~se[0, :].mask, maskClimDiv)
-    e = ds.variables['xval_err_mthly'][:, maskStns]
-    se = se[:, maskStns]
-
-    eOld = np.mean(np.abs(ds.variables['xval_err'][maskStns]))
-    print "eOld", eOld
-
-    norms = []
-    for mth in np.arange(1, 13):
-        norm = ds.variables[get_norm_varname(mth)][maskStns]
-        norm.shape = (1, norm.size)
-        norms.append(norm)
-
-    norms = np.vstack(norms)
-    norms = np.vstack((norms, np.mean(norms, axis=0)))
-
-    interps = norms + e
-
-    crit = stats.norm.ppf(0.025)
-    cir = np.abs(se * crit)
-
-    cil, ciu = interps - cir, interps + cir
-
-    inCi = np.logical_and(norms >= cil, norms <= ciu)
-
-    print "In CI", np.sum(inCi, axis=1) / np.float(inCi.shape[1])
-    print "MAE", np.mean(np.abs(e), axis=1)
-    print "Bias", np.mean(e, axis=1)
-    print "SE", np.mean(se, axis=1)
-
-def analyze_xval_overall():
-    ds = Dataset('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc')
-    se = ds.variables['xval_stderr_mthly'][:]
-    climDiv = ds.variables['neon'][:].data
-    maskClimDiv = climDiv == 2401
-
-    maskStns = np.logical_and(~se[0, :].mask, maskClimDiv)
-    e = ds.variables['xval_err_mthly'][:, maskStns]
-    se = se[:, maskStns]
-
-    eOld = np.mean(np.abs(ds.variables['xval_err'][maskStns]))
-    print "eOld", eOld
-
-    norms = []
-    for mth in np.arange(1, 13):
-        norm = ds.variables[get_norm_varname(mth)][maskStns]
-        norm.shape = (1, norm.size)
-        norms.append(norm)
-
-    norms = np.vstack(norms)
-    norms = np.vstack((norms, np.mean(norms, axis=0)))
-
-    interps = norms + e
-
-    crit = stats.norm.ppf(0.025)
-    cir = np.abs(se * crit)
-
-    cil, ciu = interps - cir, interps + cir
-
-    inCi = np.logical_and(norms >= cil, norms <= ciu)
-
-    print "In CI", np.sum(inCi, axis=1) / np.float(inCi.shape[1])
-    print "MAE", np.mean(np.abs(e), axis=1)
-    print "Bias", np.mean(e, axis=1)
-    print "SE", np.mean(se, axis=1)
-
-def perfPtInterpTair():
-
-    stndaTmin = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
-    stndaTmax = StationSerialDataDb('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
-
-
-    # stndaTmin = it.StationDataWrkChk('/projects/daymet2/station_data/infill/infill_20130725/serial_tmin.nc', 'tmin')
-    # stndaTmax = it.StationDataWrkChk('/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc', 'tmax')
-
-    path = '/projects/daymet2/dem/interp_grids/conus/ncdf/'
-
-    auxFpaths = ["".join([path, 'fnl_elev.nc']),
-                 "".join([path, 'fnl_tdi.nc']),
-                 "".join([path, 'fnl_climdiv.nc'])]
-
-    for mth in np.arange(1, 13):
-        auxFpaths.append("".join([path, 'fnl_lst_tmin%02d.nc' % mth]))
-        auxFpaths.append("".join([path, 'fnl_lst_tmax%02d.nc' % mth]))
-
-    ptInterp = it.PtInterpTair(stndaTmin, stndaTmax,
-                               '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/interp.R',
-                               '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_C/Release/libwxTopo_C', auxFpaths)
-
-    lon, lat = -114.02853698, 47.87532492
-    tmin_dly, tmax_dly, tmin_norms, tmax_norms, tmin_se, tmax_se, ninvalid = ptInterp.interp_to_lonlat(lon, lat, fixInvalid=False)
-    print tmin_norms
-
-#    print ninvalid
-#    tmin_dly_norm = np.take(tmin_dly, ptInterp.daysNormMask)
-#    tmax_dly_norm = np.take(tmax_dly, ptInterp.daysNormMask)
-#    tmin_mthly = np.array([np.mean(np.take(tmin_dly_norm,amask)) for amask in ptInterp.yrMthsMasks])
-#    tmax_mthly = np.array([np.mean(np.take(tmax_dly_norm,amask)) for amask in ptInterp.yrMthsMasks])
-#    tmin_norms2 = np.array([np.mean(np.take(tmin_mthly,amask)) for amask in ptInterp.mth_masks])
-#    tmax_norms2 = np.array([np.mean(np.take(tmax_mthly,amask)) for amask in ptInterp.mth_masks])
-#    print tmin_norms2-tmin_norms,tmax_norms2-tmax_norms
-#    plt.plot(tmin_norms2-tmin_norms,'o-')
-#    plt.plot(tmax_norms2-tmax_norms,'o-')
-#    plt.show()
-
-def perftOptimKrigBwStns():
-
-    optim = XvalTairNorm('/projects/daymet2/station_data/infill/serial_fnl/serial_tmin.nc', 'tmin')
-
-    abw_nngh = build_nstn_bandwidths(35, 150, 0.10)
-
-    err = optim.run_xval('GHCN_USC00244558', abw_nngh)
-    # err = optim.run_xval('SNOTEL_13C01S', abw_nngh)
-
-    mae = np.abs(err)
-
-    print abw_nngh[np.argmin(mae, 1)]
-    print mae[np.arange(12), np.argmin(mae, 1)]
-
-#     optim = OptimTairMean("/projects/daymet2/station_data/infill/infill_20130725/serial_tmax.nc",
-#                      '/home/jared.oyler/ecl_juno_workspace/wxtopo/wxTopo_R/interp.R', 'tmax')
-#
-#    #aStn = optim.stn_da.stns[optim.stn_da.stns[STN_ID]=='SNOTEL_13C01S'][0]
-#
-#    rngMinNghs = build_nstn_bandwidths(100,150, 0.10)
-
-if __name__ == '__main__':
-
-    # perftOptimKrigBwStns()
-    # perfPtInterpTair()
-    # analyze_ci()
-    perfXvalTairOverall()
-    # perfOptimTairAnom()
-    # perfOptimKrigParams()
-    # perfOptimTairMean()
-    # perfXvalTairMean()

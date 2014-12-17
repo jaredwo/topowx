@@ -24,7 +24,10 @@ if __name__ == '__main__':
     #that most closely align to a station's typical local timing of Tmin/Tmax
     path_homog_db = os.path.join(FPATH_STNDATA, 'all', 'tair_homog_1948_2012.nc')
     geonames_usrname = open('/home/jared.oyler/.geonames_username').readline().strip()
-    add_utc_offset(path_homog_db, geonames_usrname)
+    #Path to timezone shapefile that has UTC offsets
+    #Downloaded from http://www.sharegeo.ac.uk/handle/10672/285
+    fpath_timezone_shp = os.path.join(PROJECT_ROOT, 'dem', 'timezones', 'world_timezones.shp')
+    add_utc_offset(path_homog_db, fpath_timezone_shp, geonames_usrname)
     
     #Create NCEP/NCAR Reanalysis North American subsets of variables used in the
     #infilling of missing station observations.
