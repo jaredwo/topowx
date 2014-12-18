@@ -5,6 +5,23 @@ Determines the final serially-complete time series to be used
 at each station, sets flags on bad and duplicate stations,
 adds monthly normal values to each station, and extracts auxiliary 
 predictors and other raster-based variables for each station.
+
+Copyright 2014, Jared Oyler.
+
+This file is part of TopoWx.
+
+TopoWx is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+TopoWx is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
 from twx.db import StationSerialDataDb, BAD, CLIMDIV

@@ -1,17 +1,29 @@
 '''
 Utility functions for NetCDF files
 
-@author: jared.oyler
+Copyright 2014, Jared Oyler.
+
+This file is part of TopoWx.
+
+TopoWx is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+TopoWx is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 import osgeo.gdalconst as gdalconst
 import osgeo.gdal as gdal
 import osgeo.osr as osr
 import numpy as np
 from netCDF4 import Dataset
-from twx.utils.input_raster import input_raster
-import sys
-import netCDF4
-import matplotlib.pyplot as plt
+from twx.raster import RasterDataset
 
 PROJ_GEO_WGS84 = 4326 #EPSG Code
 PROJ_GEO_NAD83 = 4269 #EPSG Code
@@ -158,8 +170,8 @@ def expand_grid(ds,varname,expand_dims,outpath,val,mask):
         
 def to_ncdf(rast_path,varname,out_path,np_dtype,nodata=None):
     
-    rast = input_raster(rast_path)
-    a = rast.readEntireRaster()
+    rast = RasterDataset(rast_path)
+    a = rast.read_as_array().data
     
     lat = rast.getLatLon(0.0,np.arange(rast.rows),transform=False)[0]
     lon = rast.getLatLon(np.arange(rast.cols),0.0,transform=False)[1]

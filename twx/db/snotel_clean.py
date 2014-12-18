@@ -25,6 +25,22 @@ swe (pill for a day is total swe on the ground at end of PREVIOUS day
 prec (water year accum prcp) for a day is accum at end of PREVIOUS day
 prcp for a day is total new prcp for the CURRENT day
 
+Copyright 2014, Jared Oyler.
+
+This file is part of TopoWx.
+
+TopoWx is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+TopoWx is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
 __all__ = ['snotel_find_no_metadata_stns','snotel_write_stn_metadata','snotel_write_stn_obs']

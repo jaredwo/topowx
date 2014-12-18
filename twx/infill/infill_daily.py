@@ -5,6 +5,23 @@ incomplete station time series using probabilistic principal component analysis 
 Stacklies W, Redestig H, Scholz M, Walther D, Selbig J. 2007. 
 pcaMethods-a bioconductor package providing PCA methods for incomplete data.
 Bioinformatics 23: 1164-1167. DOI: 10.1093/bioinformatics/btm069.
+
+Copyright 2014, Jared Oyler.
+
+This file is part of TopoWx.
+
+TopoWx is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+TopoWx is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
 __all__ = ['InfillMatrixPPCA']

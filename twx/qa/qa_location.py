@@ -3,7 +3,24 @@ Functions for quality assurance of station location metadata (longitude, latitud
 In most cases, elevation is correct, but longitude and/or latitude are either imprecise or incorrect.
 The functions can be used to compare the provided elevation of a station to that of a high resolution
 DEM. Those stations that have an elevation that significantly differs from the corresponding DEM elevation
-likely have issues issues with their metadata.  
+likely have issues with their metadata. 
+
+Copyright 2014, Jared Oyler.
+
+This file is part of TopoWx.
+
+TopoWx is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+TopoWx is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
 __all__ = ["combine_locqa","qa_stn_locs","set_usrname_geonames","update_stn_locs"]
