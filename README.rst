@@ -11,7 +11,7 @@ slope/aspect, coastal proximity) on air temperature. The current interpolation
 procedures include moving window regression kriging and geographically
 weighted regression.  To avoid artificial climate trends, TopoWx homogenizes
 all input station data using the `GHCN/USHCN Pairwise Homogenization
-Algorithm<http://www.ncdc.noaa.gov/oa/climate/research/ushcn/#phas>`_. TopoWx
+Algorithm <http://www.ncdc.noaa.gov/oa/climate/research/ushcn/#phas>`_. TopoWx
 was developed at University of Montana within the `Numerical Terradynamic
 Simulation Group <http://www.ntsg.umt.edu>`_ and the `Montana Climate
 Office <http://www.climate.umt.edu>`_. TopoWx has been used to
@@ -42,4 +42,3 @@ temperature. Int. J. Climatol. http://dx.doi.org/10.1002/joc.4127.
 Oyler, J.W., Dobrowski, S.Z., Ballantyne, A.P., Klene, A.E., Running, S.W. (In
 Press). Artificial Amplification of Warming Trends Across the Mountains of
 the Western United States. Geophysical Research Letters.
-
