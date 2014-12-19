@@ -56,6 +56,5 @@ R Packages
 External programs
 -----------------
 
-* `Pairwise Homogenization Algorithm (v52i)
-<http://www.ncdc.noaa.gov/oa/climate/research/ushcn/#phas>`_
+* `Pairwise Homogenization Algorithm (v52i) <http://www.ncdc.noaa.gov/oa/climate/research/ushcn/#phas>`_
 
