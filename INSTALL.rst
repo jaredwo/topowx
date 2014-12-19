@@ -6,12 +6,12 @@ of topoclimatic datasets. It is not meant to be a 'user-friendly' end-user
 application. TopoWx has been tested on Linux (CentOS 5.x,6.x) and MacOSX.
 The main code library is provided in the twx Python package and can be
 installed via the setup.py script:
-
-python setup.py install
+ 
+  python setup.py install
 
 if you just plan to run TopoWx and not modify the library, or
 
-python setup.py develop
+  python setup.py develop
 
 if you plan to modify the TopoWx library.
 
