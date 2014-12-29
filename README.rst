@@ -34,7 +34,7 @@ http://www.ntsg.umt.edu/project/TopoWx
 
 References
 =============
-Oyler, J. W., Ballantyne, A., Jencso, K., Sweet, M. and Running, S. W. (2014),
+Oyler, J.W., Ballantyne, A., Jencso, K., Sweet, M. and Running, S. W. (2014),
 Creating a topoclimatic daily air temperature dataset for the conterminous
 United States using homogenized station data and remotely sensed land skin
 temperature. Int. J. Climatol. http://dx.doi.org/10.1002/joc.4127.
