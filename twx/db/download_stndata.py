@@ -3,18 +3,14 @@ Utility functions to download weather station data. Current main weather
 station datasources are:
 
 1.) Global Historical Climate Network Daily (GHCN-Daily)
+https://www.ncdc.noaa.gov/oa/climate/ghcn-daily/
 
-2.) SNOTEL Current Tab Card Files (tab delimited files)
-TODO: Need to figure out new main source of SNOTEL data as
-this has been discontinued by NRCS.
+2.) NRCS SNOTEL and SCAN
+http://www.wcc.nrcs.usda.gov/snow/
 
-3.) SNOTEL Historical. No download function written as this does not appear to
-    be updated regularly. Downloaded manually from
-    ftp://ftp.wcc.nrcs.usda.gov/data/snow/snotel/snothist/.
+3.) Remote Automated Weather Stations (RAWS) at the WRCC website.
 
-4.) Remote Automated Weather Stations (RAWS) at the WRCC website.
-
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -31,10 +27,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
-__all__ = ['ghcnd_download_byyr_data','ghcnd_download_data',
-           'raws_build_stn_metadata','raws_save_all_dly_series',
-           'raws_save_stnid_list','raws_to_ghcn_subset',
-           'snotel_mirror_tabdata']
+from time import sleep
+
+__all__ = ['ghcnd_download_byyr_data', 'ghcnd_download_data',
+           'raws_build_stn_metadata', 'raws_save_all_dly_series',
+           'raws_save_stnid_list', 'raws_to_ghcn_subset',
+           'load_snotel_stn_inventory', 'SnotelDataService']
 import os
 import tarfile
 import subprocess
@@ -45,8 +43,10 @@ import urllib2
 from datetime import datetime
 from calendar import monthrange
 from twx.utils import dms2decimal
+import pandas as pd
+from StringIO import StringIO
+import pycurl
 
-RPATH_SNOTEL_TABDATA = 'ftp://ftp.wcc.nrcs.usda.gov/data/snow/snotel/cards/'
 RPATH_GHCN = 'http://www1.ncdc.noaa.gov/pub/data/ghcn/daily/'
 RPATH_GHCN_BYYEAR = 'http://www1.ncdc.noaa.gov/pub/data/ghcn/daily/by_year/'
 
@@ -54,23 +54,283 @@ RAWS_STN_TIME_SERIES_URL = "http://www.raws.dri.edu/cgi-bin/wea_dysimts.pl?"
 STN_TIME_SERIES2_URL = 'http://www.raws.dri.edu/cgi-bin/wea_dysimts2.pl'
 RAWS_STN_METADATA_URL = "http://www.raws.dri.edu/cgi-bin/wea_info.pl?"
 
+URL_SNOTEL = 'http://www.wcc.nrcs.usda.gov/nwcc/view'
 
-def snotel_mirror_tabdata(local_path, remote_path=RPATH_SNOTEL_TABDATA):
+
+
+def load_snotel_stn_inventory(fpath_stn_inventory=None):
     '''
-    Use wget to mirror SNOTEL current tab card files. This takes a while
-    since there are many individual files.
-
+    Load inventory of SNOTEL/SCAN stations
+    
     Parameters
     ----------
-    local_path : str
-        The local mirror path to mirror to.
-    remote_path : str, optional
-        The remote path to mirror from.
+    fpath_stn_inventory : str, optional
+        File path to a station inventory file downloaded
+        from http://www.wcc.nrcs.usda.gov/nwcc/inventory.
+        If not passed, a default pre-downloaded station inventory file
+        will be used. 
+    
+    Returns
+    -------
+    stns_df : pandas.DataFrame
+        Dataframe of SNOTEL/SCAN stations and associated metadata
+    
     '''
 
-    subprocess.call(['wget', '--no-verbose', '--mirror',
-                     '--directory-prefix=' + local_path, remote_path])
+    if fpath_stn_inventory is None:
+    
+        # if file path for station inventory not provided
+        # load default air temperature station inventory file downloaded
+        # from http://www.wcc.nrcs.usda.gov/nwcc/inventory 
+        path_root = os.path.dirname(__file__)
+        fpath_stn_inventory = os.path.join(path_root, 'data', 'snotel_scan_stns_20150123.csv')
+        
+    stns_df = pd.read_csv(fpath_stn_inventory)
+    stns_df.columns = [a_col.strip() for a_col in stns_df.columns]
+    
+    # Strip whitespace from all string columns
+    # and change to uppercase
+    for i, a_col in enumerate(stns_df.columns):
+        
+        if stns_df.dtypes[i].name == 'object':
+            
+            stns_df[a_col] = stns_df[a_col].str.upper().str.strip()
+    
+    # convert elevation from feet to meters
+    stns_df['elev'] = stns_df['elev'] * 0.3048  
+    
+    return stns_df 
 
+class SnotelDataService():
+    '''
+    Class for downloading historic observations from NRCS 
+    SNOTEL and SCAN station networks. See: 
+    http://www.wcc.nrcs.usda.gov/report_generator/WebReportScripting.htm.
+    '''
+    
+    def __init__(self, fpath_stn_inventory=None):
+        '''
+        Parameters
+        ----------
+        fpath_stn_inventory : str, optional
+            File path to a station inventory file downloaded
+            from http://www.wcc.nrcs.usda.gov/nwcc/inventory.
+            If not passed, a default station inventory file
+            will be used. 
+        '''
+                
+        self.stns_df = load_snotel_stn_inventory(fpath_stn_inventory)
+        
+    def get_stn_obs(self, stnid, year_start_end=None, max_tries=5, nsecs_sleep_tries=15, **kwargs):
+        
+        '''
+        Retrieve observations in CSV format for single station via 
+        URL-to-file method using pycurl.
+        
+        Parameters
+        ----------
+        stnid : int
+            The station/site number (2095, 302, etc). Station numbers
+            can be found in the station inventory file from:
+            http://www.wcc.nrcs.usda.gov/nwcc/inventory. 
+        year_start_end : tuple of two ints, optional
+            The start and end year for which to download
+            observations. If not passed, will download station's
+            entire period-of-record.
+        max_tries : int, optional
+            Maximum  number of NRCS connection tries when downloading data
+            for each year. If max_tries tries is reached, an error will be raised.
+            Default: 5.
+        nsecs_sleep_tries : int, optional
+            The number of seconds to sleep between connection tries if there
+            is a connection error. Default: 15 seconds.
+        **kwargs
+           Any valid arguments for the historic URL-to-file service
+           See: http://www.wcc.nrcs.usda.gov/report_generator/WebReportScripting.htm
+           Some current valid arguments:
+           report: str
+               STAND (standard snotel), SOIL (soil temp and moisture)
+               SCAN (standard scan), ALL (all), or WEATHER (atmospheric).
+               Default: WEATHER
+           timeseries : str
+               Daily, Hourly, or Hour:HH
+               Default: Daily
+           month: str 
+               MM, CY (calendar year), or WY (water year)
+               Default: CY
+           day: str
+               DD
+               Default: ''
+        
+        Returns
+        -------
+        yrs_obs, yrs : tuple
+            yrs_obs is a list of ndarrays (dtype=str). Each separate ndarray contains
+            the csv observation lines for a specific year. yrs is an ndarray with the
+            corresponding years.
+        '''
+
+        # SNOTEL URL query string parameters  
+        url_args = {'intervalType':'Historic',
+                   'report':'WEATHER',
+                   'timeseries':'Daily',
+                   'format':'copy',
+                   'sitenum':str(stnid),
+                   'year':'',
+                   'month':'CY',
+                   'day':''}
+        # update url args with any custom settings passed in kwargs
+        url_args.update(kwargs)
+        
+        if year_start_end is None:
+            
+            # year start end not provided
+            # download entire period-of-record of station
+            a_stn = self.stns_df[self.stns_df['station id'] == stnid].iloc[0]
+            year_start = int(a_stn['start_date'][0:4])
+            year_end = int(a_stn['end_date'][0:4])
+            
+            # If no end year, use current year
+            if year_end == 2100:
+                
+                year_end = datetime.now().year
+            
+            year_start_end = (year_start, year_end)
+                    
+        yrs = np.arange(year_start_end[0], year_start_end[1] + 1)
+        yrs_obs = []
+        yrs_success = np.ones(yrs.size, dtype=np.bool)
+        
+        for i, yr in enumerate(yrs):
+            
+            ntries = 0
+            
+            buf = StringIO()
+            c = pycurl.Curl()
+            c.setopt(c.WRITEDATA, buf)
+            
+            url_args['year'] = yr
+            url = "?".join([URL_SNOTEL, urllib.urlencode(url_args)])  
+            c.setopt(c.URL, url)
+            
+            while 1:
+        
+                try:
+                    
+                    print url  
+                    c.perform()
+                    c.close()
+                    break
+        
+                except pycurl.error as e:
+                
+                    print "Error downloading station obs for station %d for year %d: %s" % (stnid, yr, str(e))
+        
+                    ntries += 1
+                    
+                    if ntries == max_tries:
+                    
+                        print "Max tries reached for station %d for year %d. Raising error..." % (stnid, yr)
+                        raise
+                    
+                    else:
+                    
+                        print "Sleeping %d secs and trying year again..." % nsecs_sleep_tries
+                        sleep(nsecs_sleep_tries)
+            
+            try:
+                # Change string buffer to array of lines
+                lines = np.array(buf.getvalue().splitlines(True))
+                
+                # Get rid of extra end-of-water year lines
+                mask = np.char.find(lines, '-09-30,23:59') == -1
+                             
+                lines = np.extract(mask, lines)
+                
+            except Exception as e:
+                
+                print "Error: could not parse obs for station %d for year %d: %s" % (stnid, yr, str(e))
+                yrs_success[i] = False
+            
+            if yrs_success[i]:
+                yrs_obs.append(lines)
+        
+        
+        yrs = yrs[yrs_success]
+        
+        return yrs_obs, yrs
+    
+    def write_stn_obs(self, stnid, path_out, year_start_end=None, output_prefix_field='cdbs_id', max_tries=5, nsecs_sleep_tries=15, **kwargs):
+        '''
+        Retrieve and output SNOTEL data to CSV files. A station directory
+        will be created in path_out and a separate CSV file written for each year. 
+        CSV filename: [output_prefix_field]_[year].csv
+        
+        Parameters
+        ----------
+        stnid : int
+            The station/site number (2095, 302, etc). Station numbers
+            can be found in the station inventory file from:
+            http://www.wcc.nrcs.usda.gov/nwcc/inventory.
+        path_out : str
+            The output path for the CSV file  
+        year_start_end : tuple of two ints, optional
+            The start and end year for which to download
+            observations. If not passed, will download station's
+            entire period-of-record.
+        output_prefix_field : str
+            The field from the station inventory file that will form
+            the prefix of the output filename. Default: the station's cdbs_id.
+        max_tries : int, optional
+            Maximum  number of NRCS connection tries when downloading data
+            for each year. If max_tries tries is reached, an error will be raised.
+            Default: 5.
+        nsecs_sleep_tries : int, optional
+            The number of seconds to sleep between connection tries if there
+            is an connection error. Default: 15 seconds.
+        **kwargs
+           Any valid arguments for the historic URL-to-file service
+           See: http://www.wcc.nrcs.usda.gov/report_generator/WebReportScripting.htm
+           Some current valid arguments:
+           report: str
+               STAND (standard snotel), SOIL (soil temp and moisture)
+               SCAN (standard scan), ALL (all), or WEATHER (atmospheric).
+               Default: WEATHER
+           timeseries : str
+               Daily, Hourly, or Hour:HH
+               Default: Daily
+           month: str 
+               MM, CY (calendar year), or WY (water year)
+               Default: CY
+           day: str
+               DD
+               Default: ''
+        '''
+        
+        yrs_obs, yrs = self.get_stn_obs(stnid, year_start_end, **kwargs)
+        
+        a_stn = self.stns_df[self.stns_df['station id'] == stnid].iloc[0]
+        
+        fname_prefix = str(a_stn[output_prefix_field]).strip()
+        
+        if fname_prefix == '':
+            print "Warning: %s field was blank for stnid %d. Will prefix output with stnid instead" % (output_prefix_field, stnid)
+            fname_prefix = str(stnid)
+            
+        stn_dir_out = os.path.join(path_out, fname_prefix)
+        
+        if not os.path.isdir(stn_dir_out):
+            os.mkdir(stn_dir_out)
+        
+        for obs_lines, yr in zip(yrs_obs, yrs):
+        
+            fname = "%s_%d.csv" % (fname_prefix, yr)
+        
+            print "Writing output file %s..." % fname
+        
+            fout = open(os.path.join(stn_dir_out, fname), 'w')
+            fout.writelines(obs_lines)
+            fout.close()
 
 def ghcnd_download_data(local_path, remote_path=RPATH_GHCN, extract_tar=True):
     '''
@@ -127,7 +387,7 @@ def ghcnd_download_byyr_data(local_path, yrs, remote_path=RPATH_GHCN_BYYEAR):
     for yr in yrs:
 
         subprocess.call(['wget', '--directory-prefix=' + local_path,
-                         urljoin(remote_path, "%s.csv.gz" % (yr, ))])
+                         urljoin(remote_path, "%s.csv.gz" % (yr,))])
 
 
 def raws_save_stnid_list(out_fpath):
@@ -142,7 +402,7 @@ def raws_save_stnid_list(out_fpath):
 
     path_root = os.path.dirname(__file__)
 
-    #raws_stnlist_pages.txt has URLs for HTML files that list RAWS stations
+    # raws_stnlist_pages.txt has URLs for HTML files that list RAWS stations
     afile = open(os.path.join(path_root, 'data', 'raws_stnlst_pages.txt'))
     stn_ids = []
 

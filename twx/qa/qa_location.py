@@ -26,16 +26,17 @@ along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 __all__ = ["combine_locqa","qa_stn_locs","set_usrname_geonames","update_stn_locs"]
 
 import urllib, urllib2
-from xml.dom import minidom
 from twx.db.station_data import STN_ID, STATE, LON, LAT, ELEV
 import numpy as np
 import time
 from netCDF4 import Dataset
+import json
 
 # DEM service URLs
-URL_USGS_NED = 'http://gisdata.usgs.gov/XMLWebServices/TNM_Elevation_Service.asmx/getElevation'
+URL_USGS_NED = 'http://ned.usgs.gov/epqs/pqs.php'
 URL_GEONAMES_SRTM = 'http://api.geonames.org/srtm3'
 URL_GEONAMES_ASTER = 'http://api.geonames.org/astergdem'
+USGS_NED_NODATA = -1000000
 
 def _load_locqa_lines(path_locqa):
     '''
@@ -290,74 +291,30 @@ def _get_elev(stn):
 
 def _get_elev_usgs(lon, lat):
     '''
-    Get elev value from USGS NED 1/3 arc-sec DEM.  Code directly modeled from:
-    http://casoilresource.lawr.ucdavis.edu/drupal/node/610
+    Get elev value from USGS NED 1/3 arc-sec DEM.
+    http://ned.usgs.gov/epqs/
     '''
 
-    #   NED 1/3rd arc-second: Eastern United States    NED.CONUS_NED_13E    -99.0006,24.9994,
-    # -65.9994,49.0006
-    # NED 1/3rd arc-second: Western United States    NED.CONUS_NED_13W    -125.0006,25.9994,
-    # -98.9994,49.0006
-
-    if lon <= -98.9994:
-        src_layer = 'NED.CONUS_NED_13W'
-    else:
-        src_layer = 'NED.CONUS_NED_13E'
-
-
     # url GET args
-    values = {'X_Value' : lon,
-    'Y_Value' : lat,
-    'Elevation_Units' : 'meters',
-    'Source_Layer' : src_layer,
-    'Elevation_Only' : '1', }
+    values = {'x' : lon,
+              'y' : lat,
+              'units' : 'Meters',
+              'output' : 'json'}
 
-    # make some fake headers, with a user-agent that will
-    # not be rejected by bone-headed servers
-    user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-    headers = {'User-Agent' : user_agent}
-
-    # encode the GET arguments
     data = urllib.urlencode(values)
 
-    # make the URL into a qualified GET statement:
-    get_url = URL_USGS_NED + '?' + data
-
-    # make the request: note that by ommitting the url arguments
-    # we force a GET request, instead of a POST
-    req = urllib2.Request(url=get_url, headers=headers)
+    req = urllib2.Request(URL_USGS_NED, data)
     response = urllib2.urlopen(req)
-    the_page = response.read()
+    
+    json_response = json.loads(response.read())
+    elev = json_response['USGS_Elevation_Point_Query_Service']['Elevation_Query']['Elevation']
 
-    try:
-
-        # convert the HTML back into plain XML
-        for entity, char in (('lt', '<'), ('gt', '>'), ('amp', '&')):
-            the_page = the_page.replace('&%s;' % entity, char)
-
-        # clean some cruft... XML won't parse with this stuff in there...
-        the_page = the_page.replace('<string xmlns="http://gisdata.usgs.gov/XMLWebServices/">', '')
-        the_page = the_page.replace('<?xml version="1.0" encoding="utf-8"?>\r\n', '')
-        the_page = the_page.replace('</string>', '')
-        the_page = the_page.replace('<!-- Elevation Values of -1.79769313486231E+308 (Negative Exponential Value) may mean the data source does not have values at that point.  --> <USGS_Elevation_Web_Service_Query>', '')
-
-        # parse the cleaned XML
-        dom = minidom.parseString(the_page)
-        children = dom.getElementsByTagName('Elevation_Query')[0]
-
-        # extract the interesting parts
-        elev = float(children.getElementsByTagName('Elevation')[0].firstChild.data)
-        data_source = children.getElementsByTagName('Data_Source')[0].firstChild.data
-
-        # print to stdout
-        # print "%f,%f,%f,%s" % (lon, lat, elev, data_source)
-
-        return elev
-
-    except:
-
-        print "".join(["ERROR: ", str(lon), ",", str(lat)])
-        return np.nan
+    if elev == USGS_NED_NODATA:
+        
+        print "".join(["ERROR: USGS NED NO DATA for point ", str(lon), ",", str(lat)])
+        elev = np.nan
+    
+    return elev
 
 def update_stn_locs(path_db, path_locqa):
     '''

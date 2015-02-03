@@ -2,7 +2,7 @@
 Script to insert station observation data from GHCN-D, SNOTEL, and RAWS
 into a single netCDF database file.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015 Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -28,41 +28,44 @@ import twx
 if __name__ == '__main__':
 
     PROJECT_ROOT = "/projects/topowx"
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data', 'update_2014')
 
     # The period-of-record for the database
     min_date = datetime(1948, 1, 1)
-    max_date = datetime(2012, 12, 31)
-
+    max_date = datetime(2014, 12, 31)
+      
     # Build Insert objects for inserting GHCN-D, SNOTEL, and RAWS data
     # into a netCDF database file
-    ghcn_path_stn_file = os.path.join(FPATH_STNDATA, 'ghcn', 'ghcnd-stations.txt')
-    ghcn_path_ob = os.path.join(FPATH_STNDATA, 'ghcn', 'ghcnd_all')
-    insert_ghcn = InsertGhcn(ghcn_path_stn_file, ghcn_path_ob, min_date, max_date)
-
-    snotel_path_obs = os.path.join(FPATH_STNDATA, 'snotel', 'cleaned')
-    snotel_path_stn_file = os.path.join(FPATH_STNDATA, 'snotel', 'cleaned', 'snotel_stns.csv')
-    insert_snotel = InsertSnotel(snotel_path_stn_file, snotel_path_obs, min_date, max_date)
-
+    #GHCN-D
+    fpath_ghcn_stn_file = os.path.join(FPATH_STNDATA, 'ghcn', 'ghcnd-stations.txt')
+    path_ghcn_obs = os.path.join(FPATH_STNDATA, 'ghcn', 'ghcnd_all')
+    insert_ghcn = InsertGhcn(fpath_ghcn_stn_file, path_ghcn_obs, min_date, max_date)
+    #SNOTEL
+    path_snotel_obs_csv = os.path.join(FPATH_STNDATA,'snotel','csv')
+    fpath_snotel_locs = os.path.join(PROJECT_ROOT,'station_data','snotel',
+                                     'locations','2011-03-31-WCC-high-resolution-snotel.csv')      
+    insert_snotel = InsertSnotel(min_date, max_date, path_stn_obs_csv=path_snotel_obs_csv,
+                                 fpath_precise_loc=fpath_snotel_locs)
+    #RAWS
     raws_path_meta = os.path.join(FPATH_STNDATA, 'raws', 'raws_meta.txt')
     raws_path_stnids = os.path.join(FPATH_STNDATA, 'raws', 'raws_ghcn_stnids.txt')
-    raws_path_obs = os.path.join(FPATH_STNDATA, 'raws', 'data')
+    raws_path_obs = os.path.join(FPATH_STNDATA, 'raws', 'ruben_data','Daily_RAWS')
     insert_raws = InsertRaws(raws_path_meta, raws_path_stnids, raws_path_obs, min_date, max_date)
-
+     
+    inserts = [insert_ghcn,insert_snotel,insert_raws]
+    
     # Create and initialize the database
-    fpath_db = os.path.join(FPATH_STNDATA, 'all', 'all_1948_2012.nc')
-    inserts = [insert_ghcn, insert_snotel, insert_raws]
+    fpath_db = os.path.join(FPATH_STNDATA, 'all', 'all_1948_2014.nc')
     twx.db.create_netcdf_db(fpath_db, min_date, max_date, inserts)
-
     # Insert all data
     twx.db.insert_data_netcdf_db(fpath_db, inserts)
-    
-    #Calculate and add monthly data to database
+         
+    # Calculate and add monthly data to database
     twx.db.add_monthly_means(fpath_db, 'tmin')
     twx.db.add_monthly_means(fpath_db, 'tmax')
-
+ 
     # Create a period-of-record file for the database
-    fpath_por_out = os.path.join(FPATH_STNDATA, 'all', 'all_por_1948_2012.csv')
-    stn_da = StationDataDb(fpath_db, startend_ymd=(19480101, 20121231))
+    fpath_por_out = os.path.join(FPATH_STNDATA, 'all', 'all_por_1948_2014.csv')
+    stn_da = StationDataDb(fpath_db, startend_ymd=(int(min_date.strftime("%Y%m%d")), int(max_date.strftime("%Y%m%d"))))
     stns = stn_da.stns
     twx.db.output_por_csv(stn_da, stns, fpath_por_out)

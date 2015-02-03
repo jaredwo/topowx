@@ -2,7 +2,7 @@
 Functions and classes for inserting station observation data from multiple sources
 into a single database format.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -23,7 +23,7 @@ along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 __all__ = ['Insert', 'InsertGhcn', 'InsertRaws', 'InsertSnotel',
            'create_netcdf_db', 'insert_data_netcdf_db',
            'MISSING', 'DTYPE_STNOBS', 'NCDF_CHK_COLS', 'add_monthly_means',
-           'add_utc_offset','dbDataset','create_quick_db']
+           'add_utc_offset','dbDataset','create_quick_db', 'SnotelPreciseLoc']
 
 import os
 import numpy as np
@@ -35,12 +35,17 @@ import netCDF4
 from netcdftime import num2date
 from station_data import STN_NAME, ELEV, LAT, LON, STATE, STN_ID
 import twx
+import pandas as pd
+from twx.db.download_stndata import load_snotel_stn_inventory
 
 MISSING = -9999.
 NCDF_CHK_COLS = 50
 DTYPE_STNOBS = [('year', np.int), ('month', np.int), ('day', np.int), ('ymd', np.int),
                ('tmin', np.float64), ('tmax', np.float64), ('prcp', np.float64), ('swe', np.float64),
                ('qflag_tmin', "S1"), ('qflag_tmax', "S1"), ('qflag_prcp', "S1")]
+SNOTEL_TMIN = 'TMIN.D-1 (degC) '
+SNOTEL_TMAX = 'TMAX.D-1 (degC) '
+SNOTEL_MISSING = -99.9
 
 class dbDataset(Dataset):
     '''
@@ -385,21 +390,21 @@ def create_netcdf_db(path, min_date, max_date, inserts):
     elevs.standard_name = "elevation"
     elevs[:] = MISSING
 
-    tmin_var = ncdf_file.createVariable('tmin', 'f4', ('time', 'stn_id'), fill_value=MISSING,
-                                        chunksizes=(days[DATE].size, NCDF_CHK_COLS))
+    tmin_var = ncdf_file.createVariable('tmin', 'f4', ('time', 'stn_id'), fill_value=MISSING,zlib=True,
+                                        chunksizes=(days[DATE].size, 1))
     tmin_var.long_name = "minimum air temperature"
     tmin_var.units = "C"
     tmin_var.standard_name = "minimum_air_temperature"
     tmin_var.missing_value = MISSING
-    tmin_var[:, :] = MISSING
+    #tmin_var[:, :] = MISSING
 
-    tmax_var = ncdf_file.createVariable('tmax', 'f4', ('time', 'stn_id'), fill_value=MISSING,
-                                        chunksizes=(days[DATE].size, NCDF_CHK_COLS))
+    tmax_var = ncdf_file.createVariable('tmax', 'f4', ('time', 'stn_id'), fill_value=MISSING,zlib=True,
+                                        chunksizes=(days[DATE].size, 1))
     tmax_var.long_name = "maximum air temperature"
     tmax_var.units = "C"
     tmax_var.standard_name = "maximum_air_temperature"
     tmax_var.missing_value = MISSING
-    tmax_var[:, :] = MISSING
+    #tmax_var[:, :] = MISSING
 
 #    ncdf_var = ncdf_file.createVariable('prcp','f4',('time','stn_id'),fill_value=MISSING,chunksizes=(days[DATE].size,NCDF_CHK_COLS))
 #    ncdf_var.long_name = "precipitation amount"
@@ -408,19 +413,19 @@ def create_netcdf_db(path, min_date, max_date, inserts):
 #    ncdf_var.missing_value = MISSING
 #    ncdf_var[:,:] = MISSING
 
-    ncdf_var = ncdf_file.createVariable('qflag_tmin', 'S1', ('time', 'stn_id'), fill_value='',
-                                        chunksizes=(days[DATE].size, NCDF_CHK_COLS))
+    ncdf_var = ncdf_file.createVariable('qflag_tmin', 'S1', ('time', 'stn_id'), fill_value='',zlib=True,
+                                        chunksizes=(days[DATE].size, 1))
     ncdf_var.long_name = "quality assurance flag tmin"
     ncdf_var.standard_name = "quality assurance flag tmin"
     ncdf_var.missing_value = ""
-    ncdf_var[:, :] = ""
+    #ncdf_var[:, :] = ""
 
-    ncdf_var = ncdf_file.createVariable('qflag_tmax', 'S1', ('time', 'stn_id'), fill_value='',
-                                        chunksizes=(days[DATE].size, NCDF_CHK_COLS))
+    ncdf_var = ncdf_file.createVariable('qflag_tmax', 'S1', ('time', 'stn_id'), fill_value='',zlib=True,
+                                        chunksizes=(days[DATE].size, 1))
     ncdf_var.long_name = "quality assurance flag tmax"
     ncdf_var.standard_name = "quality assurance flag tmax"
     ncdf_var.missing_value = ""
-    ncdf_var[:, :] = ""
+    #ncdf_var[:, :] = ""
 
 #    ncdf_var = ncdf_file.createVariable('qflag_prcp','S1',('time','stn_id'),fill_value='',chunksizes=(days[DATE].size,NCDF_CHK_COLS))
 #    ncdf_var.long_name = "quality assurance flag prcp"
@@ -564,7 +569,18 @@ def insert_data_netcdf_db(db_path, insert_objs):
                 stn_cnt += 1
 
                 if stn_cnt == NCDF_CHK_COLS:
-
+                    
+                    #Slicing by indices in netCDF4 now requires
+                    #that indices are in order
+                    stn_idx = np.array(stn_idx)
+                    idx_sort = np.argsort(stn_idx)
+                    
+                    stn_idx = np.take(stn_idx,idx_sort)
+                    tmin_chk = np.take(tmin_chk, idx_sort, axis=1)
+                    tmax_chk = np.take(tmax_chk, idx_sort, axis=1)
+                    qtmin_chk = np.take(qtmin_chk, idx_sort, axis=1)
+                    qtmax_chk = np.take(qtmax_chk, idx_sort, axis=1)
+                    
                     var_tmin[:, stn_idx] = tmin_chk
                     var_tmax[:, stn_idx] = tmax_chk
                     # var_prcp[:,stn_idx] = prcp_chk
@@ -584,7 +600,7 @@ def insert_data_netcdf_db(db_path, insert_objs):
 
             stn_id = stn_row[0]
             stn_idx.append(np.nonzero(stn_ids == stn_id)[0][0])
-
+     
             obs = insert.parse_stn_obs(stn_id)
 
             if obs is not None:
@@ -605,11 +621,26 @@ def insert_data_netcdf_db(db_path, insert_objs):
 
             idx = stn_cnt + 1
 
-            var_tmin[:, stn_idx] = tmin_chk[:, 0:idx]
-            var_tmax[:, stn_idx] = tmax_chk[:, 0:idx]
+            tmin_chk_s = tmin_chk[:, 0:idx]
+            tmax_chk_s = tmax_chk[:, 0:idx]
+            qtmin_chk_s = qtmin_chk[:, 0:idx]
+            qtmax_chk_s = qtmax_chk[:, 0:idx]
+            
+            stn_idx = np.array(stn_idx)
+            idx_sort = np.argsort(stn_idx)
+            
+            stn_idx = np.take(stn_idx,idx_sort)
+            tmin_chk_s = np.take(tmin_chk_s, idx_sort, axis=1)
+            tmax_chk_s = np.take(tmax_chk_s, idx_sort, axis=1)
+            qtmin_chk_s = np.take(qtmin_chk_s, idx_sort, axis=1)
+            qtmax_chk_s = np.take(qtmax_chk_s, idx_sort, axis=1)
+            
+            
+            var_tmin[:, stn_idx] = tmin_chk_s
+            var_tmax[:, stn_idx] = tmax_chk_s
             # var_prcp[:,stn_idx] = prcp_chk[:,0:idx]
-            var_qtmin[:, stn_idx] = qtmin_chk[:, 0:idx]
-            var_qtmax[:, stn_idx] = qtmax_chk[:, 0:idx]
+            var_qtmin[:, stn_idx] = qtmin_chk_s
+            var_qtmax[:, stn_idx] = qtmax_chk_s
             # var_qprcp[:,stn_idx] = qprcp_chk[:,0:idx]
             # var_swe[:,stn_idx] = swe_chk[:,0:idx]
         ds.sync()
@@ -673,14 +704,55 @@ class Insert:
         return ymd >= self.min_ymd and ymd <= self.max_ymd
 
 
+class SnotelPreciseLoc():
+    
+    def __init__(self, fpath_precise_loc):
+        
+        self.stns_precise = self._parse_highres_stns(fpath_precise_loc)
+    
+    def get_precise_loc(self, stn_id, stn_name):
+        
+
+        name, lat, lon, elev, state = self.stns_precise[stn_id]
+        
+        if name != stn_name:
+            
+            print "Warning: Station %s non-precise name (%s) does not match precise name (%s)"%(stn_id,stn_name,name)
+                    
+        return lat, lon, elev
+    
+    def _parse_highres_stns(self,fpath):
+    
+        a_file = file(fpath)
+        a_file.readline()
+    
+        locs_highres = {}
+        for line in a_file.readlines():
+            vals = line.split(",")
+            st = vals[0].strip().upper()
+            name = vals[1].strip().upper()
+            stnid = vals[2].strip().upper()
+    
+            if stnid == '':
+                continue
+    
+            lat = float(vals[5].strip())
+            lon = float(vals[6].strip())
+            elev = float(vals[8].strip()) * 0.3048  # convert from feet to meters
+    
+            locs_highres[stnid] = [name, lat, lon, elev, st]
+        
+        return locs_highres
+    
+
 class InsertSnotel(Insert):
     '''
-    Class for inserting stations and observations from the SNOTEL network.
+    Class for inserting stations and observations from the SNOTEL/SCAN networks.
     Requires SNOTEL ASCII data to first be cleaned and formatted using the
     snotel_clean module
     '''
 
-    def __init__(self, path_stn_file, path_clean_obs, min_date, max_date):
+    def __init__(self, min_date, max_date, path_stn_obs_csv, fpath_stn_inventory=None, fpath_precise_loc=None, obs_prefix_field='cdbs_id'):
         '''
         Parameters
         ----------
@@ -695,9 +767,16 @@ class InsertSnotel(Insert):
         '''
 
         Insert.__init__(self, min_date, max_date)
-        self.path_stn_file = path_stn_file
-        self.path_clean = path_clean_obs
-        self.stns = []
+                
+        self.stns_df = load_snotel_stn_inventory(fpath_stn_inventory)
+        
+        if fpath_precise_loc is not None:
+            self.sntl_loc = SnotelPreciseLoc(fpath_precise_loc)
+        else:
+            self.sntl_loc = None
+        
+        self.path_stn_obs_csv = path_stn_obs_csv
+        self.obs_prefix_field = obs_prefix_field
 
     def get_stns(self):
         '''
@@ -709,28 +788,58 @@ class InsertSnotel(Insert):
             A list of tuples. Each tuple is of format:
             (STN_ID,LATITUDE,LONGITUDE,ELEVATION,STATE,NAME)
         '''
-
-        print "SNOTEL: Building list of stations"
-
-        f_in = open(self.path_stn_file)
-        f_in.readline()
-
-        stns = []
-
-        for line in f_in.readlines():
-            # ["STN_ID","NAME","STATE","DSOURCE","LAT","LON","ELEV"]
-            vals = line.split(',')
-
-            # Change to (STN_ID,LATITUDE,LONGITUDE,ELEVATION,STATE,NAME)
-            stns.append(("".join(["SNOTEL_", vals[0]]).upper(), float(vals[4]), float(vals[5]), float(vals[6]), vals[2], vals[1]))
-
-        print "SNOTEL: Done building stations. Number of stns: %d" % (len(stns),)
+        
+        print "SNOTEL INSERT: Building list of stations..."
+        
+        print "SNOTEL INSERT: Determining which stations have observations..."
+        
+        has_obs = np.zeros(len(self.stns_df),dtype = np.bool)
+        
+        for i,stn_id in enumerate(self.stns_df[self.obs_prefix_field]):
+            
+            if os.path.exists(os.path.join(self.path_stn_obs_csv,stn_id)) and stn_id != '':
+                
+                has_obs[i] = True
+                
+        stns = self.stns_df[has_obs].copy()
+        
+        print "SNOTEL INSERT: A total of %d stations in inventory do not have observations and will not be inserted."%np.sum(~has_obs)
+        
+        if self.sntl_loc is None:
+            
+            print "SNOTEL INSERT: No high precise station locations provided. Will use imprecise locations."
+            
+        else:
+            
+            n_no_prec = 0
+            
+            print "SNOTEL INSERT: Setting high precision SNOTEL locations..."
+            
+            for i in np.arange(len(stns)):
+                
+                try:
+                
+                    p_lat, p_lon, p_elev = self.sntl_loc.get_precise_loc(stns['cdbs_id'].iloc[i], stns['site_name'].iloc[i])
+                    x = stns.index[i]
+                    stns.loc[x,['lat','lon','elev']] = p_lat, p_lon, p_elev
+                    
+                except KeyError:
+                    
+                    n_no_prec+=1
+            
+            print "SNOTEL INSERT: %d out of %d stations did not have high precision locations."%(n_no_prec,len(stns))
+                    
+        stns[self.obs_prefix_field] = ['SNOTEL_'+a_id for a_id in stns[self.obs_prefix_field]]
+                
+        stns = [tuple(x) for x in stns[[self.obs_prefix_field,'lat','lon','elev','state','site_name']].values]
+        
+        print "SNOTEL INSERT: Done building stations. Number of stns: %d" % (len(stns),)
 
         return stns
 
     def parse_stn_obs(self, stn_id):
         '''
-        Parse  observations for a station
+        Parse observations for a station
         
         Parameters
         ----------
@@ -744,38 +853,73 @@ class InsertSnotel(Insert):
             with dtype DTYPE_STNOBS          
         '''
 
-        # remove snotel prefix and make lowercase
-        stn_id_l = stn_id.split("_")[1].lower()
+        # remove snotel prefix
+        stn_id = stn_id.split("_")[1]
 
-
-        try:
-            obs_file = open(os.path.join(self.path_clean, "%s.csv" % (stn_id_l,)))
-        except IOError:
-            print "No observations for SNOTEL: " + stn_id
-            return None
-
-        line = obs_file.readline()
+        path_stnobs = os.path.join(self.path_stn_obs_csv,stn_id)
+        
+        fnames = np.array(os.listdir(path_stnobs))
+        fnames = fnames[np.logical_and(np.char.startswith(fnames, stn_id),np.char.endswith(fnames, '.csv'))]
+        fnames = np.sort(fnames)
+        
         obs_ls = []
-        line = obs_file.readline()
-        while len(line) > 0:
-            # YMD,TMIN,TMAX,PRCP,TAVG,PREC,PILL
-            vals = line.split(",")
-
-            year = int(vals[0][0:4])
-            month = int(vals[0][4:6])
-            day = int(vals[0][6:])
-            ymd = long(vals[0])
-
-            if self.is_obs_inbounds(ymd):
-                # stn_id,year,month,day,ymd,tmin,tmax,prcp,swe,qflag_tmin,qflag_tmax,qflag_prcp
-                obs_ls.append((year, month, day, ymd, float(vals[1]), float(vals[2]), float(vals[3]), float(vals[6]), "", "", ""))
-
-            line = obs_file.readline()
-
+        
+        tdelta = np.timedelta64(1,'D')
+        
+        for a_fname in fnames:
+            
+            try:
+            
+                obs_df = pd.read_csv(os.path.join(path_stnobs,a_fname),skiprows=2, index_col=1, parse_dates=True)
+                obs_df.index = obs_df.index - tdelta
+            
+            except Exception as e:
+                
+                print "SNOTEL INSERT: Warning, could not parse observations from %s. Skipping..."%(os.path.join(path_stnobs,a_fname))
+                continue
+            
+            colnames = np.array(obs_df.columns,dtype=np.str)
+            
+#             icol_tmin = np.nonzero(np.char.startswith(colnames, 'TMIN'))[0]
+#             icol_tmax = np.nonzero(np.char.startswith(colnames, 'TMAX'))[0]
+            
+            icol_tmin = np.nonzero(colnames == SNOTEL_TMIN)[0]
+            icol_tmax = np.nonzero(colnames == SNOTEL_TMAX)[0]
+        
+            if icol_tmin.size == 0 and icol_tmax.size == 0:
+            
+                #No Tmin or Tmax observations in this file
+                continue 
+            
+            elif icol_tmin.size > 1 or icol_tmax.size > 1:
+                
+                raise Exception('Unexpected observation column in %s'%os.path.join(path_stnobs,a_fname))
+        
+            if icol_tmin.size == 0:
+                obs_df[SNOTEL_TMIN] = pd.Series(MISSING,index=obs_df.index)
+                icol_tmin = obs_df.columns.get_loc(SNOTEL_TMIN)
+            else:
+                icol_tmin = icol_tmin[0]
+                obs_df.loc[obs_df[obs_df.columns[icol_tmin]]==SNOTEL_MISSING,obs_df.columns[icol_tmin]] = MISSING
+                
+            if icol_tmax.size == 0:
+                obs_df[SNOTEL_TMAX] = pd.Series(MISSING,index=obs_df.index)
+                icol_tmax = obs_df.columns.get_loc(SNOTEL_TMAX)
+            else:
+                icol_tmax = icol_tmax[0]
+                obs_df.loc[obs_df[obs_df.columns[icol_tmax]]==SNOTEL_MISSING,obs_df.columns[icol_tmax]] = MISSING
+            
+            # stn_id,year,month,day,ymd,tmin,tmax,prcp,swe,qflag_tmin,qflag_tmax,qflag_prcp
+            obs_ls.extend([(year, month, day, ymd, a_obs[0], a_obs[1], MISSING, MISSING, "", "", "") for a_obs,year,month,day,ymd in zip(obs_df.iloc[:,[icol_tmin,icol_tmax]].values,
+                                                                                                                                         obs_df.index.year,obs_df.index.month,obs_df.index.day,
+                                                                                                                                         obs_df.index.format(formatter=lambda x: x.strftime("%Y%m%d")))])
+    
         obs = np.empty(len(obs_ls), dtype=DTYPE_STNOBS)
         obs[:] = obs_ls
         obs = obs[np.argsort(obs['ymd'])]
-
+        #only send back observations within time period of interest
+        obs = obs[np.logical_and(obs['ymd'] >= self.min_ymd, obs['ymd'] <= self.max_ymd)]
+        
         return obs
 
 
@@ -1121,8 +1265,8 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
     
     if var_mthly_name not in ds.variables.keys():
 
-        var_mthly = ds.createVariable(var_mthly_name, 'f4', ('time_mth', 'stn_id'),
-                                     fill_value=netCDF4.default_fillvals['f4'])
+        var_mthly = ds.createVariable(var_mthly_name, 'f4', ('time_mth', 'stn_id'),zlib=True,
+                                     chunksizes=(tagg.yr_mths.size, 1),fill_value=netCDF4.default_fillvals['f4'])
 
     else:
 
@@ -1132,8 +1276,8 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
     
     if var_miss_name not in ds.variables.keys():
          
-        var_miss = ds.createVariable(var_miss_name,'i2',('time_mth','stn_id'),
-                                    fill_value=netCDF4.default_fillvals['i2'])
+        var_miss = ds.createVariable(var_miss_name,'i2',('time_mth','stn_id'),zlib=True,
+                                    chunksizes=(tagg.yr_mths.size, 1),fill_value=netCDF4.default_fillvals['i2'])
     
     else:
         
