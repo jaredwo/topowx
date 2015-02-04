@@ -4,7 +4,7 @@ Durre, I., M. J. Menne, B. E. Gleason, T. G. Houston, and R. S. Vose. 2010.
 Comprehensive Automated Quality Assurance of Daily Surface Observations. 
 Journal of Applied Meteorology and Climatology 49:1615-1633.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -21,6 +21,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
+from twx.utils.perf_metrics import calc_ioa_d1
 
 __all__ = ['run_qa_all','run_qa_non_spatial','run_qa_spatial_only',
            'TWX_TO_GHCN_FLAGS_MAP','GHCN_TO_TWX_FLAGS_MAP']
@@ -999,14 +1000,10 @@ def _build_lin_model(x, y):
     return slope, intercept, r_value, p_value, std_err
 
 def _get_wght_mod_temp(stn_obs, ngh_obs):
-    ioa = _calc_ioa(stn_obs, ngh_obs)
+    
+    ioa = calc_ioa_d1(stn_obs, ngh_obs)
     lin_mod = _build_lin_model(ngh_obs, stn_obs)
     return ioa, lin_mod
-
-def _calc_ioa(x, y):
-    y_mean = np.mean(y)
-    ioa = 1.0 - (np.sum(np.abs(y - x)) / np.sum(np.abs(x - y_mean) + np.abs(y - y_mean)))
-    return ioa
 
 def _stns_in_radius_mask(stn, stn_da, radius=NGH_RADIUS):
     dists = grt_circle_dist(stn[LON], stn[LAT], stn_da.stns[LON], stn_da.stns[LAT])

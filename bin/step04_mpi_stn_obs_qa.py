@@ -2,7 +2,7 @@
 A MPI script for running Tmin/Tmax quality assurance procedures.
 Must be run using mpiexec or mpirun.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -25,7 +25,7 @@ import numpy as np
 from twx.db import StationDataDb, STN_ID, TMIN, TMAX, TMIN_FLAG, TMAX_FLAG, STATE
 import twx.qa.qa_temp as qa_temp
 from netCDF4 import Dataset, date2num
-from twx.utils import YMD, status_check, ymdL_to_date, Unbuffered
+from twx.utils import YMD, StatusCheck, ymdL_to_date, Unbuffered
 import sys
 import os
 import twx
@@ -229,7 +229,7 @@ def proc_write(params, nwrkers):
     iter_all = IterMultiFlagUpdate()
 
     nstns = np.nonzero(params[P_STN_MASK])[0].size
-    stat_chk = status_check(nstns, 10)
+    stat_chk = StatusCheck(nstns, 10)
 
     while 1:
 
@@ -285,7 +285,7 @@ def proc_coord(params, nwrkers):
 if __name__ == '__main__':
 
     PROJECT_ROOT = "/projects/topowx"
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data', 'update_2014')
 
     np.seterr(all='raise')
     np.seterr(under='ignore')
@@ -295,8 +295,8 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'all_1948_2012.nc')
-    params[P_PATH_POR_OUT] = os.path.join(FPATH_STNDATA, 'all', 'all_por_1948_2012.csv')
+    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'all_1948_2014.nc')
+    params[P_PATH_POR_OUT] = os.path.join(FPATH_STNDATA, 'all', 'all_por_1948_2014.csv')
     
     #Need to run this QA script twice
     #First run, only apply non-spatial QA checks (P_QA_SPATIAL = False)
