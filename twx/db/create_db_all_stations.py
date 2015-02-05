@@ -37,6 +37,7 @@ from station_data import STN_NAME, ELEV, LAT, LON, STATE, STN_ID
 import twx
 import pandas as pd
 from twx.db.download_stndata import load_snotel_stn_inventory
+from twx.db.stn_utc_offsets import GeonamesError
 
 MISSING = -9999.
 NCDF_CHK_COLS = 50
@@ -1349,7 +1350,22 @@ def add_utc_offset(ds_path, fpath_timezone_shp, geonames_usrname=None):
     
     for x in np.arange(stnda.stns.size):
         
-        var_utc[x] = utc.get_utc_offset(stnda.stns[LON][x], stnda.stns[LAT][x])
+        try:
+        
+            a_utc = utc.get_utc_offset(stnda.stns[LON][x], stnda.stns[LAT][x])
+        
+        except GeonamesError:
+            
+            a_utc = ndata
+        
+        if a_utc == ndata:
+            
+            print "Error: Couldn't determine UTC offset for: %s"%stnda.stns[STN_ID][x]
+        
+        else:
+        
+            var_utc[x] = a_utc
+        
         schk.increment()
     
     stnda.ds.close()
