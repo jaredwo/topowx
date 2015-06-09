@@ -2,7 +2,7 @@
 Utilities for retrieving time zone information for 
 a specific lon,lat.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -27,7 +27,10 @@ import urllib
 import urllib2
 import json
 import fiona
-from shapely.geometry import shape, MultiPolygon, Point
+from shapely.geometry import shape, MultiPolygon, Point, box
+from functools import partial
+import pyproj
+from shapely.ops import transform
 
 class UtcOffset():
     '''
@@ -35,7 +38,7 @@ class UtcOffset():
     Coordinated Universial Time (UTC) for a specific point.
     '''
 
-    def __init__(self, fpath_timezone_shp, ndata=-32767, geonames_usrname=None):
+    def __init__(self, fpath_timezone_shp, ndata=-32767, geonames_usrname=None, tz_shp_bnds=None):
         '''
         Parameters
         ----------
@@ -50,6 +53,13 @@ class UtcOffset():
             the Geonames web service will be checked for time zone
             information if no information on a point's time zone can
             be found via the local shapefile.
+        tz_shp_bnds : tuple, optional
+            Lon/lat bounding box (min lon, min lat, max lon, max lat).
+            Only timezone polygons from world_timezones.shp that intersect 
+            this bounding box will be considered when searching for a point's
+            UTC offset. If you know all points will only be in a certain region
+            of the globe, this can significantly improve search time. By default,
+            all polygons are searched (tz_shp_bnds=None).
         '''
 
         fpath_utc_shpfile = fpath_timezone_shp
@@ -61,8 +71,29 @@ class UtcOffset():
         self.offsets = np.array([_utc_int(utc_str, ndata) for utc_str in self.offsets])
 
         print "Loading timezone polygons..."
-        self.tz_polys = MultiPolygon([shape(poly['geometry']) for poly in tz_shp])
-
+        tz_polys = MultiPolygon([shape(poly['geometry']) for poly in tz_shp])
+        
+        # Need to transform from geographic lon/lat to cartesian (spherical Mercator in this case)
+        # so that shapely "contains" function is accurate.
+        # http://stackoverflow.com/questions/21328854/shapely-and-matplotlib-point-in-polygon-not-accurate-with-geolocation
+        self._project = partial(pyproj.transform, pyproj.Proj(init='epsg:4326'),
+                                pyproj.Proj('+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs'))
+        
+        print "Projecting timezone polygons..."
+        tz_polys = transform(self._project, tz_polys)
+        
+        self.tz_geoms = np.array([g for g in tz_polys.geoms])
+        
+        if tz_shp_bnds is not None:
+            
+            # Remove timezone polygons that are not in specified bounding box
+            b = box(tz_shp_bnds[0], tz_shp_bnds[1], tz_shp_bnds[2], tz_shp_bnds[3])
+            b = transform(self._project, b)
+            mask_b = np.array([b.intersects(g) for g in self.tz_geoms])
+            
+            self.tz_geoms = self.tz_geoms[mask_b]
+            self.offsets = self.offsets[mask_b]
+        
         if geonames_usrname is None:
             self.tz_geon = None
         else:
@@ -92,21 +123,24 @@ class UtcOffset():
             determined, the ndata value is returned.
         '''
 
+        offset = self.ndata
+        
         pt = Point(lon, lat)
-        i = np.nonzero(np.array([g.contains(pt) for g in self.tz_polys.geoms]))[0]
-
+        # reproject point
+        pt = transform(self._project, pt)
+        
+        i = np.nonzero(np.array([g.contains(pt) for g in self.tz_geoms]))[0]
+        
         if i.size == 1:
 
-            return self.offsets[i[0]]
-
-        elif self.tz_geon is not None:
-
+            offset = self.offsets[i[0]]
+        
+        if offset == self.ndata and self.tz_geon is not None:
+             
             print "UtcOffset: Could not find UTC polygon for point %.4f,%.4f. Trying geonames..." % (lon, lat)
-            return self.tz_geon.get_utc_offset(lon, lat)
+            offset = self.tz_geon.get_utc_offset(lon, lat)
 
-        else:
-
-            return self.ndata
+        return offset
 
 
 def _utc_int(utc_str, ndata=-32767):
