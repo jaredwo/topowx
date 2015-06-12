@@ -233,7 +233,7 @@ class HomogDaily():
         dly_vals = np.ma.masked_array(dly_vals,np.isnan(dly_vals))        
         mth_vals = np.ma.round(self.mthly_data[:,self.stnda.stn_idxs[stn_id]].astype(np.float64),2)
         miss_cnts = self.miss_data[:,self.stnda.stn_idxs[stn_id]]
-        dly_vals_homog = np.copy(dly_vals)
+        dly_vals_homog = dly_vals.copy()
         
         stn_pha_adj = self.pha_adjs[self.pha_adjs['stn_id']==fstn_id]
         stn_pha_adj = stn_pha_adj[np.argsort(stn_pha_adj['ymd_start'])]
@@ -334,12 +334,19 @@ class InsertHomog(twx.db.Insert):
         
         fpath_corr = os.path.join(run_path,'data','benchmark','world1','corr')
         fnames = np.array(os.listdir(fpath_corr))
-        fname_input_not_stnlist = fnames[np.char.endswith(fnames,'input_not_stnlist')][0]
-        fname_input_not_stnlist = os.path.join(fpath_corr,fname_input_not_stnlist)
+        fnames_input_not_stnlist = fnames[np.char.endswith(fnames,'input_not_stnlist')]
         
-        stn_ids = np.sort(np.loadtxt(fname_input_not_stnlist, dtype=np.str,usecols=[0]))
+        stnids_all = []
         
-        return stn_ids
+        for a_fname in fnames_input_not_stnlist:
+            
+            fname_input_not_stnlist = os.path.join(fpath_corr,a_fname)
+            stn_ids = np.atleast_1d(np.loadtxt(fname_input_not_stnlist, dtype=np.str, usecols=[0]))
+            stnids_all.extend(stn_ids)
+        
+        stnids_all = np.sort(np.array(stnids_all))
+        
+        return stnids_all
         
     def get_stns(self):
         return self.stn_list
@@ -535,10 +542,10 @@ def _parse_pha_adj(path_adj_log):
         val_adj = np.float(aline[75:81])
         
         date_start = datetime(np.int(yrmth_start[0:4]),np.int(yrmth_start[-2:]),1)
-        ymd_start = np.int(datetime.strftime(date_start,"%Y%m%d"))
+        ymd_start = np.int("%d%02d%02d"%(date_start.year,date_start.month,date_start.day))
         
         date_end = datetime(np.int(yrmth_end[0:4]),np.int(yrmth_end[-2:]),1)
-        ymd_end = np.int(datetime.strftime(date_end,"%Y%m%d"))
+        ymd_end = np.int("%d%02d%02d"%(date_end.year,date_end.month,date_end.day))
          
         #if val_adj != 0.0:
 
