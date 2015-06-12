@@ -18,6 +18,8 @@ along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 import numpy as np
 import re
+import os
+import errno
 
 
 class Unbuffered:
@@ -83,4 +85,12 @@ def get_val_classes(vals,num_classes):
     for split in splits:
         class_array[np.in1d(indices, split, assume_unique=True)] = class_num
         class_num+=1
-    return class_array  
+    return class_array 
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc: # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else: raise 

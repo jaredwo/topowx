@@ -5,7 +5,7 @@ missing daily Tmin/Tmax.
 
 Must be run using mpiexec or mpirun.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -22,16 +22,17 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
-
+import readline
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db import StationDataDb,NNRNghData,create_quick_db
-from twx.utils import StatusCheck, Unbuffered
+from twx.db import StationDataDb, NNRNghData, create_quick_db
+from twx.utils import StatusCheck, Unbuffered, ymdL
 from netCDF4 import Dataset
 import netCDF4
-from twx.infill import XvalInfillParams,XvalInfill,load_default_xval_stnids
+from twx.infill import XvalInfillParams, XvalInfill, load_default_xval_stnids
 import os
+from datetime import datetime
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -67,23 +68,23 @@ NETCDF_OUT_VARIABLES = [('obs_tmin', 'f4', netCDF4.default_fillvals['f4'], 'obse
                         ('infilled_tmin', 'f4', netCDF4.default_fillvals['f4'], 'infilled minimum air temperature', 'C'),
                         ('infilled_tmax', 'f4', netCDF4.default_fillvals['f4'], 'infilled maximum air temperature', 'C')]
 
-sys.stdout=Unbuffered(sys.stdout)
+sys.stdout = Unbuffered(sys.stdout)
 
-def proc_work(params,rank):
+def proc_work(params, rank):
     
     status = MPI.Status()
     
-    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))    
-    ds_nnr = NNRNghData(params[P_PATH_NNR], (params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB], (params[P_START_YMD], params[P_END_YMD]))    
+    ds_nnr = NNRNghData(params[P_PATH_NNR], (params[P_START_YMD], params[P_END_YMD]))
     
     infill_params = XvalInfillParams(nnr_ds=ds_nnr,
-                                     min_daily_nnghs=params[P_MIN_NNGH_DAILY], 
-                                     nnghs_nnr=params[P_NNGH_NNR], 
+                                     min_daily_nnghs=params[P_MIN_NNGH_DAILY],
+                                     nnghs_nnr=params[P_NNGH_NNR],
                                      max_nnr_var=params[P_NNR_VARYEXPLAIN],
                                      chk_perf=params[P_CHCK_IMP_PERF],
-                                     npcs=params[P_NPCS_PPCA], 
+                                     npcs=params[P_NPCS_PPCA],
                                      frac_obs_initnpcs=params[P_FRACOBS_INIT_PCS],
-                                     ppca_varyexplain=params[P_PPCA_VARYEXPLAIN], 
+                                     ppca_varyexplain=params[P_PPCA_VARYEXPLAIN],
                                      verbose=params[P_VERBOSE])
     
     xval_infills = {}
@@ -94,43 +95,43 @@ def proc_work(params,rank):
                                       xval_stnids=params[P_XVAL_STNIDS],
                                       ntrain_yrs=params[P_NYRS_TRAIN])
         
-    print "".join(["WORKER ",str(rank),": ready to receive work."])
+    print "".join(["WORKER ", str(rank), ": ready to receive work."])
     
-    empty = np.ones(stn_da.days.size)*np.nan
+    empty = np.ones(stn_da.days.size) * np.nan
         
     while 1:
     
-        stn_id,tair_var = MPI.COMM_WORLD.recv(source=RANK_COORD,tag=MPI.ANY_TAG,status=status)
+        stn_id, tair_var = MPI.COMM_WORLD.recv(source=RANK_COORD, tag=MPI.ANY_TAG, status=status)
         
         if status.tag == TAG_STOPWORK:
             
-            MPI.COMM_WORLD.send([None]*4, dest=RANK_WRITE, tag=TAG_STOPWORK)
-            print "".join(["WORKER ",str(rank),": Finished"]) 
+            MPI.COMM_WORLD.send([None] * 4, dest=RANK_WRITE, tag=TAG_STOPWORK)
+            print "".join(["WORKER ", str(rank), ": Finished"]) 
             return 0
        
         else:
                 
             try:
             
-                obs_tair,infill_tair = xval_infills[tair_var].run_xval(stn_id)
+                obs_tair, infill_tair = xval_infills[tair_var].run_xval(stn_id)
             
             except Exception as e:
             
-                print "".join(["ERROR: WORKER ",str(rank),": could not infill ",
-                               tair_var," for ",stn_id,str(e)])
+                print "".join(["ERROR: WORKER ", str(rank), ": could not infill ",
+                               tair_var, " for ", stn_id, str(e)])
                 
                 infill_tair = empty
                 obs_tair = empty
             
-            MPI.COMM_WORLD.send((stn_id,tair_var,infill_tair,obs_tair), dest=RANK_WRITE, tag=TAG_DOWORK)
+            MPI.COMM_WORLD.send((stn_id, tair_var, infill_tair, obs_tair), dest=RANK_WRITE, tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
                 
-def proc_write(params,nwrkers):
+def proc_write(params, nwrkers):
 
     status = MPI.Status()
     nwrkrs_done = 0
     
-    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB], (params[P_START_YMD], params[P_END_YMD]))
     
     if params[P_XVAL_STNIDS] is None:
         xval_stnids = load_default_xval_stnids(stn_da.stn_ids)
@@ -142,28 +143,28 @@ def proc_write(params,nwrkers):
     xval_stns = stn_da.stns[np.in1d(stn_da.stn_ids, xval_stnids, True)]
     
     create_quick_db(params[P_PATH_OUT], xval_stns, stn_da.days, NETCDF_OUT_VARIABLES)
-    ds_out = Dataset(params[P_PATH_OUT],'r+')
+    ds_out = Dataset(params[P_PATH_OUT], 'r+')
     
     stn_idxs = {}
     for x in np.arange(xval_stnids.size):
         stn_idxs[xval_stnids[x]] = x
                     
-    stat_chk = StatusCheck(ttl_infills,10)
+    stat_chk = StatusCheck(ttl_infills, 10)
     
     while 1:
 
-        stn_id,tair_var,infill_tair,obs_tair = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
+        stn_id, tair_var, infill_tair, obs_tair = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
         
         if status.tag == TAG_STOPWORK:
             
-            nwrkrs_done+=1
+            nwrkrs_done += 1
             if nwrkrs_done == nwrkers:
                 print "WRITER: Finished"
                 return 0
         else:
             
-            infill_tair = np.ma.masked_array(infill_tair,np.isnan(infill_tair))
-            obs_tair = np.ma.masked_array(obs_tair,np.isnan(obs_tair))
+            infill_tair = np.ma.masked_array(infill_tair, np.isnan(infill_tair))
+            obs_tair = np.ma.masked_array(obs_tair, np.isnan(obs_tair))
             
             i = stn_idxs[stn_id]
             
@@ -171,16 +172,16 @@ def proc_write(params,nwrkers):
             bias = np.ma.mean(difs)
             mae = np.ma.mean(np.ma.abs(difs))
             
-            print "|".join(["WRITER",stn_id,tair_var,"MAE: %.2f"%(mae,),"BIAS: %.2f"%(bias,)])
-            ds_out.variables["obs_%s"%(tair_var,)][:,i] = np.ma.filled(obs_tair, netCDF4.default_fillvals['f4'])
-            ds_out.variables["infilled_%s"%(tair_var,)][:,i] = np.ma.filled(infill_tair, netCDF4.default_fillvals['f4'])
+            print "|".join(["WRITER", stn_id, tair_var, "MAE: %.2f" % (mae,), "BIAS: %.2f" % (bias,)])
+            ds_out.variables["obs_%s" % (tair_var,)][:, i] = np.ma.filled(obs_tair, netCDF4.default_fillvals['f4'])
+            ds_out.variables["infilled_%s" % (tair_var,)][:, i] = np.ma.filled(infill_tair, netCDF4.default_fillvals['f4'])
             ds_out.sync()
             
             stat_chk.increment()
                 
-def proc_coord(params,nwrkers):
+def proc_coord(params, nwrkers):
     
-    stn_da = StationDataDb(params[P_PATH_DB],(params[P_START_YMD],params[P_END_YMD]))
+    stn_da = StationDataDb(params[P_PATH_DB], (params[P_START_YMD], params[P_END_YMD]))
     
     if params[P_XVAL_STNIDS] is None:
         xval_stnids = load_default_xval_stnids(stn_da.stn_ids)
@@ -194,26 +195,30 @@ def proc_coord(params,nwrkers):
     
     for stn_id in xval_stnids:
                     
-        for tair_var in ['tmin','tmax']:
+        for tair_var in ['tmin', 'tmax']:
             
             if cnt < nwrkers:
-                dest = cnt+N_NON_WRKRS
+                dest = cnt + N_NON_WRKRS
             else:
                 dest = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
-                nrec+=1
+                nrec += 1
 
-            MPI.COMM_WORLD.send((stn_id,tair_var), dest=dest, tag=TAG_DOWORK)
-            cnt+=1
+            MPI.COMM_WORLD.send((stn_id, tair_var), dest=dest, tag=TAG_DOWORK)
+            cnt += 1
     
     for w in np.arange(nwrkers):
-        MPI.COMM_WORLD.send((None,None), dest=w+N_NON_WRKRS, tag=TAG_STOPWORK)
+        MPI.COMM_WORLD.send((None, None), dest=w + N_NON_WRKRS, tag=TAG_STOPWORK)
         
     print "COORD: done"
 
 if __name__ == '__main__':
     
-    PROJECT_ROOT = "/projects/topowx"
+    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
     FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+    START_YEAR_STNDB = 1895
+    END_YEAR_STNDB = 2015
+    START_YEAR_POR = 1948
+    END_YEAR_POR = 2014
     
     np.seterr(all='raise')
     np.seterr(under='ignore')
@@ -222,16 +227,16 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'tair_homog_1948_2012.nc')
+    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'tair_homog_%s_%s.nc' % (START_YEAR_STNDB, END_YEAR_STNDB))
     params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill', "xval_infill_tair.nc")
-    params[P_PATH_NNR] = os.path.join(PROJECT_ROOT, 'reanalysis_data', 'conus_subset')
+    params[P_PATH_NNR] = os.path.join(PROJECT_ROOT, 'reanalysis_data', 'n_america_subset')
     
-    #The number of years on which that infill model
-    #should be trained and built
+    # The number of years on which that infill model
+    # should be trained and built
     params[P_NYRS_TRAIN] = 5
-    params[P_START_YMD] = 19480101
-    params[P_END_YMD] = 20121231
-    #If None, a default set of cross validation stations will be used
+    params[P_START_YMD] = ymdL(datetime(START_YEAR_POR, 1, 1))
+    params[P_END_YMD] = ymdL(datetime(END_YEAR_POR, 12, 31))
+    # If None, a default set of cross validation stations will be used
     params[P_XVAL_STNIDS] = None
     
     # PPCA parameters for infilling
@@ -245,10 +250,10 @@ if __name__ == '__main__':
     params[P_VERBOSE] = False
     
     if rank == RANK_COORD:        
-        proc_coord(params, nsize-N_NON_WRKRS)
+        proc_coord(params, nsize - N_NON_WRKRS)
     elif rank == RANK_WRITE:
-        proc_write(params,nsize-N_NON_WRKRS)
+        proc_write(params, nsize - N_NON_WRKRS)
     else:
-        proc_work(params,rank)
+        proc_work(params, rank)
 
     MPI.COMM_WORLD.Barrier()

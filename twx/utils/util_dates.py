@@ -120,7 +120,10 @@ def ymdL_to_date(ymd):
     return datetime.strptime(str(ymd),"%Y%m%d")
 
 def mdL(date):
-    return long(datetime.strftime(date,"%m%d"))
+    try:
+        return long(datetime.strftime(date,"%m%d"))
+    except ValueError:
+        return long("%02d%02d"%(date.month,date.day))
     
 def ymdL(date):
     try:

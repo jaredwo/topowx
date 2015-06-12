@@ -25,21 +25,23 @@ import numpy as np
 
 if __name__ == '__main__':
 
-    PROJECT_ROOT = "/projects/topowx"
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data', 'update_2014')
+    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+    START_YEAR = 1895
+    END_YEAR = 2015
 
     # Location quality assurance of stations in netCDF station database
 
     # 1.) Update locations of stations that had their locations previously corrected
-    fpath_db = os.path.join(FPATH_STNDATA, 'all', 'all_1948_2014.nc')
+    fpath_db = os.path.join(FPATH_STNDATA, 'all', 'all_%s_%s.nc' % (START_YEAR, END_YEAR))
     path_prev_locqa = os.path.join(FPATH_STNDATA, 'all', 'qa_elev_final.csv')
     twx.qa.update_stn_locs(fpath_db, path_prev_locqa)
 
     # 2.) Run new location quality assurance check
-    #Set global username for Geonames
+    # Set global username for Geonames
     twx.qa.set_usrname_geonames(open('/home/jared.oyler/.geonames_username').readline().strip())
     path_new_locqa = os.path.join(FPATH_STNDATA, 'all', 'qa_elev_new.csv')
-    path_por = os.path.join(FPATH_STNDATA, 'all', 'all_por_1948_2014.csv')
+    path_por = os.path.join(FPATH_STNDATA, 'all', 'all_por_%s_%s.csv' % (START_YEAR, END_YEAR))
     stndb = StationDataDb(fpath_db)
     a_por = twx.db.load_por_csv(path_por)
     mask_por_tmin, mask_por_tmax = twx.db.build_valid_por_masks(a_por)

@@ -27,45 +27,49 @@ import twx
 
 if __name__ == '__main__':
 
-    PROJECT_ROOT = "/projects/topowx"
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data', 'update_2014')
+    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+    START_YEAR = 1895
+    END_YEAR = 2015
 
     # The period-of-record for the database
-    min_date = datetime(1948, 1, 1)
-    max_date = datetime(2014, 12, 31)
-      
+    min_date = datetime(START_YEAR, 1, 1)
+    max_date = datetime(END_YEAR, 12, 31)
+       
     # Build Insert objects for inserting GHCN-D, SNOTEL, and RAWS data
     # into a netCDF database file
-    #GHCN-D
+    # GHCN-D
     fpath_ghcn_stn_file = os.path.join(FPATH_STNDATA, 'ghcn', 'ghcnd-stations.txt')
     path_ghcn_obs = os.path.join(FPATH_STNDATA, 'ghcn', 'ghcnd_all')
     insert_ghcn = InsertGhcn(fpath_ghcn_stn_file, path_ghcn_obs, min_date, max_date)
-    #SNOTEL
-    path_snotel_obs_csv = os.path.join(FPATH_STNDATA,'snotel','csv')
-    fpath_snotel_locs = os.path.join(PROJECT_ROOT,'station_data','snotel',
-                                     'locations','2011-03-31-WCC-high-resolution-snotel.csv')      
+
+    # SNOTEL
+    path_snotel_obs_csv = os.path.join(FPATH_STNDATA, 'snotel', 'csv')
+    fpath_snotel_locs = os.path.join(PROJECT_ROOT, 'station_data', 'snotel',
+                                     '2011-03-31-WCC-high-resolution-snotel.csv')      
     insert_snotel = InsertSnotel(min_date, max_date, path_stn_obs_csv=path_snotel_obs_csv,
                                  fpath_precise_loc=fpath_snotel_locs)
-    #RAWS
+    # RAWS
     raws_path_meta = os.path.join(FPATH_STNDATA, 'raws', 'raws_meta.txt')
-    raws_path_stnids = os.path.join(FPATH_STNDATA, 'raws', 'raws_ghcn_stnids.txt')
-    raws_path_obs = os.path.join(FPATH_STNDATA, 'raws', 'ruben_data','Daily_RAWS')
+    raws_path_stnids = os.path.join(FPATH_STNDATA, 'raws', 'raws_stnids.txt')
+    raws_path_obs = os.path.join(FPATH_STNDATA, 'raws', 'obs')
     insert_raws = InsertRaws(raws_path_meta, raws_path_stnids, raws_path_obs, min_date, max_date)
+      
+    inserts = [insert_ghcn, insert_snotel, insert_raws]
      
-    inserts = [insert_ghcn,insert_snotel,insert_raws]
-    
     # Create and initialize the database
-    fpath_db = os.path.join(FPATH_STNDATA, 'all', 'all_1948_2014.nc')
+    fpath_db = os.path.join(FPATH_STNDATA, 'all', 'all_%s_%s.nc' % (START_YEAR, END_YEAR))
     twx.db.create_netcdf_db(fpath_db, min_date, max_date, inserts)
+    
     # Insert all data
     twx.db.insert_data_netcdf_db(fpath_db, inserts)
-         
+          
     # Calculate and add monthly data to database
     twx.db.add_monthly_means(fpath_db, 'tmin')
     twx.db.add_monthly_means(fpath_db, 'tmax')
  
     # Create a period-of-record file for the database
-    fpath_por_out = os.path.join(FPATH_STNDATA, 'all', 'all_por_1948_2014.csv')
-    stn_da = StationDataDb(fpath_db, startend_ymd=(int(min_date.strftime("%Y%m%d")), int(max_date.strftime("%Y%m%d"))))
+    fpath_por_out = os.path.join(FPATH_STNDATA, 'all', 'all_por_%s_%s.csv' % (START_YEAR, END_YEAR))
+    stn_da = StationDataDb(fpath_db)
     stns = stn_da.stns
     twx.db.output_por_csv(stn_da, stns, fpath_por_out)

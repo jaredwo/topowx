@@ -29,6 +29,8 @@ from twx.utils import YMD, StatusCheck, ymdL_to_date, Unbuffered
 import sys
 import os
 import twx
+import traceback
+from twx.utils.util_dates import YEAR
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -169,7 +171,7 @@ def proc_work(params, rank):
             MPI.COMM_WORLD.send(a_iter, dest=RANK_WRITE, tag=TAG_DOWORK)
 
         except Exception, e:
-
+            print traceback.format_exc()
             print "".join(["Error in QA of ", stn_id, ":", str(e), "\n"])
 
         MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
@@ -245,12 +247,16 @@ def proc_write(params, nwrkers):
                 iter_all.update_flags(params[P_PATH_DB])
                 
                 print "Writer: Creating new period-of-record csv file..."
-                #Create new period-of-record csv file
-                #since some stations might now fall below the minimum
-                #por requirement after QA is run
+                # Create new period-of-record csv file
+                # since some stations might now fall below the minimum
+                # por requirement after QA is run
                 stn_da = StationDataDb(params[P_PATH_DB])
                 stns = stn_da.stns
-                twx.db.output_por_csv(stn_da, stns, params[P_PATH_POR_OUT])
+                
+                fpath_out = os.path.join(params[P_PATH_POR_OUT],
+                                         'all_por_%d_%d.csv' % (stn_da.days[YEAR][0], stn_da.days[YEAR][-1]))
+                
+                twx.db.output_por_csv(stn_da, stns, fpath_out)
                 
                 
                 print "Writer: Finished"
@@ -284,8 +290,10 @@ def proc_coord(params, nwrkers):
 
 if __name__ == '__main__':
 
-    PROJECT_ROOT = "/projects/topowx"
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data', 'update_2014')
+    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+    START_YEAR = 1895
+    END_YEAR = 2015
 
     np.seterr(all='raise')
     np.seterr(under='ignore')
@@ -295,12 +303,12 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'all_1948_2014.nc')
-    params[P_PATH_POR_OUT] = os.path.join(FPATH_STNDATA, 'all', 'all_por_1948_2014.csv')
+    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'all_%s_%s.nc' % (START_YEAR, END_YEAR))
+    params[P_PATH_POR_OUT] = os.path.join(FPATH_STNDATA, 'all')
     
-    #Need to run this QA script twice
-    #First run, only apply non-spatial QA checks (P_QA_SPATIAL = False)
-    #Send run, only apply spatial QA checks (P_QA_SPATIAL = True)
+    # Need to run this QA script twice
+    # First run, only apply non-spatial QA checks (P_QA_SPATIAL = False)
+    # Second run, only apply spatial QA checks (P_QA_SPATIAL = True)
     params[P_QA_SPATIAL] = False
     
     # Only run QA for SNOTEL and RAWS stations since GHCH-D observations

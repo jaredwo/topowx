@@ -31,50 +31,46 @@ sys.stdout = Unbuffered(sys.stdout)
 
 if __name__ == '__main__':
 
-    PROJECT_ROOT = "/projects/topowx"
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data', 'update_2014')
+    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
+    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+    START_YEAR = 1895
+    END_YEAR = 2015
  
-    #Download GHCN-D data from NCDC
+    # Download GHCN-D data from NCDC
     twx.db.ghcnd_download_data(os.path.join(FPATH_STNDATA, 'ghcn'))
   
-    #Download GHCN-D data from NCDC in "by year" format for 1948-2015
-    #Need this for time-of-observation data
-    twx.db.ghcnd_download_byyr_data(os.path.join(FPATH_STNDATA,
-                                                 'ghcn', 'ghcn_yrly'),
-                                                 yrs=np.arange(1948, 2015))
+    # Download GHCN-D data from NCDC in "by year" format
+    # Need this for time-of-observation data
+    twx.db.ghcnd_download_byyr_data(os.path.join(FPATH_STNDATA, 'ghcn', 'ghcn_yrly'),
+                                                 yrs=np.arange(START_YEAR, END_YEAR + 1))
  
-    #Download SNOTEL/SCAN data from NRCS in CSV format
+    # Download SNOTEL/SCAN data from NRCS in CSV format
     sntl = SnotelDataService()
-    
-    #don't download observations from Alaska,
-    #Antarctica, Hawaii, Puerto Rico, Virgin Islands
-    #and those without a CDBS ID (the main SNOTEL station ID)
-    skip_states = ['AK','AY','HI','PR','VI']
-    stnids_snotel = sntl.stns_df['station id'][(~sntl.stns_df['state'].isin(skip_states)) & (sntl.stns_df['cdbs_id'] != '')]    
-    
-    print "Downloading all observations for %d snotel/scan stations."%stnids_snotel.size  
-    path_out_snotel_csv = os.path.join(FPATH_STNDATA, 'snotel', 'csv')
-      
-    for a_id in stnids_snotel:
-          
-        sntl.write_stn_obs(a_id,path_out_snotel_csv,userEmail='[put user email here]')
      
-    #Download Raws from WRCC (http://www.raws.dri.edu) using web crawler
- 
-    #Generate list of RAWS station ids that are available on the WRCC website
+    # don't download observations from Alaska,
+    # Antarctica, Hawaii, Puerto Rico, Virgin Islands
+    # and those without a CDBS ID (the main SNOTEL station ID)
+    skip_states = ['AK', 'AY', 'HI', 'PR', 'VI']
+    stnids_snotel = sntl.stns_df['station id'][(~sntl.stns_df['state'].isin(skip_states)) & (sntl.stns_df['cdbs_id'] != '')]    
+     
+    print "Downloading all observations for %d snotel/scan stations." % stnids_snotel.size  
+    path_out_snotel_csv = os.path.join(FPATH_STNDATA, 'snotel', 'csv')
+       
+    for a_id in stnids_snotel:
+           
+        sntl.write_stn_obs(a_id, path_out_snotel_csv, userEmail='[put user email here]')
+      
+    # Download Raws from WRCC (http://www.raws.dri.edu) using web crawler
+  
+    # Generate list of RAWS station ids that are available on the WRCC website
     fpath_raws_ids = os.path.join(FPATH_STNDATA, 'raws', 'raws_stnids.txt')
     twx.db.raws_save_stnid_list(fpath_raws_ids)
- 
-    #Subset RAWS stations to only those considered permanent in GHCN-D
-    fpath_ghcn_stns = os.path.join(FPATH_STNDATA, 'ghcn', 'ghcnd-stations.txt')
-    fpath_raws_ids_ghcn = os.path.join(FPATH_STNDATA, 'raws', 'raws_ghcn_stnids.txt')
-    twx.db.raws_to_ghcn_subset(fpath_raws_ids, fpath_ghcn_stns, fpath_raws_ids_ghcn)
- 
-    #Build a RAWS station metadata file
+    
+    # Build a RAWS station metadata file
     fpath_raws_meta = os.path.join(FPATH_STNDATA, 'raws', 'raws_meta.txt')
-    twx.db.raws_build_stn_metadata(fpath_raws_ids_ghcn, fpath_raws_meta)
-
-    #Download the actual daily RAWS data for each station.
-    #This can take several days
+    twx.db.raws_build_stn_metadata(fpath_raws_ids, fpath_raws_meta)
+ 
+    # Download the actual daily RAWS data for each station.
+    # This can take several days
     fpath_raws_dly_data = os.path.join(FPATH_STNDATA, 'raws', 'data')
     twx.db.raws_save_all_dly_series(fpath_raws_meta, fpath_raws_dly_data)

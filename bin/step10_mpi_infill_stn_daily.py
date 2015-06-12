@@ -4,7 +4,7 @@ incomplete Tmin/Tmax station time series.
 
 Must be run using mpiexec or mpirun.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -21,17 +21,20 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
-
+import readline
 import numpy as np
 from mpi4py import MPI
 import sys
-from twx.db import StationDataDb, STN_ID, MEAN_TMIN, \
-MEAN_TMAX, NNRNghData, create_quick_db
-from twx.utils import StatusCheck, Unbuffered
+from twx.db import StationDataDb, STN_ID, NNRNghData, create_quick_db
+from twx.utils import StatusCheck, Unbuffered, ymdL
 from netCDF4 import Dataset
 import netCDF4
-from twx.infill import InfillMatrixPPCA
 import os
+from twx.db.station_data import get_mean_varname, get_variance_varname
+from twx.infill.infill_daily import infill_daily_obs
+from twx.utils.util_dates import MONTH
+from twx.infill.post_infill import get_bad_infill_stnids
+from datetime import datetime
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -59,6 +62,7 @@ P_PPCA_VARYEXPLAIN = 'P_PPCA_VARYEXPLAIN'
 P_CHCK_IMP_PERF = 'P_CHCK_IMP_PERF'
 P_NPCS_PPCA = 'P_NPCS_PPCA'
 P_VERBOSE = 'P_VERBOSE'
+P_FPATH_LOG = 'P_FPATH_LOG'
 
 LAST_VAR_WRITTEN = 'mae'
 
@@ -78,6 +82,14 @@ def proc_work(params, rank):
     empty_mae = netCDF4.default_fillvals['f4']
 
     ds_nnr = NNRNghData(params[P_PATH_NNR], (params[P_START_YMD], params[P_END_YMD]))
+    
+    mths = np.arange(1, 13)
+    mth_masks = [stn_da.days[MONTH] == mth for mth in mths]
+    vnames_mean_tmin = [get_mean_varname('tmin', mth) for mth in mths]
+    vnames_vari_tmin = [get_variance_varname('tmin', mth) for mth in mths]
+    vnames_mean_tmax = [get_mean_varname('tmax', mth) for mth in mths]
+    vnames_vari_tmax = [get_variance_varname('tmax', mth) for mth in mths]
+    
 
     bcast_msg = None
     bcast_msg = MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)
@@ -95,17 +107,26 @@ def proc_work(params, rank):
         else:
 
             try:
+                
                 run_infill_tmin = stn_id in stnids_tmin
                 run_infill_tmax = stn_id in stnids_tmax
 
                 if run_infill_tmin:
-                    a_pca_matrix = InfillMatrixPPCA(stn_id, stn_da, 'tmin', ds_nnr)
-                    fnl_tmin, fill_mask_tmin, infill_tmin, mae_tmin, bias_tmin = infill_tair(a_pca_matrix, params)
-
+                    
+                    fnl_tmin, fill_mask_tmin, infill_tmin, mae_tmin, bias_tmin = infill_tair(stn_id, stn_da,
+                                                                                             'tmin', ds_nnr,
+                                                                                             vnames_mean_tmin,
+                                                                                             vnames_vari_tmin,
+                                                                                             mth_masks, params)
+                    
                 if run_infill_tmax:
-                    a_pca_matrix = InfillMatrixPPCA(stn_id, stn_da, 'tmax', ds_nnr)
-                    fnl_tmax, fill_mask_tmax, infill_tmax, mae_tmax, bias_tmax = infill_tair(a_pca_matrix, params)
-
+     
+                    fnl_tmax, fill_mask_tmax, infill_tmax, mae_tmax, bias_tmax = infill_tair(stn_id, stn_da,
+                                                                                             'tmax', ds_nnr,
+                                                                                             vnames_mean_tmax,
+                                                                                             vnames_vari_tmax,
+                                                                                             mth_masks, params)
+            
             except Exception as e:
 
                 print "".join(["ERROR: Could not infill ", stn_id, "|", str(e)])
@@ -208,8 +229,8 @@ def proc_coord(params, nwrkers):
 
     stn_da = StationDataDb(params[P_PATH_DB], (params[P_START_YMD], params[P_END_YMD]))
 
-    mask_tmin = np.isfinite(stn_da.stns[MEAN_TMIN])
-    mask_tmax = np.isfinite(stn_da.stns[MEAN_TMAX])
+    mask_tmin = np.isfinite(stn_da.stns[get_mean_varname('tmin', 1)])
+    mask_tmax = np.isfinite(stn_da.stns[get_mean_varname('tmax', 1)])
 
     stnids_tmin = stn_da.stn_ids[mask_tmin]
     stnids_tmax = stn_da.stn_ids[mask_tmax]
@@ -220,7 +241,7 @@ def proc_coord(params, nwrkers):
         # If rerunning remove stn ids that have already been completed
         try:
 
-            if params[P_STNIDS_TMIN] == None:
+            if params[P_STNIDS_TMIN] is None:
 
                 ds_tmin = Dataset(os.path.join(params[P_PATH_OUT], 'infill_tmin.nc'))
                 mask_incplt = ds_tmin.variables[LAST_VAR_WRITTEN][:].mask
@@ -236,7 +257,7 @@ def proc_coord(params, nwrkers):
 
         try:
 
-            if params[P_STNIDS_TMAX] == None:
+            if params[P_STNIDS_TMAX] is None:
 
                 ds_tmax = Dataset(os.path.join(params[P_PATH_OUT], 'infill_tmax.nc'))
                 mask_incplt = ds_tmax.variables[LAST_VAR_WRITTEN][:].mask
@@ -277,17 +298,25 @@ def proc_coord(params, nwrkers):
 
     print "COORD: done"
 
-def infill_tair(a_pca_matrix, params):
-
-
-    fnl_tair, mask_infill, infill_tair = a_pca_matrix.infill(min_daily_nnghs=params[P_MIN_NNGH_DAILY],
-                                                                nnghs_nnr=params[P_NNGH_NNR],
-                                                                max_nnr_var=params[P_NNR_VARYEXPLAIN],
-                                                                chk_perf=params[P_CHCK_IMP_PERF],
-                                                                npcs=params[P_NPCS_PPCA],
-                                                                frac_obs_initnpcs=params[P_FRACOBS_INIT_PCS],
-                                                                ppca_varyexplain=params[P_PPCA_VARYEXPLAIN],
-                                                                verbose=params[P_VERBOSE])
+def infill_tair(stn_id, stn_da, tair_var, nnr_ds, vname_means, vname_varis, day_masks, params):
+    
+    
+    fnl_tair, mask_infill, infill_tair = infill_daily_obs(stn_id=stn_id,
+                                                            stn_da=stn_da,
+                                                            tair_var=tair_var,
+                                                            nnr_ds=nnr_ds,
+                                                            vname_mean=vname_means,
+                                                            vname_vari=vname_varis,
+                                                            day_masks=day_masks,
+                                                            add_bestngh=True,
+                                                            min_daily_nnghs=params[P_MIN_NNGH_DAILY],
+                                                            nnghs_nnr=params[P_NNGH_NNR],
+                                                            max_nnr_var=params[P_NNR_VARYEXPLAIN],
+                                                            chk_perf=params[P_CHCK_IMP_PERF],
+                                                            npcs=params[P_NPCS_PPCA],
+                                                            frac_obs_initnpcs=params[P_FRACOBS_INIT_PCS],
+                                                            ppca_varyexplain=params[P_PPCA_VARYEXPLAIN],
+                                                            verbose=params[P_VERBOSE])
 
     # Calculate MAE/bias on days with both observed and infilled values
     obs_mask = np.logical_not(mask_infill)
@@ -300,8 +329,12 @@ def infill_tair(a_pca_matrix, params):
 
 if __name__ == '__main__':
 
-    PROJECT_ROOT = "/projects/topowx"
+    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
     FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
+    START_YEAR_STNDB = 1895
+    END_YEAR_STNDB = 2015
+    START_YEAR_POR = 1948
+    END_YEAR_POR = 2014
 
     np.seterr(all='raise')
     np.seterr(under='ignore')
@@ -310,13 +343,12 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'tair_homog_1948_2012.nc')
+    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'tair_homog_%s_%s.nc' % (START_YEAR_STNDB, END_YEAR_STNDB))
     params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill')
-
-    params[P_PATH_NNR] = os.path.join(PROJECT_ROOT, 'reanalysis_data', 'conus_subset')
+    params[P_PATH_NNR] = os.path.join(PROJECT_ROOT, 'reanalysis_data', 'n_america_subset')
     params[P_NCDF_MODE] = 'w'  # w or r+
-    params[P_START_YMD] = 19480101
-    params[P_END_YMD] = 20121231
+    params[P_START_YMD] = ymdL(datetime(START_YEAR_POR, 1, 1))
+    params[P_END_YMD] = ymdL(datetime(END_YEAR_POR, 12, 31))
 
     # PPCA parameters for infilling
     params[P_MIN_NNGH_DAILY] = 3
@@ -328,12 +360,33 @@ if __name__ == '__main__':
     params[P_NPCS_PPCA] = 0
     params[P_VERBOSE] = False
 
-    # Set to arrays of station ids if only want to infill
-    # a certain set of stations
-    params[P_STNIDS_TMIN] = None
-    params[P_STNIDS_TMAX] = None
+    params[P_FPATH_LOG] = None  # '/projects/topowx/mpi_runs/infill/infill_run_20150224.log'
 
     if rank == RANK_COORD:
+        
+        if params[P_FPATH_LOG] is not None:
+        
+            stn_da = StationDataDb(params[P_PATH_DB], (params[P_START_YMD], params[P_END_YMD]))
+         
+            mask_tmin = np.isfinite(stn_da.stns[get_mean_varname('tmin', 1)])
+            mask_tmax = np.isfinite(stn_da.stns[get_mean_varname('tmax', 1)])
+         
+            stnids_tmin = stn_da.stn_ids[mask_tmin]
+            stnids_tmax = stn_da.stn_ids[mask_tmax]
+             
+            stnids_bad = get_bad_infill_stnids(params[P_FPATH_LOG])
+             
+            params[P_STNIDS_TMIN] = stnids_tmin[np.in1d(stnids_tmin, stnids_bad, True)]
+            params[P_STNIDS_TMAX] = stnids_tmax[np.in1d(stnids_tmax, stnids_bad, True)]
+             
+            stn_da.ds.close()
+            stn_da = None
+            mask_tmin = None
+            mask_tmax = None
+            stnids_tmin = None
+            stnids_tmax = None
+            stnids_bad = None
+        
         proc_coord(params, nsize - N_NON_WRKRS)
     elif rank == RANK_WRITE:
         proc_write(params, nsize - N_NON_WRKRS)
