@@ -6,7 +6,7 @@ Stacklies W, Redestig H, Scholz M, Walther D, Selbig J. 2007.
 pcaMethods-a bioconductor package providing PCA methods for incomplete data.
 Bioinformatics 23: 1164-1167. DOI: 10.1093/bioinformatics/btm069.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -24,14 +24,15 @@ You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-__all__ = ['InfillMatrixPPCA']
+__all__ = ['InfillMatrixPPCA', 'infill_daily_obs']
 
 import numpy as np
 from twx.db import STN_ID, LON, LAT, UTC_OFFSET
 from twx.utils import pca_svd, grt_circle_dist
 import os
 from scipy import stats
-#rpy2
+from twx.utils.perf_metrics import calc_ioa_d1
+# rpy2
 robjects = None
 numpy2ri = None
 r = None
@@ -39,12 +40,15 @@ ri = None
 R_LOADED = False
 
 MIN_POR_OVERLAP = 2.0 / 3.0
-MAX_DISTANCE = 100
+MAX_DISTANCE = 75  # in km
 MAX_NNR_VAR = 0.99
 MIN_NNR_VAR = 0.90
 MIN_DAILY_NGHBRS = 3
 NNGH_NNR = 4
 
+NONOPTIM_LOW_PERF = 'low infill performance'
+NONOPTIM_IMPOSS_VAL = 'impossible infill values'
+NONOPTIM_VARI_CHGPT = 'variance change point'
 
 class InfillMatrixPPCA(object):
     '''
@@ -52,7 +56,7 @@ class InfillMatrixPPCA(object):
     target station to run PPCA missing value infilling.
     '''
     
-    def __init__(self, stn_id, stn_da, tair_var, nnr_ds, min_dist= -1, max_dist=MAX_DISTANCE, tair_mask=None,add_bestngh=True):
+    def __init__(self, stn_id, stn_da, tair_var, nnr_ds, vname_mean, vname_vari, min_dist=-1, max_dist=MAX_DISTANCE, tair_mask=None, day_mask=None, add_bestngh=True):
         '''
         Parameters
         ----------
@@ -91,24 +95,34 @@ class InfillMatrixPPCA(object):
         stn = stn_da.stns[idx_target]
         
         target_tair = stn_da.load_all_stn_obs_var(np.array([stn_id]), tair_var)[0]
-        target_norm = stn_da.get_stn_mean(tair_var,idx_target)
-        target_std = stn_da.get_stn_std(tair_var,idx_target)
+        target_tair = target_tair.astype(np.float64)
+        target_norm = stn[vname_mean]
+        target_std = np.sqrt(stn[vname_vari])
         
         if tair_mask is not None:
             target_tair[tair_mask] = np.nan
-                    
-        #Number of observations threshold for entire period that is being infilled
+            
+        if day_mask is None:
+            day_mask = np.ones(target_tair.size, dtype=np.bool)
+            
+        day_idx = np.nonzero(day_mask)[0]
+        
+        target_tair = np.take(target_tair, day_idx)
+                 
+        # Number of observations threshold for entire period that is being infilled
         nthres_all = np.round(MIN_POR_OVERLAP * target_tair.size)
         
-        #Number f observations threshold just for the target's period of record
+        # Number of observations threshold just for the target's period of record
         valid_tair_mask = np.isfinite(target_tair)
         ntair_valid = np.nonzero(valid_tair_mask)[0].size
         nthres_target_por = np.round(MIN_POR_OVERLAP * ntair_valid)    
         
-        #Make sure to not include the target station itself as a neighbor station
-        stns_mask = np.logical_and(np.logical_and(stn_da.stns[STN_ID] != stn_id,
-                                                  np.isfinite(stn_da.get_stn_mean(tair_var))),
-                                   stn_da.stns[STN_ID] != 'GHCN_CA002503650')
+        # Make sure to not include the target station itself as a neighbor station
+        # and stations that do not have a mean or variance
+        stns_mask = np.logical_and(stn_da.stns[STN_ID] != stn_id,
+                                    np.logical_and(np.isfinite(stn_da.stns[vname_mean]),
+                                    np.isfinite(stn_da.stns[vname_vari])))
+        
         all_stns = stn_da.stns[stns_mask]
         
         dists = grt_circle_dist(stn[LON], stn[LAT], all_stns[LON], all_stns[LAT])
@@ -123,12 +137,15 @@ class InfillMatrixPPCA(object):
         
         ngh_ids = ngh_stns[STN_ID]
         nghid_mask = np.in1d(stn_da.stn_ids, ngh_ids, assume_unique=True)
-        ngh_norms = stn_da.get_stn_mean(tair_var,nghid_mask)
-        ngh_std = stn_da.get_stn_std(tair_var,nghid_mask)
+        ngh_norms = stn_da.stns[vname_mean][nghid_mask]
+        ngh_std = np.sqrt(stn_da.stns[vname_vari][nghid_mask])
         ngh_tair = stn_da.load_all_stn_obs_var(ngh_ids, tair_var, set_flagged_nan=True)[0]
+        ngh_tair = ngh_tair.astype(np.float64)
         
         if len(ngh_tair.shape) == 1:
             ngh_tair.shape = (ngh_tair.size, 1) 
+        
+        ngh_tair = np.take(ngh_tair, day_idx, axis=0)
         
         dist_sort = np.argsort(ngh_dists)
         ngh_stns = ngh_stns[dist_sort]
@@ -155,12 +172,12 @@ class InfillMatrixPPCA(object):
             
             if nlap >= nthres_all and nlap_stn >= nthres_target_por:
                 
-                ioa[x] = _calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
+                ioa[x] = calc_ioa_d1(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
                 overlap_mask_tair[x] = True
             
             elif nlap_stn >= nthres_target_por and add_bestngh:
                 
-                aioa = _calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
+                aioa = calc_ioa_d1(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
                 
                 if aioa > best_ioa:
                     
@@ -235,8 +252,13 @@ class InfillMatrixPPCA(object):
         self.tair_mask = tair_mask
         self.nnghs_per_day = nnghs_per_day
         self.nnr_ds = nnr_ds
-        self.stn = stn
-    
+        self.stn = stn        
+        
+        self.day_idx = day_idx
+        self.day_mask = day_mask
+        self.vname_mean = vname_mean
+        self.vname_vari = vname_vari
+
     def __extend_ngh_radius(self, extend_by):
         '''
         Extend the search radius for neighboring stations.
@@ -251,8 +273,9 @@ class InfillMatrixPPCA(object):
         min_dist = self.max_dist
         max_dist = self.max_dist + extend_by
 
-        pca_matrix2 = InfillMatrixPPCA(self.stn_id, self.stn_da, self.tair_var,self.nnr_ds, min_dist, 
-                                       max_dist, self.tair_mask,add_bestngh=False)
+        pca_matrix2 = InfillMatrixPPCA(self.stn_id, self.stn_da, self.tair_var, self.nnr_ds,
+                                       self.vname_mean, self.vname_vari, min_dist,
+                                       max_dist, self.tair_mask, self.day_mask, add_bestngh=False)
 
         self.__merge(pca_matrix2)
         self.max_dist = max_dist
@@ -303,7 +326,7 @@ class InfillMatrixPPCA(object):
         
         return np.min(nnghs_per_day) >= min_daily_nghs
 
-    def infill(self, min_daily_nnghs=MIN_DAILY_NGHBRS,nnghs_nnr=NNGH_NNR,max_nnr_var=MAX_NNR_VAR,chk_perf=True,npcs=0,frac_obs_initnpcs=0.5,ppca_varyexplain=0.99,ppcaConThres=1e-5,verbose=False):
+    def infill(self, min_daily_nnghs=MIN_DAILY_NGHBRS, nnghs_nnr=NNGH_NNR, max_nnr_var=MAX_NNR_VAR, chk_perf=True, npcs=0, frac_obs_initnpcs=0.5, ppca_varyexplain=0.99, ppcaConThres=1e-5, verbose=False):
         '''
         Infill missing values for an incomplete station time series.
         
@@ -353,7 +376,7 @@ class InfillMatrixPPCA(object):
         trim_ngh_norms = self.ngh_norms[0:1 + nnghs]
         trim_ngh_std = self.ngh_std[0:1 + nnghs]
         
-        engh_dly_nghs = self.__has_min_daily_nghs(nnghs,min_daily_nnghs)
+        engh_dly_nghs = self.__has_min_daily_nghs(nnghs, min_daily_nnghs)
         actual_nnghs = trim_pca_tair.shape[1] - 1
         
         while actual_nnghs < nnghs or not engh_dly_nghs:
@@ -369,32 +392,33 @@ class InfillMatrixPPCA(object):
             trim_pca_tair = self.pca_tair[:, 0:1 + nnghs]
             trim_ngh_norms = self.ngh_norms[0:1 + nnghs]
             trim_ngh_std = self.ngh_std[0:1 + nnghs]
-            engh_dly_nghs = self.__has_min_daily_nghs(nnghs,min_daily_nnghs)
+            engh_dly_nghs = self.__has_min_daily_nghs(nnghs, min_daily_nnghs)
             actual_nnghs = trim_pca_tair.shape[1] - 1
         
         #############################################################
-        nnr_tair = self.nnr_ds.get_nngh_matrix(self.stn[LON],self.stn[LAT],self.tair_var,utc_offset=self.stn[UTC_OFFSET],nngh=nnghs_nnr)
+        nnr_tair = self.nnr_ds.get_nngh_matrix(self.stn[LON], self.stn[LAT], self.tair_var, utc_offset=self.stn[UTC_OFFSET], nngh=nnghs_nnr)
+        nnr_tair = np.take(nnr_tair, self.day_idx, axis=0)
 
         pc_loads, pc_scores, var_explain = pca_svd(nnr_tair, True, True)
         cusum_var = np.cumsum(var_explain)
     
         i = np.nonzero(cusum_var >= max_nnr_var)[0][0]
         
-        nnr_tair = pc_scores[:,0:i+1]
+        nnr_tair = pc_scores[:, 0:i + 1]
         
         trim_pca_tair, trim_ngh_norms, trim_ngh_std = _shrink_matrix(trim_pca_tair, trim_ngh_norms, trim_ngh_std, min_daily_nnghs)
         
         if nnr_tair.size > 0:
         
-            nnr_norms = np.mean(nnr_tair,dtype=np.float,axis=0)
-            nnr_std = np.std(nnr_tair,dtype=np.float,axis=0,ddof=1)
+            nnr_norms = np.mean(nnr_tair, dtype=np.float, axis=0)
+            nnr_std = np.std(nnr_tair, dtype=np.float, axis=0, ddof=1)
             
-            trim_pca_tair = np.hstack((trim_pca_tair,nnr_tair))
-            trim_ngh_norms = np.concatenate((trim_ngh_norms,nnr_norms))
-            trim_ngh_std = np.concatenate((trim_ngh_std,nnr_std))
+            trim_pca_tair = np.hstack((trim_pca_tair, nnr_tair))
+            trim_ngh_norms = np.concatenate((trim_ngh_norms, nnr_norms))
+            trim_ngh_std = np.concatenate((trim_ngh_std, nnr_std))
         ############################################################
-
-        ppca_rslt = r.ppca_tair(robjects.Matrix(trim_pca_tair), 
+        
+        ppca_rslt = r.ppca_tair(robjects.Matrix(trim_pca_tair),
                                 robjects.FloatVector(trim_ngh_norms),
                                 robjects.FloatVector(trim_ngh_std),
                                 frac_obs=frac_obs_initnpcs,
@@ -405,7 +429,7 @@ class InfillMatrixPPCA(object):
         
         infill_tair = np.array(ppca_rslt.rx('ppca_fit'))
         infill_tair.shape = (infill_tair.shape[1],)
-        npcsr = ppca_rslt.rx('npcs')[0][0]
+        # npcsr = ppca_rslt.rx('npcs')[0][0]
         
         #############################################################
     
@@ -413,81 +437,162 @@ class InfillMatrixPPCA(object):
         
         if chk_perf:
             
-            badImp,reasons = _is_badimp(infill_tair, self)
+            non_optimal, reasons, mae, r2 = _is_nonoptimal_infill(infill_tair, self)
             
-            if badImp:
+            if non_optimal:
                 
-                print "".join(["WARNING|",self.stn_id," had bad infill for ",
-                               self.tair_var,". Reasons: ",reasons,
-                               ". Retrying..."])
+                infill_tairs = []
+                nonoptim_reasons = []
+                maes = []
+                r2s = []
+                
+                infill_tairs.append(infill_tair)
+                nonoptim_reasons.append(reasons)
+                maes.append(mae)
+                r2s.append(r2)
+                
+                print "".join(["WARNING|", self.stn_id, " had nonoptimal infill for ",
+                               self.tair_var, " using ", self.vname_mean,
+                               " as the mean. Reasons: ", "|".join(reasons), ". MAE:%.2f, R2:%.2f. Retrying..." % (mae, r2)])
                 
                 if MIN_NNR_VAR < max_nnr_var:
-                    impute_tair2, obs_tair2, npcsr2, nnghs2 = self.infill(min_daily_nnghs, nnghs_nnr, MIN_NNR_VAR, False, npcs, frac_obs_initnpcs, ppca_varyexplain,ppcaConThres)[0:4]    
-                    badImp,reasons = _is_badimp(impute_tair2, self)
+                    
+                    infill_tair = self.infill(min_daily_nnghs, nnghs_nnr, MIN_NNR_VAR, False, npcs, frac_obs_initnpcs, ppca_varyexplain, ppcaConThres, verbose)[2]   
+                    non_optimal, reasons, mae, r2 = _is_nonoptimal_infill(infill_tair, self)
+                    
+                    infill_tairs.append(infill_tair)
+                    nonoptim_reasons.append(reasons)
+                    maes.append(mae)
+                    r2s.append(r2)
+                    
                 
-                if badImp:
+                if non_optimal:
                 
-                    newThres = [1e-6,1e-7]
+                    newThres = [1e-6, 1e-7]
                     
                     for aThres in newThres:
                     
-                        impute_tair2, obs_tair2, npcsr2, nnghs2 = self.infill(min_daily_nnghs, nnghs_nnr, max_nnr_var, False, npcs, frac_obs_initnpcs, ppca_varyexplain,aThres)[0:4]
-                                    
-                        badImp,reasons = _is_badimp(impute_tair2, self)
+                        infill_tair = self.infill(min_daily_nnghs, nnghs_nnr, max_nnr_var, False, npcs, frac_obs_initnpcs, ppca_varyexplain, aThres, verbose)[2] 
+                        non_optimal, reasons, mae, r2 = _is_nonoptimal_infill(infill_tair, self)
                         
-                        if not badImp:
+                        infill_tairs.append(infill_tair)
+                        nonoptim_reasons.append(reasons)
+                        maes.append(mae)
+                        r2s.append(r2)
+                        
+                        if not non_optimal:
                             break
                 
-                if badImp:
+                if non_optimal:
                     
-                    print "".join(["ERROR|",self.stn_id," had bad infill for ",
-                                   self.tair_var," even after retries. Reasons: ",reasons])
+                    nreasons = np.array([len(a_reasons) for a_reasons in nonoptim_reasons])
+                    first_reason = np.array([a_reasons[0] for a_reasons in nonoptim_reasons])
+                    infill_tairs = np.array(infill_tairs)
+                    nonoptim_reasons = np.array(nonoptim_reasons, dtype=np.object)
+                    maes = np.array(maes)
+                    r2s = np.array(r2s)
+                    
+                    mask_nreasons = np.logical_and(nreasons == 1, first_reason == NONOPTIM_LOW_PERF)
+                    
+                    if np.sum(mask_nreasons) >= 1:
+                        
+                        infill_tairs = infill_tairs[mask_nreasons]
+                        nonoptim_reasons = nonoptim_reasons[mask_nreasons]
+                        maes = maes[mask_nreasons]
+                        r2s = r2s[mask_nreasons]
+                    
+                    i = np.argmin(maes)
+                    infill_tair = infill_tairs[i]
+                    reasons = nonoptim_reasons[i]
+                    mae = maes[i]
+                    r2 = r2s[i]
+                    
+                    print "".join(["ERROR|", self.stn_id, " had nonoptimal infill for ",
+                                   self.tair_var, " using ", self.vname_mean,
+                                   " as the mean even after retries. Reasons: ",
+                                   "|".join(reasons), ". MAE:%.2f, R2:%.2f" % (mae, r2)])
                 
                 else:
                     
-                    print "".join(["SUCCESS INFILL RETRY|",self.stn_id," fixed bad infill for ",self.tair_var])
-                    
-                    infill_tair, obs_tair, npcsr, nnghs = impute_tair2, obs_tair2, npcsr2, nnghs2
-        
+                    print "".join(["SUCCESS INFILL RETRY|", self.stn_id, " fixed nonoptimal infill for ", self.tair_var,
+                                   " using ", self.vname_mean, " as the mean."])
+                            
         fnl_tair = np.copy(obs_tair)
         mask_infill = np.isnan(fnl_tair)
         fnl_tair[mask_infill] = infill_tair[mask_infill]
         
         return fnl_tair, mask_infill, infill_tair
 
-def _is_badimp(impTair,impMatrix):
+def infill_daily_obs(stn_id, stn_da, tair_var, nnr_ds, vname_mean, vname_vari, tair_mask=None, day_masks=None, add_bestngh=True,
+                     min_daily_nnghs=MIN_DAILY_NGHBRS, nnghs_nnr=NNGH_NNR, max_nnr_var=MAX_NNR_VAR, chk_perf=True,
+                     npcs=0, frac_obs_initnpcs=0.5, ppca_varyexplain=0.99, ppcaConThres=1e-5, verbose=False):
+
     
-    rerun_imp = False
-    reasons = ''
+    if day_masks == None:
+        
+        a_matrix = InfillMatrixPPCA(stn_id, stn_da, tair_var, nnr_ds, vname_mean, vname_vari,
+                                    tair_mask=tair_mask, day_mask=None, add_bestngh=add_bestngh)
+        
+        fnl_tair, mask_infill, infill_tair = a_matrix.infill(min_daily_nnghs=min_daily_nnghs, nnghs_nnr=nnghs_nnr, max_nnr_var=max_nnr_var,
+                                                                   chk_perf=chk_perf, npcs=npcs, frac_obs_initnpcs=frac_obs_initnpcs,
+                                                                   ppca_varyexplain=ppca_varyexplain, ppcaConThres=ppcaConThres, verbose=verbose)
+                
+    else:
+        
+        n_masks = len(day_masks)
+        
+        fnl_tair = np.empty(stn_da.days.size)
+        mask_infill = np.zeros(stn_da.days.size, dtype=np.bool)
+        infill_tair = np.empty(stn_da.days.size)
+                
+        for x in np.arange(n_masks):
+            
+            a_matrix = InfillMatrixPPCA(stn_id, stn_da, tair_var, nnr_ds, vname_mean[x], vname_vari[x],
+                                        tair_mask=tair_mask, day_mask=day_masks[x], add_bestngh=add_bestngh)
+                
+            a_fnl_tair, a_mask_infill, a_infill_tair = a_matrix.infill(min_daily_nnghs=min_daily_nnghs, nnghs_nnr=nnghs_nnr, max_nnr_var=max_nnr_var,
+                                                                 chk_perf=chk_perf, npcs=npcs, frac_obs_initnpcs=frac_obs_initnpcs,
+                                                                 ppca_varyexplain=ppca_varyexplain, ppcaConThres=ppcaConThres, verbose=verbose)
+                        
+            fnl_tair[day_masks[x]] = a_fnl_tair
+            mask_infill[day_masks[x]] = a_mask_infill
+            infill_tair[day_masks[x]] = a_infill_tair
+            
+    return fnl_tair, mask_infill, infill_tair
+
+def _is_nonoptimal_infill(infill_tair, infill_matrix):
     
-    obs_tair = impMatrix.pca_tair[:,0]
-    chk_obs = obs_tair[impMatrix.valid_pca_mask[:,0]]
-    chk_fit = impTair[impMatrix.valid_pca_mask[:,0]]
-    mae = np.mean(np.abs(chk_fit-chk_obs))
+    non_optimal = False
+    reasons = []
+    
+    obs_tair = infill_matrix.pca_tair[:, 0]
+    chk_obs = obs_tair[infill_matrix.valid_pca_mask[:, 0]]
+    chk_fit = infill_tair[infill_matrix.valid_pca_mask[:, 0]]
+    mae = np.mean(np.abs(chk_fit - chk_obs))
     r_value = stats.linregress(chk_obs, chk_fit)[2]
-    var_pct = r_value**2 #r-squared value; variance explained
-    
-    hasVarChgPt = r.hasVarChgPt(robjects.FloatVector(impTair))[0]
+    r2 = r_value ** 2  # r-squared value; variance explained
         
-    #check for low infill performance
-    if mae > 2.0 or var_pct < 0.7:
+    hasVarChgPt = r.hasVarChgPt(robjects.FloatVector(infill_tair))[0]
         
-        rerun_imp = True
-        reasons = "|".join([reasons,"low infill performance (%.2f,%.2f)"%(mae,var_pct)])
-    
-    #Check for extreme values
-    if np.sum(impTair > 57.7) > 0 or np.sum(impTair < -89.4) > 0:
+    # check for low infill performance
+    if mae > 2.0 or r2 < 0.7:
         
-        rerun_imp = True
-        reasons = "|".join([reasons,"impossible infill values"])
+        non_optimal = True
+        reasons.append(NONOPTIM_LOW_PERF)
     
-    #Check for variance change point
+    # Check for extreme values
+    if np.sum(infill_tair > 57.7) > 0 or np.sum(infill_tair < -89.4) > 0:
+        
+        non_optimal = True
+        reasons.append(NONOPTIM_IMPOSS_VAL)
+    
+    # Check for variance change point
     if hasVarChgPt:
-        
-        rerun_imp = True
-        reasons = "|".join([reasons,"variance change point"])
+                
+        non_optimal = True
+        reasons.append(NONOPTIM_VARI_CHGPT)
     
-    return rerun_imp,reasons
+    return non_optimal, reasons, mae, r2
     
     
 
@@ -498,26 +603,26 @@ def _shrink_matrix(aMatrix, nghNorms, nghStd, minNghs):
     it from the matrix.  
     '''
     
-    validMask = np.isfinite(aMatrix[:,1:minNghs+1])
-    nObs = np.sum(validMask,axis=1)
+    validMask = np.isfinite(aMatrix[:, 1:minNghs + 1])
+    nObs = np.sum(validMask, axis=1)
     maskBelowMin = nObs < minNghs
     
-    keepCol = np.ones(aMatrix.shape[1],dtype=np.bool)
+    keepCol = np.ones(aMatrix.shape[1], dtype=np.bool)
     
-    for x in np.arange(minNghs+1,aMatrix.shape[1]):
+    for x in np.arange(minNghs + 1, aMatrix.shape[1]):
         
-        aCol = aMatrix[:,x]
+        aCol = aMatrix[:, x]
         aColValidMask = np.isfinite(aCol)
         
-        if np.sum(np.logical_and(maskBelowMin,aColValidMask)) > 0:
-            aColValidMask.shape = (aColValidMask.size,1)
-            validMask = np.hstack((validMask,aColValidMask))
-            nObs = np.sum(validMask,axis=1)
+        if np.sum(np.logical_and(maskBelowMin, aColValidMask)) > 0:
+            aColValidMask.shape = (aColValidMask.size, 1)
+            validMask = np.hstack((validMask, aColValidMask))
+            nObs = np.sum(validMask, axis=1)
             maskBelowMin = nObs < minNghs
         else:
             keepCol[x] = False
         
-    return aMatrix[:,keepCol],nghNorms[keepCol],nghStd[keepCol] 
+    return aMatrix[:, keepCol], nghNorms[keepCol], nghStd[keepCol] 
 
    
 def _calc_ioa(x, y):
@@ -530,8 +635,8 @@ def _calc_ioa(x, y):
     
     if d == 0.0:
         print "|".join(["WARNING: _calc_ioa: x, y identical"])
-        #The x and y series are exactly the same
-        #Return a perfect ioa
+        # The x and y series are exactly the same
+        # Return a perfect ioa
         return 1.0
     
     ioa = 1.0 - (np.sum(np.abs(y - x)) / d)
@@ -563,14 +668,15 @@ def _load_R():
         import rpy2
         import rpy2.robjects
         robjects = rpy2.robjects
-        from rpy2.robjects.numpy2ri import numpy2ri as np2ri
-        numpy2ri = np2ri
-        robjects.conversion.py2ri = numpy2ri
         r = robjects.r
         import rpy2.rinterface
         ri = rpy2.rinterface
-
+        
+        from rpy2.robjects import numpy2ri
+        numpy2ri.activate()
+        
         path_root = os.path.dirname(__file__)
         fpath_rscript = os.path.join(path_root, 'rpy', 'pca_infill.R')
         r.source(fpath_rscript)
+        
         R_LOADED = True

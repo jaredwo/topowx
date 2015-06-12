@@ -19,8 +19,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
+from twx.utils.util_dates import MONTH
+from twx.db.station_data import get_mean_varname, get_variance_varname
+from twx.infill.infill_daily import infill_daily_obs
 
-__all__ = ['XvalInfill', 'XvalInfillParams']
+__all__ = ['XvalInfill', 'XvalInfillParams', 'load_default_xval_stnids']
 
 import os
 import numpy as np
@@ -81,9 +84,14 @@ class XvalInfill(object):
             last_idxs = np.nonzero(fin_obs)[0][-nmask:]
             xval_mask_obs = np.logical_and(np.logical_not(np.in1d(idxs, last_idxs, assume_unique=True)), fin_obs)
             xval_masks.append(xval_mask_obs)
-
+        
+        self.mths = np.arange(1,13)
+        self.mth_masks = [stnda.days[MONTH]==mth for mth in self.mths]
+        self.vnames_mean = [get_mean_varname(var_tair,mth) for mth in self.mths]
+        self.vnames_vari = [get_variance_varname(var_tair,mth) for mth in self.mths]
+        
         # Neighbor station mask
-        self.ngh_stn_mask = np.isfinite(stnda.stns["_".join(["mean", var_tair])])
+        self.ngh_stn_mask = np.isfinite(stnda.stns[get_mean_varname(var_tair,1)])
         self.stn_ids = xval_stnids
         self.stn_obs = obs
         self.stn_xval_masks = xval_masks
@@ -115,30 +123,31 @@ class XvalInfill(object):
 
         i = np.nonzero(self.stn_ids == stn_id)[0][0]
         x = self.stnda.stn_idxs[stn_id]
-
-        mean_orig = self.stnda.get_stn_mean(self.var_tair, x)
-        vari_orig = np.square(self.stnda.get_stn_std(self.var_tair, x))
-
+        
+        mean_orig = np.array([self.stnda.stns[x][a_vname] for a_vname in self.vnames_mean])
+        vari_orig = np.array([self.stnda.stns[x][a_vname] for a_vname in self.vnames_vari])
+        
         try:
 
             tair_mask = self.stn_xval_masks[i]
             obs_tair = self.stn_obs[:, i].astype(np.float)
 
-            stn_mean, stn_vari = infill_mean_variance(stn_id, self.stnda, self.ngh_stn_mask, self.var_tair,
-                                                      self.infill_params.nnr_ds, tair_mask, False,
+            stn_means, stn_varis = infill_mean_variance(stn_id, self.stnda, self.ngh_stn_mask, self.var_tair,
+                                                      self.infill_params.nnr_ds, tair_mask, self.mth_masks,
                                                       self.infill_params.min_daily_nnghs, self.infill_params.nnghs_nnr)
-
-            self.stnda.stns["_".join(["mean", self.var_tair])][x] = stn_mean
-            self.stnda.stns["_".join(["var", self.var_tair])][x] = stn_vari
-
-            ppca_matrix = InfillMatrixPPCA(stn_id, self.stnda, self.var_tair, self.infill_params.nnr_ds, tair_mask=tair_mask)
-
-            infill_tair = ppca_matrix.infill(self.infill_params.min_daily_nnghs, self.infill_params.nnghs_nnr,
-                                             self.infill_params.max_nnr_var,
-                                             self.infill_params.chk_perf, self.infill_params.npcs,
-                                             self.infill_params.frac_obs_initnpcs,
-                                             self.infill_params.ppca_varyexplain, verbose=self.infill_params.verbose)[-1]
-
+            
+            for vname_mean,vname_vari,stn_mean,stn_vari in zip(self.vnames_mean,self.vnames_vari,stn_means,stn_varis):
+            
+                self.stnda.stns[vname_mean][x] = stn_mean
+                self.stnda.stns[vname_vari][x] = stn_vari
+            
+            
+            infill_tair = infill_daily_obs( stn_id, self.stnda, self.var_tair, self.infill_params.nnr_ds, self.vnames_mean, self.vnames_vari, tair_mask,
+                                            self.mth_masks, True, self.infill_params.min_daily_nnghs, self.infill_params.nnghs_nnr,
+                                            self.infill_params.max_nnr_var, self.infill_params.chk_perf, self.infill_params.npcs,
+                                            self.infill_params.frac_obs_initnpcs, self.infill_params.ppca_varyexplain,
+                                            verbose=self.infill_params.verbose)[-1]
+            
             # Set days with original observations that were missing or
             # where used for training to nan.
             infill_tair[~tair_mask] = np.nan
@@ -146,9 +155,11 @@ class XvalInfill(object):
 
         finally:
 
-            # Reset mean and var
-            self.stnda.stns["_".join(["mean", self.var_tair])][x] = mean_orig
-            self.stnda.stns["_".join(["var", self.var_tair])][x] = vari_orig
+            # Reset mean and var            
+            for vname_mean,vname_vari,stn_mean,stn_vari in zip(self.vnames_mean,self.vnames_vari,mean_orig,vari_orig):
+            
+                self.stnda.stns[vname_mean][x] = stn_mean
+                self.stnda.stns[vname_vari][x] = stn_vari
 
         return obs_tair, infill_tair
 

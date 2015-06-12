@@ -23,10 +23,9 @@
 #along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 
 ###############################################################################
-
-library(pcaMethods)
-library(changepoint)
 options(warn=-1)
+library(changepoint)
+library(pcaMethods)
 
 FRAC_OBS<-0.6#.5
 SEED<-4324

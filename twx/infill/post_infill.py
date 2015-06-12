@@ -16,6 +16,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
+from twx.infill.infill_daily import NONOPTIM_IMPOSS_VAL, NONOPTIM_VARI_CHGPT
 
 __all__ = ['add_monthly_normals', 'add_stn_raster_values', 
            'create_serially_complete_db', 'find_dup_stns',
@@ -353,6 +354,45 @@ def add_monthly_normals(stnda,start_norm_yr=1981,end_norm_yr=2010):
         
         stnda.ds.sync()
         stchk.increment()
+
+def get_bad_infill_stnids(fpath_log):
+    
+    afile = open(fpath_log)
+    lines = np.array(afile.readlines())
+    
+    mask_err = np.char.startswith(lines, 'ERROR')
+    mask_fail = np.char.find(lines,'Could not infill') != -1
+    mask_imposs = np.char.find(lines,NONOPTIM_IMPOSS_VAL) != -1
+    mask_vaript = np.char.find(lines,NONOPTIM_VARI_CHGPT) != -1
+    
+    stnids_all = []
+    
+    #Get stnids that completely failed the infill process
+    if np.sum(mask_fail) > 0:
+        
+        lines_fail = lines[mask_fail]
+        lines_fail = np.char.split(lines_fail,"|")
+        lines_fail = np.array([a_line[0] for a_line in lines_fail])
+        lines_fail = np.char.split(lines_fail," ")
+        stnids_fail = np.sort(np.array([a_line[-1] for a_line in lines_fail]))
+        stnids_all.append(stnids_fail)
+    
+    #Get stnids that had an error with a variance change point in the infilled
+    #observations or an impossible value in the infilled observations
+    mask_err2 = np.logical_and(mask_err,np.logical_or(mask_imposs,mask_vaript))
+    
+    if np.sum(mask_err2) > 0:     
+        
+        lines_err = lines[mask_err2]
+        lines_err = np.char.split(lines_err,"|")
+        lines_err = np.array([a_line[1] for a_line in lines_err])
+        lines_err = np.char.split(lines_err," ")
+        stnids_err = np.sort(np.array([a_line[0] for a_line in lines_err]))
+        stnids_all.append(stnids_err)
+    
+    stnids = np.unique(np.concatenate(stnids_all))
+        
+    return stnids
 
 def _find_nn_data(a_data,a_rast,x,y):
                     

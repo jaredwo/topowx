@@ -2,7 +2,7 @@
 Functions and classes for infilling the mean and variance of 
 an incomplete station time series.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -19,6 +19,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
+from twx.utils.perf_metrics import calc_ioa_d1
 
 __all__ = ['infill_mean_variance']
 
@@ -48,7 +49,7 @@ class _InfillMatrix(object):
     a set time period that the station has an incomplete record.
     '''
 
-    def __init__(self, stn_id, stn_da, stns_mask, tair_var, nnr_ds, min_dist=-1, max_dist=MAX_DISTANCE, tair_mask=None, trim_nan=True, add_bestngh=True):
+    def __init__(self, stn_id, stn_da, stns_mask, tair_var, nnr_ds, min_dist=-1, max_dist=MAX_DISTANCE, tair_mask=None, day_mask=None, add_bestngh=True):
         '''
         Parameters
         ----------
@@ -77,7 +78,7 @@ class _InfillMatrix(object):
             artificially be set to nan. This can be used for cross-validation.
             Mask size must equal the time series length specified by the passed
             StationDataDb.
-        trim_nan : boolean, optional
+        day_mask : boolean, optional
             If true and tair_mask is not None, days with actual missing observations will
             be removed before station mean and variance estimation. Ignored if
             tair_mask is None.
@@ -95,15 +96,15 @@ class _InfillMatrix(object):
         target_tair = stn_da.load_all_stn_obs_var(np.array([stn_id]), tair_var)[0]
         target_tair = target_tair.astype(np.float64)
 
-        # Remove true missing values if there is a tair_mask
-        # and trim_nan is True
-        if tair_mask is not None and trim_nan:
-            day_mask = np.isfinite(target_tair)
-        else:
-            day_mask = np.ones(target_tair.size, dtype=np.bool)
-
         if tair_mask is not None:
             target_tair[tair_mask] = np.nan
+            
+        if day_mask is None:
+            day_mask = np.ones(target_tair.size,dtype=np.bool)
+
+        day_idx = np.nonzero(day_mask)[0]
+        
+        target_tair = np.take(target_tair, day_idx)
 
         # Number of observations threshold for entire period that is being infilled
         nthres_all = np.round(MIN_POR_OVERLAP * target_tair.size)
@@ -134,6 +135,8 @@ class _InfillMatrix(object):
         if len(ngh_tair.shape) == 1:
             ngh_tair.shape = (ngh_tair.size, 1)
 
+        ngh_tair = np.take(ngh_tair, day_idx, axis=0)
+
         dist_sort = np.argsort(ngh_dists)
         ngh_stns = ngh_stns[dist_sort]
         ngh_dists = ngh_dists[dist_sort]
@@ -156,14 +159,14 @@ class _InfillMatrix(object):
             nlap_stn = np.nonzero(overlap_mask)[0].size
 
             if nlap >= nthres_all and nlap_stn >= nthres_target_por:
-
-                ioa[x] = _calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
+                                
+                ioa[x] = calc_ioa_d1(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
 
                 overlap_mask_tair[x] = True
 
             elif nlap_stn >= nthres_target_por and add_bestngh:
 
-                aioa = _calc_ioa(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
+                aioa = calc_ioa_d1(target_tair[overlap_mask], ngh_tair[:, x][overlap_mask])
 
                 if aioa > best_ioa:
 
@@ -230,6 +233,7 @@ class _InfillMatrix(object):
         self.stns_mask = stns_mask
         self.nnr_ds = nnr_ds
         self.stn = stn
+        self.day_idx = day_idx
         self.day_mask = day_mask
 
     def __extend_ngh_radius(self, extend_by):
@@ -247,7 +251,7 @@ class _InfillMatrix(object):
         max_dist = self.max_dist + extend_by
 
         imp_matrix2 = _InfillMatrix(self.stn_id, self.stn_da, self.stns_mask, self.tair_var,
-                                    self.nnr_ds, min_dist, max_dist, self.tair_mask, add_bestngh=False)
+                                    self.nnr_ds, min_dist, max_dist, self.tair_mask, day_mask=self.day_mask, add_bestngh=False)
 
         self.__merge(imp_matrix2)
         self.max_dist = imp_matrix2.max_dist
@@ -342,10 +346,8 @@ class _InfillMatrix(object):
 
         nnr_tair = self.nnr_ds.get_nngh_matrix(self.stn[LON], self.stn[LAT], self.tair_var,
                                                utc_offset=self.stn[UTC_OFFSET], nngh=nnghs_nnr)
-
-        trim_imp_tair_mat = trim_imp_tair_mat[self.day_mask, :]
-        nnr_tair = nnr_tair[self.day_mask, :]
-#
+        nnr_tair = np.take(nnr_tair, self.day_idx, axis=0)
+        
         pc_loads, pc_scores, var_explain = pca_svd(nnr_tair, True, True)
         cusum_var = np.cumsum(var_explain)
 
@@ -381,7 +383,7 @@ class _InfillMatrix(object):
                 trim_imp_tair_mat = trim_imp_tair_mat[:, 0:MAX_COLS_NORM_IMPUTE]
 
         trim_imp_tair_mat = np.require(trim_imp_tair_mat, dtype=np.float64, requirements=['C', 'A', 'W', 'O'])
-
+        
         stn_mean,stn_variance = np.array(r.infill_mu_sigma(robjects.Matrix(trim_imp_tair_mat)))
 
         return stn_mean, stn_variance
@@ -418,24 +420,6 @@ def _shrink_matrix(aMatrix, minNghs):
     return aMatrix[:, keepCol]
 
 
-def _calc_ioa(x, y):
-    '''
-    Calculate the index of agreement (Durre et al. 2010; Legates and McCabe 1999) between x and y
-    '''
-
-    y_mean = np.mean(y)
-    d = np.sum(np.abs(x - y_mean) + np.abs(y - y_mean))
-
-    if d == 0.0:
-        # print "|".join(["WARNING: _calc_ioa: x, y identical"])
-        # The x and y series are exactly the same
-        # Return a perfect ioa
-        return 1.0
-
-    ioa = 1.0 - (np.sum(np.abs(y - x)) / d)
-
-    return ioa
-
 def _load_R():
 
     global R_LOADED
@@ -450,19 +434,19 @@ def _load_R():
         import rpy2
         import rpy2.robjects
         robjects = rpy2.robjects
-        from rpy2.robjects.numpy2ri import numpy2ri as np2ri
-        numpy2ri = np2ri
-        robjects.conversion.py2ri = numpy2ri
         r = robjects.r
         import rpy2.rinterface
         ri = rpy2.rinterface
+        
+        from rpy2.robjects import numpy2ri
+        numpy2ri.activate()
 
         path_root = os.path.dirname(__file__)
         fpath_rscript = os.path.join(path_root, 'rpy', 'norm_infill.R')
         r.source(fpath_rscript)
         R_LOADED = True
 
-def infill_mean_variance(stn_id, stn_da, stn_mask, tair_var, nnr_ds, tair_mask=None, trim_nan=True, nnghs=MIN_DAILY_NGHBRS, nnghs_nnr=NNGH_NNR):
+def infill_mean_variance(stn_id, stn_da, stn_mask, tair_var, nnr_ds, tair_mask=None, day_masks=None, nnghs=MIN_DAILY_NGHBRS, nnghs_nnr=NNGH_NNR):
     '''
     Infill/estimate a target station's temperature mean and variance over a set time period that the station
     has an incomplete record. Uses neighboring station and reanalysis data to performing the
@@ -489,7 +473,7 @@ def infill_mean_variance(stn_id, stn_da, stn_mask, tair_var, nnr_ds, tair_mask=N
         artificially be set to nan. This can be used for cross-validation.
         Mask size must equal the time series length specified by the passed
         StationDataDb.
-    trim_nan : boolean, optional
+    day_mask : boolean, optional
         If true and tair_mask is not None, days with actual missing observations will
         be removed before station mean and variance estimation. Ignored if
         tair_mask is None.
@@ -507,8 +491,24 @@ def infill_mean_variance(stn_id, stn_da, stn_mask, tair_var, nnr_ds, tair_mask=N
     '''
 
     _load_R()
-
-    a_matrix = _InfillMatrix(stn_id, stn_da, stn_mask, tair_var, nnr_ds, tair_mask=tair_mask, trim_nan=trim_nan)
-    stn_mean, stn_variance = a_matrix.infill(nnghs, nnghs_nnr)
-
+    
+    if day_masks == None:
+        
+        a_matrix = _InfillMatrix(stn_id, stn_da, stn_mask, tair_var, nnr_ds, tair_mask=tair_mask, day_mask=None)
+        stn_mean, stn_variance = a_matrix.infill(nnghs, nnghs_nnr)
+        
+    else:
+        
+        n_masks = len(day_masks)
+        
+        stn_mean = np.empty(n_masks)
+        stn_variance = np.empty(n_masks)
+        
+        for x in np.arange(n_masks):
+            
+            a_matrix = _InfillMatrix(stn_id, stn_da, stn_mask, tair_var, nnr_ds, tair_mask=tair_mask, day_mask=day_masks[x])
+            a_mean, a_variance = a_matrix.infill(nnghs, nnghs_nnr)
+            stn_mean[x] = a_mean
+            stn_variance[x] = a_variance
+            
     return stn_mean, stn_variance
