@@ -27,7 +27,7 @@ __all__ = ["TMAX","TMIN","TMIN_FLAG","TMAX_FLAG","LON","LAT","ELEV","STN_ID",
            'LST']
 
 import numpy as np
-from twx.utils import get_days_metadata, get_days_metadata_dates
+from twx.utils import get_days_metadata, get_days_metadata_dates, set_chunk_cache_params
 from netCDF4 import Dataset, num2date
 import netCDF4
 
@@ -51,7 +51,7 @@ ELEV = "elev"
 STN_ID = "stn_id"
 STN_NAME = "name"
 STATE = "state"
-MEAN_OBS = "obs_mean"
+NORM_OBS = "norm"
 TDI = "tdi" #Topographic Dissection
 LST = "lst" #Land Surface Temperature
 VCF = 'vcf' #vegetation continuous fields (% forest cover)
@@ -74,31 +74,50 @@ UTC_OFFSET = 'utc_offset'
 
 NO_DATA = -9999
 
+def get_mean_varname(varname,mth=None):
+    
+    if mth == None:
+        return "mean_%s"%varname
+    else:
+        return "mean_%s%02d"%(varname,mth)
+    
+def get_variance_varname(varname,mth=None):
+    
+    if mth == None:
+        return "vari_%s"%varname
+    else:
+        return "vari_%s%02d"%(varname,mth)
+
 def get_lst_varname(mth):
+    
     if mth == None:
         return LST
     else:
         return "lst%02d"%mth
 
 def get_norm_varname(mth):
+    
     if mth == None:
-        return MEAN_OBS
+        return NORM_OBS
     else:
         return "norm%02d"%mth
     
 def get_optim_varname(mth):
+    
     if mth == None:
         return OPTIM_NNGH
     else:
         return "optim_nnghs%02d"%mth
 
 def get_optim_anom_varname(mth):
+    
     if mth == None:
         return OPTIM_NNGH_ANOM
     else:
         return "optim_nnghs_anom%02d"%mth
 
 def get_krigparam_varname(mth,krigParam):
+    
     if mth == None:
         return krigParam
     else:
@@ -174,8 +193,8 @@ class StationDataDb(object):
         self.ds = Dataset(self.nc_path,mode=mode)
         
         var_time = self.ds.variables['time']
-        start, end = num2date([var_time[0], var_time[-1]], var_time.units)  
-        self.days = get_days_metadata(start, end)
+        dates = num2date(var_time[:], var_time.units)  
+        self.days = get_days_metadata_dates(dates)
         self.stn_ids = self.ds.variables['stn_id'][:].astype(np.str)
         
         #don't do auto mask/scale on the main variables
@@ -205,6 +224,12 @@ class StationDataDb(object):
             for a_main_var in main_vars:
                 
                 a_main_var.set_var_chunk_cache(chkc[0],chkc[1],chkc[2])
+                
+        else:
+            
+            #Set default cache size of 50MB
+            for a_main_var in main_vars:
+                set_chunk_cache_params(50000000, a_main_var)
         
         self.stns = _build_stn_struct(self.ds)
         

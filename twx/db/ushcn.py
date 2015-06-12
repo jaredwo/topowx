@@ -25,8 +25,19 @@ import twx.utils.util_dates as utld
 from netCDF4 import Dataset, date2num, num2date
 from twx.utils.status_check import StatusCheck
 import netCDF4
+import os
+from twx.db.create_db_all_stations import create_quick_db
 
 DTYPE_STN_BASIC = [(STN_ID, "<S16"), (STATE, "<S2"), (STN_NAME, "<S30"), (LON, np.float64), (LAT, np.float64), (ELEV, np.float64)]
+FNAME_USHCN_STNS = 'ushcn-v2.5-stations.txt'
+
+USHCN_VARIABLES = [('tmax_raw', 'f4', netCDF4.default_fillvals['f4'], 'raw maximum air temperature', 'C'),
+                   ('tmax_tob', 'f4', netCDF4.default_fillvals['f4'], 'time-of-observation corrected maximum air temperature', 'C'),
+                   ('tmax_FLs.52i', 'f4', netCDF4.default_fillvals['f4'], 'final homogenized and infilled maximum air temperature', 'C'),
+                   ('tmin_raw', 'f4', netCDF4.default_fillvals['f4'], 'raw minimum air temperature', 'C'),
+                   ('tmin_tob', 'f4', netCDF4.default_fillvals['f4'], 'time-of-observation corrected minimum air temperature', 'C'),
+                   ('tmin_FLs.52i', 'f4', netCDF4.default_fillvals['f4'], 'final homogenized and infilled minimum air temperature', 'C')]
+
 
 class StationDataUSHCN(object):
     
@@ -245,9 +256,9 @@ class TairAggregate():
 #            tairA = np.ma.masked_array(tairA,np.isnan(tairA))
         return tairA
 
-def getStns(fpathStns):
-
-    afile = open(fpathStns)
+def _parse_stns(fpath_ushcn_stns):
+    
+    afile = open(fpath_ushcn_stns)
     lines = afile.readlines()
     
     stns = np.empty(len(lines), dtype=DTYPE_STN_BASIC)
@@ -258,37 +269,38 @@ def getStns(fpathStns):
     stns[STATE] = np.array([aline[38:40] for aline in lines],np.str)
     stns[STN_NAME] = np.array([aline[41:71].strip() for aline in lines],np.str)
     
+    stns = stns[np.argsort(stns[STN_ID])]
+    
     return stns
 
-def loadObs(stnid,pathObs,tairVar,ushcnType,minYr=1948,maxYr=2012):
+def _load_ushcn_stn_obs(stnid,path_obs_files,varname,min_yr,max_yr):
     
-    #ushcnType = raw,tob,FLs.52i
-    afile = open("".join([pathObs,stnid,".",ushcnType,".",tairVar]))
+    #tair_var = tmax_raw,tmax_tob,tmax_FLs.52i,tmin_raw,tmin_tob,tmin_FLs.52i
     
-    mthvals = np.ones(12*((maxYr-minYr)+1))*-9999.0
+    obs_varname,ushcn_type = varname.split('_')
+    
+    afile = open(os.path.join(path_obs_files, "%s.%s.%s"%(stnid,ushcn_type,obs_varname)))
+    
+    mth_vals = np.ones(12*((max_yr-min_yr)+1))*-9999.0
     
     for aline in afile.readlines():
         
         yr = np.int(aline[12:16])
         
-        if yr >= minYr and yr <= maxYr:
+        if yr >= min_yr and yr <= max_yr:
             
-            idx = (yr-minYr)*12
+            idx = (yr-min_yr)*12
         
             yrmthvals = np.array([aline[17:17+5],aline[26:26+5],aline[35:35+5],aline[44:44+5],
                        aline[53:53+5],aline[62:62+5],aline[71:71+5],aline[80:80+5],
                        aline[89:89+5],aline[98:98+5],aline[107:107+5],aline[116:116+5]],dtype=np.float)
             
-            #mthvals = np.concatenate((mthvals,yrmthvals))
-            mthvals[idx:idx+12] = yrmthvals
+            mth_vals[idx:idx+12] = yrmthvals
     
-    mthvals[mthvals==-9999] = np.nan
-    mthvals = mthvals/100.0
+    mth_vals[mth_vals==-9999] = np.nan
+    mth_vals = mth_vals/100.0
     
-#    if mthvals.size != (12*((maxYr-minYr)+1)):
-#        raise Exception('Missing monthly values for '+"".join([pathObs,stnid,".raw.",tairVar]))
-    
-    return mthvals
+    return mth_vals
     
 def buildGhcnUShcnMask(stnids,fpathGhcnStns):
     
@@ -302,6 +314,63 @@ def buildGhcnUShcnMask(stnids,fpathGhcnStns):
     hcnIds = ghcnIds[hcnMask]
     
     return np.array([stnid in hcnIds for stnid in stnids],dtype=np.bool)
+
+
+def match_ghcn_to_ushcn(stns_ghcn,stns_ushcn,fpath_ghcn_stn_file):
+    
+    afile = open(fpath_ghcn_stn_file)
+    lines = afile.readlines()
+    
+    ghcn_ids = np.array(["".join(["GHCN_",aline[0:11].strip()]) for aline in lines],np.str)
+    mask_hcn = np.array([aline[76:79] == "HCN" for aline in lines],np.bool)
+    ghcn_ids = np.sort(ghcn_ids[mask_hcn])
+    
+    stns_ghcn = stns_ghcn[np.in1d(stns_ghcn[STN_ID], ghcn_ids, True)]
+    
+    coop_ids_ushcn = np.array([a_id[-6:] for a_id in stns_ushcn[STN_ID]],dtype=np.str)
+    rnd_lon_ushcn = np.round(stns_ushcn[LON],4)
+    rnd_lat_ushcn = np.round(stns_ushcn[LAT],4)
+    
+    match_ushcn_ids = []
+    
+    for a_stn in stns_ghcn:
+        
+        #1. try to match by coop id
+        match_ids = stns_ushcn[STN_ID][a_stn[STN_ID][-6:] == coop_ids_ushcn]
+        
+        if match_ids.size == 1:
+            
+            match_ushcn_ids.append(match_ids[0])
+        
+        else:
+
+            #2. try to match by name and state
+            match_ids = stns_ushcn[STN_ID][np.logical_and(a_stn[STN_NAME] == stns_ushcn[STN_NAME],
+                                                          a_stn[STATE] == stns_ushcn[STATE])]
+            
+            if match_ids.size == 1:
+            
+                match_ushcn_ids.append(match_ids[0])
+            
+            else:
+                
+                #3. try to match by lon/lat
+                match_ids = stns_ushcn[STN_ID][np.logical_and(np.round(a_stn[LON],4)==rnd_lon_ushcn,
+                                                              np.round(a_stn[LAT],4)==rnd_lat_ushcn)]
+                
+                if match_ids.size == 1:
+            
+                    match_ushcn_ids.append(match_ids[0])
+                
+                else:
+                    #Couldn't find an exact match
+                    match_ushcn_ids.append('NONE')
+        
+    match_ushcn_ids = np.array(match_ushcn_ids)
+    
+    return stns_ghcn[STN_ID],match_ushcn_ids
+    
+    
 
 def matchGhcnToUshcn(stnsG,stnsUS):
     
@@ -344,9 +413,45 @@ def matchGhcnToUshcn(stnsG,stnsUS):
   
     return np.array(matchUSIds)
 
+def create_ushcn_db(path_ushcn_data, fpath_out, min_yr, max_yr):
+    
+    fnames = np.array(os.listdir(path_ushcn_data))
+    fnames = np.array([os.path.join(path_ushcn_data,a_name) for a_name in fnames])
+    idx_dir = np.nonzero(np.array([os.path.isdir(a_name) for a_name in fnames]))[0]
+    
+    if idx_dir.size != 1:
+        raise Exception('No directory or more than one directory in %s'%path_ushcn_data)
+    
+    path_obs_files = fnames[idx_dir[0]]
+    
+    stns = _parse_stns(os.path.join(path_ushcn_data,FNAME_USHCN_STNS))
+    mths = utld.get_mth_metadata(min_yr,max_yr)
+    
+    create_quick_db(fpath_out, stns, mths, USHCN_VARIABLES)
+    
+    ushcn_variable_names = [a_var[0] for a_var in USHCN_VARIABLES]
+    
+    ds = Dataset(fpath_out,'r+')
+    
+    stchk = StatusCheck(stns.size,100)
+    
+    for x in np.arange(stns.size):
+        
+        for a_vname in ushcn_variable_names:
+            
+            obs = _load_ushcn_stn_obs(stns[STN_ID][x], path_obs_files, a_vname, min_yr, max_yr)
+            
+            obs[np.isnan(obs)] = netCDF4.default_fillvals['f4']
+            
+            ds.variables[a_vname][:,x] = obs
+        
+        stchk.increment()
+        ds.sync()
+            
+
 def createUshcnDs(fpathStns,pathObs,fpathdsout,minYr=1948,maxYr=2012):
     
-    stns = getStns(fpathStns)
+    stns = _parse_stns(fpathStns)
     stns = stns[np.argsort(stns[STN_ID])]
     
     mths = utld.get_mth_metadata(minYr,maxYr)

@@ -306,14 +306,3 @@ def load_por_csv(path):
 
     por_results = np.genfromtxt(path, dtype=POR_DTYPE, comments=None, delimiter=",",skip_header=1)
     return por_results
-    
-
-if __name__ == '__main__':
-    
-    outpath = "/projects/daymet2/station_data/all/tairHomog_por_1948_2012.csv"
-    stn_da = StationDataDb("/projects/daymet2/station_data/all/tairHomog_1948_2012.nc",
-                               startend_ymd=(19480101,20121231))
-    stns = stn_da.stns
-
-    output_por_csv(stn_da, stns, outpath)
-    

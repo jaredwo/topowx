@@ -56,7 +56,7 @@ RAWS_STN_METADATA_URL = "http://www.raws.dri.edu/cgi-bin/wea_info.pl?"
 
 URL_SNOTEL = 'http://www.wcc.nrcs.usda.gov/nwcc/view'
 
-
+RPATH_USHCN = 'ftp://ftp.ncdc.noaa.gov/pub/data/ushcn/v2.5/'
 
 def load_snotel_stn_inventory(fpath_stn_inventory=None):
     '''
@@ -388,7 +388,38 @@ def ghcnd_download_byyr_data(local_path, yrs, remote_path=RPATH_GHCN_BYYEAR):
 
         subprocess.call(['wget', '--directory-prefix=' + local_path,
                          urljoin(remote_path, "%s.csv.gz" % (yr,))])
+        
 
+def ushcn_download_data(local_path, remote_path=RPATH_USHCN, extract_tar=True):
+    '''
+    Use wget to mirror and unzip the latest USHCN data
+
+    Parameters
+    ----------
+    local_path : str
+        The local path to download to.
+    remote_path : str, optional
+        The remote path to download from.
+    extract_tar : bool, optional
+        Extract all *.tar.gz files downloaded
+        to local_path
+    '''
+    
+    subprocess.call(['wget','--mirror',
+                     '--directory-prefix=' + local_path,
+                     '-nd',remote_path])
+    
+    if extract_tar:
+        
+        fnames = np.array(os.listdir(local_path))
+        fnames = fnames[np.char.endswith(fnames,'tar.gz')]
+        
+        for a_name in fnames:
+            
+            print "Extracting "+a_name+"..."
+            a_tar = tarfile.open(os.path.join(local_path, a_name))
+            a_tar.extractall(local_path)
+    
 
 def raws_save_stnid_list(out_fpath):
     '''

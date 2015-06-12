@@ -32,7 +32,7 @@ from twx.utils import StatusCheck, get_days_metadata, ymdL, DATE, YMD, YEAR
 from netCDF4 import Dataset
 from netCDF4 import date2num
 import netCDF4
-from netcdftime import num2date
+from netCDF4 import num2date
 from station_data import STN_NAME, ELEV, LAT, LON, STATE, STN_ID
 import twx
 import pandas as pd
@@ -301,8 +301,8 @@ def create_quick_db(path,stns,days,variables):
     for varname,dtype,fill_value,long_name,units in variables:
     
         a_var = ncdf_file.createVariable(varname, dtype, ('time', 'stn_id'),
-                                         fill_value=fill_value,
-                                         chunksizes=(days[DATE].size, NCDF_CHK_COLS))
+                                         fill_value=fill_value, zlib=True,
+                                         chunksizes=(days[DATE].size, 1))
         a_var.long_name = long_name
         a_var.units = units
 
@@ -1318,7 +1318,7 @@ def add_monthly_means(ds_path, var_name, max_miss=9):
         ds.sync()
         stchk.increment()
 
-def add_utc_offset(ds_path, fpath_timezone_shp, geonames_usrname=None):
+def add_utc_offset(ds_path, geonames_usrname=None):
     '''
     Add a UTC offset station attribute to a netCDF database
     
@@ -1326,14 +1326,11 @@ def add_utc_offset(ds_path, fpath_timezone_shp, geonames_usrname=None):
     ----------
     ds_path : str
         File path to a netCDF station database
-    fpath_timezone_shp : str
-        Path to world_timezones.shp shapefile that defines
-        UTC offsets. Downloaded from http://www.sharegeo.ac.uk/handle/10672/285.
     geonames_usrname : str, optional
         A Geonames username. If not None,
         the Geonames time zone data web service will be
         used if time zone information for a point cannot
-        be determined locally.  
+        be determined locally.
     '''
     
     stnda = twx.db.StationDataDb(ds_path, mode='r+') 
@@ -1342,7 +1339,7 @@ def add_utc_offset(ds_path, fpath_timezone_shp, geonames_usrname=None):
     
     ndata = netCDF4.default_fillvals['i2']
     
-    utc = twx.db.UtcOffset(fpath_timezone_shp, ndata, geonames_usrname)
+    utc = twx.db.UtcOffset(ndata, geonames_usrname)
     
     print "Starting to get station UTC offset data..."
     
