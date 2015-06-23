@@ -350,6 +350,12 @@ if __name__ == '__main__':
     params[P_START_YMD] = ymdL(datetime(START_YEAR_POR, 1, 1))
     params[P_END_YMD] = ymdL(datetime(END_YEAR_POR, 12, 31))
 
+    #Need to run this mpi script twice
+    #First run, P_MIN_NNGH_DAILY is set to 3 stations
+    #Second run, infilling is executed again for those stations
+    #with suspect infilling models, but with  P_MIN_NNGH_DAILY
+    #set to 7.
+
     # PPCA parameters for infilling
     params[P_MIN_NNGH_DAILY] = 3
     params[P_NNGH_NNR] = 4
@@ -359,11 +365,16 @@ if __name__ == '__main__':
     params[P_CHCK_IMP_PERF] = True
     params[P_NPCS_PPCA] = 0
     params[P_VERBOSE] = False
-
-    params[P_FPATH_LOG] = None  # '/projects/topowx/mpi_runs/infill/infill_run_20150224.log'
+    
+    #If second run, point to log file from first infilling run 
+    #to find stations that had suspect infilling models
+    #and rerun infilling only on these stations.
+    params[P_FPATH_LOG] = None
 
     if rank == RANK_COORD:
         
+        #If previous log file specified, run infilling
+        #only for stations that were suspect.
         if params[P_FPATH_LOG] is not None:
         
             stn_da = StationDataDb(params[P_PATH_DB], (params[P_START_YMD], params[P_END_YMD]))
