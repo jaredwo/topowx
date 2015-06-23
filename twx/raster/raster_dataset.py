@@ -2,7 +2,7 @@
 Utilities for working with basic raster datasets loaded
 through GDAL.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -156,11 +156,10 @@ class RasterDataset(object):
 
         return yCoord, xCoord
 
-    def get_row_col(self, lon, lat):
+    def get_row_col(self, lon, lat, check_bounds=True):
         '''
         Get the row, column grid cell offset for the raster based on an input
-        WGS84 longitude, latitude point. Will raise an OutsideExtent exception if the
-        longitude, latitude is outside the bounds of the raster.
+        WGS84 longitude, latitude point.
         
         Parameters
         ----------
@@ -168,7 +167,11 @@ class RasterDataset(object):
             The longitude of the point
         lat : float
             The latitude of the point
-            
+        check_bounds : bool
+            If True, will check if the point is within the bounds
+            of the raster and raise a ValueError if not. If set to False and
+            point is outside raster, the returned row, col will be clipped to
+            the raster edge. 
         Returns
         ----------
         row : int
@@ -178,9 +181,11 @@ class RasterDataset(object):
         '''
 
         xGeo, yGeo, zGeo = self.coordTrans_wgs84_to_src.TransformPoint(lon, lat)
+        
+        if check_bounds:
 
-        if not self.__is_inbounds(xGeo, yGeo):
-            raise OutsideExtent("lat/lon outside raster extent: " + str(lat) + "," + str(lon))
+            if not self.is_inbounds(xGeo, yGeo):
+                raise ValueError("lat/lon outside raster bounds: " + str(lat) + "," + str(lon))
 
         originX = self.geo_t[0]
         originY = self.geo_t[3]
@@ -189,10 +194,11 @@ class RasterDataset(object):
 
         xOffset = np.abs(np.int((xGeo - originX) / pixelWidth))
         yOffset = np.abs(np.int((yGeo - originY) / pixelHeight))
-
-        row = int(yOffset)
-        col = int(xOffset)
-
+        
+        # clip row,col if outside raster bounds
+        row = self._check_cellxy_valid(int(yOffset), self.rows)
+        col = self._check_cellxy_valid(int(xOffset), self.cols)
+            
         return row, col
 
     def get_data_value(self, lon, lat):
@@ -314,14 +320,25 @@ class RasterDataset(object):
         
         gdal.ReprojectImage(grid_src, grid_out, proj_src, proj_dst, gdal_gra)
         grid_out.FlushCache()
-        #Make sure entire grid is written by setting to None. 
-        #FlushCache doesn't seem to write the entire grid after resampling?
+        # Make sure entire grid is written by setting to None. 
+        # FlushCache doesn't seem to write the entire grid after resampling?
         grid_out = None
         
-        #return as RasterDataset
+        # return as RasterDataset
         grid_out = RasterDataset(fpath)
         
         return grid_out
         
-    def __is_inbounds(self, x_geo, y_geo):
+    def is_inbounds(self, x_geo, y_geo):
         return x_geo >= self.min_x and x_geo <= self.max_x and y_geo >= self.min_y and y_geo <= self.max_y
+    
+    def _check_cellxy_valid(self, i, n):
+        
+        if i < 0:
+            i = 0
+        elif i >= n:
+            i = n - 1
+        
+        return i
+        
+        
