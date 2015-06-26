@@ -9,7 +9,7 @@ in each U.S. climate division.
 
 Must be run using mpiexec or mpirun.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -201,7 +201,7 @@ def proc_coord(params, nwrkers):
 
 if __name__ == '__main__':
 
-    PROJECT_ROOT = "/projects/topowx"
+    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
     FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
 
     np.seterr(all='raise')
@@ -211,11 +211,12 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
 
     params = {}
-    
-    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmin.nc')
+    #Run for Tmin or Tmax
+    params[P_VARNAME] = 'tmax'
+    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_%s.nc'%params[P_VARNAME])
     params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill', 'optim_anoms')
     params[P_NGH_RNG] = build_nstn_bandwidths(35, 150, 0.10)
-    params[P_VARNAME] = 'tmin'
+    
     
     # Run for all climate divisions
     ds = Dataset(params[P_PATH_DB])

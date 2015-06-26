@@ -6,7 +6,7 @@ set in steps 13-15.
 
 Must be run using mpiexec or mpirun.
 
-Copyright 2014, Jared Oyler.
+Copyright 2014,2015, Jared Oyler.
 
 This file is part of TopoWx.
 
@@ -23,7 +23,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
-
+import readline
 import numpy as np
 from mpi4py import MPI
 import sys
@@ -135,7 +135,7 @@ def proc_write(params, nwrkers):
             stnda_out.ds.variables[params[P_VARNAME]][:, x] = tair_daily
             
             for i in mths:
-                stnda_out.ds.variables[mth_names[i]] = tair_norms[i]
+                stnda_out.ds.variables[mth_names[i]][x] = tair_norms[i]
             
             stnda_out.ds.sync()
             
@@ -170,7 +170,7 @@ def proc_coord(params, nwrkers):
 
 if __name__ == '__main__':
     
-    PROJECT_ROOT = "/projects/topowx"
+    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
     FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
     
     np.seterr(all='raise')
@@ -180,11 +180,13 @@ if __name__ == '__main__':
     nsize = MPI.COMM_WORLD.Get_size()
     
     params = {}
-    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmin.nc')
+    #Run for Tmin or Tmax
+    params[P_VARNAME] = 'tmax'
+    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_%s.nc'%params[P_VARNAME])
     #Path to database file where interpolated normals and daily values will
     #be output.
-    params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill', 'xval_tmin.nc')
-    params[P_VARNAME] = 'tmin'
+    params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill', 'xval_interp_%s.nc'%params[P_VARNAME])
+
         
     if rank == RANK_COORD:        
         proc_coord(params, nsize - N_NON_WRKRS)
