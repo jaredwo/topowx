@@ -41,6 +41,7 @@ robjects = None
 numpy2ri = None
 r = None
 ri = None
+R_LOADED = False
 
 KRIG_TREND_VARS = (LON, LAT, ELEV, LST)
 GWR_TREND_VARS = (LON, LAT, ELEV, TDI, LST)
@@ -49,15 +50,12 @@ LST_TMIN = 'lst_tmin'
 
 DFLT_INIT_NNGHS = 100
 
-R_LOADED = False
 
 def _init_interp_R_env():
     
     global R_LOADED
 
     if not R_LOADED:
-    
-        print "Loading R environment for interp_tair..."
         
         global robjects
         global numpy2ri
@@ -67,12 +65,12 @@ def _init_interp_R_env():
         import rpy2
         import rpy2.robjects
         robjects = rpy2.robjects
-        from rpy2.robjects.numpy2ri import numpy2ri as np2ri
-        numpy2ri = np2ri
-        robjects.conversion.py2ri = numpy2ri
         r = robjects.r
         import rpy2.rinterface
         ri = rpy2.rinterface
+        
+        from rpy2.robjects import numpy2ri
+        numpy2ri.activate()
         
         # get system path to twx
         twx_path = os.path.split(os.path.split(__file__)[0])[0]
@@ -80,11 +78,12 @@ def _init_interp_R_env():
         rsrc_path = os.path.join(twx_path, 'interp', 'rpy', 'interp.R')
         
         r.source(rsrc_path)
+        
         # Set trend formula
         ri.globalenv['FORMULA'] = ri.globalenv.get("build_formula")(ri.StrSexpVector(["tair"]), ri.StrSexpVector(KRIG_TREND_VARS))
         
         R_LOADED = True
-        
+            
 class PredictorGrids():
 
     def __init__(self, ncFpaths, interpOrders=None):
