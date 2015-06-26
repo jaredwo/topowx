@@ -31,6 +31,7 @@ from twx.raster import RasterDataset
 import os
 import numpy as np
 from twx.db.station_data import MASK, TDI
+from twx.interp import XvalOutlier
 
 if __name__ == '__main__':
     
@@ -187,4 +188,30 @@ if __name__ == '__main__':
         print "%d stations removed due to no TDI values" % (stnids_no_tdi.size,)
         print "%d stations removed due no climate division value, but within domain mask" % (stnids_no_climdiv.size,)
         print "%d stations removed due to being duplicates" % (dup_stnids.size,)
+
+    # Last step of marking "bad" stations. Run a cross validation of a simple geographically
+    # weighted regression model that predicts annual temperature normals. 
+    # Find stations with annual normals that are extremely different than what is predicted
+    # by the model (e.g. error > 6 standard deviations from the mean error).
+    
+    # Reload station databases to make sure bad flags are correctly set
+    del stnda_tmin 
+    del stnda_tmax
+    del stnda_infill_tmin 
+    del stnda_infill_tmax
+    stnda_tmin = StationSerialDataDb(path_serial_db_tmin, 'tmin', mode='r+')
+    stnda_tmax = StationSerialDataDb(path_serial_db_tmax, 'tmax', mode='r+')
+
+    for a_stnda in [stnda_tmin, stnda_tmax]:
+        
+        print "Finding outlier stations for %s..." % (a_stnda.var_name,)
+        
+        out_xval = XvalOutlier(a_stnda)
+        stn_ids = a_stnda.stn_ids[np.isnan(a_stnda.stns[BAD])]
+        
+        out_stnids = out_xval.find_xval_outliers(stn_ids)[0]
+        
+        set_bad_stations(a_stnda.ds, out_stnids, reset=False)
+        
+        print "%d stations removed due to being outliers" % (out_stnids.size,)
         

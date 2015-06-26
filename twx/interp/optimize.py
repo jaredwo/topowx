@@ -20,11 +20,12 @@ along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 __all__ = ['create_climdiv_optim_nstns_db', 'XvalTairNorm',
            'set_optim_nstns_tair_norm', 'set_optim_nstns_tair_anom',
            'build_nstn_bandwidths', 'StationKrigParams',
-           'XvalTairAnom', 'XvalTairOverall']
+           'XvalTairAnom', 'XvalTairOverall','XvalOutlier']
 
 import numpy as np
 from twx.db import StationSerialDataDb, STN_ID, get_norm_varname, \
-get_optim_varname, get_optim_anom_varname, BAD, dbDataset, CLIMDIV
+get_optim_varname, get_optim_anom_varname, BAD, dbDataset, CLIMDIV, \
+LAT, LON, get_lst_varname
 from twx.interp import StationSelect, KrigTairAll, BuildKrigParams, \
 GwrTairAnom, KrigTair, InterpTair
 from netCDF4 import Dataset
@@ -32,6 +33,8 @@ import netCDF4
 from twx.utils import StatusCheck
 import scipy.stats as stats
 import os
+import pandas as pd
+import statsmodels.formula.api as sm
 
 def create_climdiv_optim_nstns_db(path_out, tair_var, stn_ids, nstns_rng, climdiv):
     '''
@@ -78,6 +81,120 @@ def create_climdiv_optim_nstns_db(path_out, tair_var, stn_ids, nstns_rng, climdi
 
     return ds
 
+class XvalOutlier(object):
+    '''
+    Class for running a leave-one-out cross validation of a simple
+    geographically weighted regression model of station annual normals 
+    to determine if a station is an outlier has possible erroneous values 
+    based on unrealistic model error.
+    '''
+    
+    def __init__(self, stn_da):
+        '''        
+        Parameters
+        ----------
+        stnda : twx.db.StationSerialDataDb
+            A StationSerialDataDb object pointing to the
+            database from which observations will be loaded.
+        '''
+        
+        self.stn_da = stn_da
+        mask_stns = np.isnan(self.stn_da.stns[BAD])
+        self.stn_slct = StationSelect(self.stn_da, stn_mask=mask_stns, rm_zero_dist_stns=True)
+
+        self.vnames_norm = [get_norm_varname(mth) for mth in np.arange(1, 13)]
+        self.vnames_lst = [get_lst_varname(mth) for mth in np.arange(1, 13)]
+        
+        self.df_stns = pd.DataFrame(self.stn_da.stns)
+        self.df_stns.index = self.df_stns[STN_ID]
+        
+        # Calculate annual means for monthly LST and Tair normals
+        self.df_stns['lst'] = self.df_stns[self.vnames_lst].mean(axis=1)
+        self.df_stns['norm'] = self.df_stns[self.vnames_norm].mean(axis=1)
+        
+        
+    def run_xval_stn(self, stn_id, bw_nngh=100):
+        '''
+        Run a single leave-one-out cross validation of a geographically
+        weighted regression model of a station's annual normal
+        (norm~lst+elev+lon+lat).
+        
+        Parameters
+        ----------
+        stn_id : str
+            The stn_id for which to run the cross validation
+        bw_nngh : int, optional
+            The number of neighbors to use for the
+            geographically weighted regression. Default: 100.
+        
+        Returns
+        ----------
+        err : float
+            The difference between predicted and observed
+            (predicted minus observed)
+        '''
+        
+        xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
+        df_xval_stn = self.df_stns.loc[stn_id, :]
+        self.stn_slct.set_ngh_stns(xval_stn[LAT], xval_stn[LON], bw_nngh, load_obs=False, stns_rm=stn_id)
+        df_nghs = self.df_stns.loc[self.stn_slct.ngh_stns[STN_ID], :]
+        
+        ls_fit = sm.wls('norm~lst+elev+lon+lat', data=df_nghs, weights=self.stn_slct.ngh_wgt).fit()
+        err = ls_fit.predict(df_xval_stn)[0] - df_xval_stn['norm']
+        
+        return err
+    
+    def find_xval_outliers(self, stn_ids=None, bw_nngh=100, zscore_threshold=6):
+        '''
+        Runs a leave-one-out cross validation of a geographically
+        weighted regression model of station annual normals
+        (norm~lst+elev+lon+lat) and returns those stations whose error is
+        a specified # of standard deviations above/below the mean
+        
+        Parameters
+        ----------
+        stn_ids : list_like, optional
+            The station ids for which to run the cross validation.
+            If None, the cross validation will be run for all stations
+            in the database
+        bw_nngh : int, optional
+            The number of neighbors to use for the
+            geographically weighted regression. Default: 100.
+        zscore_threshold : float, optional
+            The zcore threshold by which a station's error should be
+            considered an outlier.
+        
+        Returns
+        ----------
+        out_stnids : ndarray
+            The outlier stations
+        out_errs : ndarray
+            The model error associated with each outlier
+        '''
+
+        if stn_ids is None:
+            stn_ids = self.stn_da.stn_ids
+        
+        schk = StatusCheck(stn_ids.size, check_cnt=500)
+        
+        xval_errs = np.zeros(stn_ids.size)
+        
+        for i, a_id in enumerate(stn_ids):
+            
+            xval_errs[i] = self.run_xval_stn(a_id, bw_nngh)
+            schk.increment()
+            
+        xval_errs = pd.Series(xval_errs)
+        zscores = ((xval_errs - xval_errs.mean()) / xval_errs.std()).abs().values
+        
+        mask_zscores = zscores >= zscore_threshold
+        
+        out_stnids = stn_ids[mask_zscores]
+        out_errs = xval_errs[mask_zscores]
+        
+        return out_stnids,out_errs
+        
+        
 class XvalTairNorm(object):
     '''
     Class for running a cross validation to optimize the local number
