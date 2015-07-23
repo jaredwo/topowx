@@ -241,7 +241,7 @@ class RasterDataset(object):
         a = np.ma.masked_equal(a, self.gdal_ds.GetRasterBand(1).GetNoDataValue())
         return a
     
-    def output_new_ds(self, fpath, a, gdal_dtype, ndata, gdal_driver="GTiff"):
+    def output_new_ds(self, fpath, a, gdal_dtype, ndata=None, gdal_driver="GTiff"):
         '''
         Output a new raster with same geotransform and projection as this RasterDataset
         
@@ -254,7 +254,7 @@ class RasterDataset(object):
             If MaskedArray, masked values are set to ndata
         gdal_dtype : str
             A gdal datatype from gdalconst.GDT_*.
-        ndata : num
+        ndata : num, optional
             The no data value for the raster
         gdal_driver : str, optional
             The GDAL driver for the output raster data format
@@ -265,13 +265,10 @@ class RasterDataset(object):
         ds_out.SetProjection(self.gdal_ds.GetProjection())
         
         band_out = ds_out.GetRasterBand(1)
-        band_out.SetNoDataValue(ndata)
-        
-        if np.ma.isMaskedArray(a):
-            band_out.WriteArray(np.ma.filled(a, ndata))
-        else:
-            band_out.WriteArray(a)
-            
+        if ndata is not None:
+            band_out.SetNoDataValue(ndata)
+        band_out.WriteArray(np.ma.filled(a, ndata))
+                    
         ds_out.FlushCache()
         ds_out = None
 
