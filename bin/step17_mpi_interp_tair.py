@@ -22,6 +22,7 @@ You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
+import readline
 from mpi4py import MPI
 import sys
 from twx.db import LON, LAT, CLIMDIV, ELEV, TDI
@@ -144,6 +145,7 @@ def proc_work(params, rank):
                             ptInterp.a_pt[ELEV] = wrk_chk[5, r, c]
                             ptInterp.a_pt[TDI] = wrk_chk[6, r, c]
                             ptInterp.a_pt[CLIMDIV] = wrk_chk[7, r, c]
+                                                        
                             for mth in mths:
                                 ptInterp.a_pt["tmin%02d" % mth] = wrk_chk[8 + (mth - 1), r, c]
                                 ptInterp.a_pt["tmax%02d" % mth] = wrk_chk[20 + (mth - 1), r, c]
@@ -312,9 +314,9 @@ if __name__ == '__main__':
     np.seterr(all='raise')
     np.seterr(under='ignore')
     
-    PROJECT_ROOT = "/projects/topowx"
+    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
     FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
-    FPATH_PREDICTOR_GRIDS = os.path.join(PROJECT_ROOT, 'dem', 'interp_grids', 'conus', 'ncdf')
+    FPATH_PREDICTOR_GRIDS = os.path.join(PROJECT_ROOT, 'rasters', 'conus_interp_grids', 'ncdf')
     
     rank = MPI.COMM_WORLD.Get_rank()
     nsize = MPI.COMM_WORLD.Get_size()
@@ -328,12 +330,12 @@ if __name__ == '__main__':
     params[P_PATH_DB_TMAX] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmax.nc')
 
     # Paths to predictor grids
-    params[P_PATH_MASK] = os.path.join(FPATH_PREDICTOR_GRIDS, 'fnl_mask.nc')
-    params[P_PATH_ELEV] = os.path.join(FPATH_PREDICTOR_GRIDS, 'fnl_elev.nc')
-    params[P_PATH_TDI] = os.path.join(FPATH_PREDICTOR_GRIDS, 'fnl_tdi.nc')
-    params[P_PATH_LST_TMIN] = [os.path.join(FPATH_PREDICTOR_GRIDS, 'fnl_lst_tmin%02d.nc' % mth) for mth in np.arange(1, 13)]
-    params[P_PATH_LST_TMAX] = [os.path.join(FPATH_PREDICTOR_GRIDS, 'fnl_lst_tmax%02d.nc' % mth) for mth in np.arange(1, 13)]
-    params[P_PATH_CLIMDIV] = os.path.join(FPATH_PREDICTOR_GRIDS, 'fnl_climdiv.nc')
+    params[P_PATH_MASK] = os.path.join(FPATH_PREDICTOR_GRIDS, 'mask.nc')
+    params[P_PATH_ELEV] = os.path.join(FPATH_PREDICTOR_GRIDS, 'elev.nc')
+    params[P_PATH_TDI] = os.path.join(FPATH_PREDICTOR_GRIDS, 'tdi.nc')
+    params[P_PATH_CLIMDIV] = os.path.join(FPATH_PREDICTOR_GRIDS, 'climdiv.nc')
+    params[P_PATH_LST_TMIN] = [os.path.join(FPATH_PREDICTOR_GRIDS, 'lst','LST_Night.%02d.nc' % mth) for mth in np.arange(1, 13)]
+    params[P_PATH_LST_TMAX] = [os.path.join(FPATH_PREDICTOR_GRIDS, 'lst','LST_Day.%02d.nc' % mth) for mth in np.arange(1, 13)]
     
     # Main path to write output
     params[P_PATH_OUT] = os.path.join(PROJECT_ROOT, 'tile_output')
