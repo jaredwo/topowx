@@ -29,11 +29,14 @@ PROJ_GEO_WGS84 = 4326 #EPSG Code
 PROJ_GEO_NAD83 = 4269 #EPSG Code
 PROJ_GEO_WGS72 = 4322 #EPSG Code
 
-DTYPES_MAP = {np.dtype(np.float32):gdalconst.GDT_Float32,
-              np.dtype(np.float64):gdalconst.GDT_Float64,
-              np.dtype(np.int16):gdalconst.GDT_Int16,
-              np.dtype(np.int32):gdalconst.GDT_Int32,
-              np.dtype(np.uint16):gdalconst.GDT_UInt16}
+DTYPES_NP_TO_GDAL = {   np.dtype(np.float32):gdalconst.GDT_Float32,
+                        np.dtype(np.float64):gdalconst.GDT_Float64,
+                        np.dtype(np.int16):gdalconst.GDT_Int16,
+                        np.dtype(np.int32):gdalconst.GDT_Int32,
+                        np.dtype(np.uint16):gdalconst.GDT_UInt16,
+                        np.dtype(np.int8):gdalconst.GDT_Byte,
+                        np.dtype(np.uint8):gdalconst.GDT_UInt16}
+DTYPES_GDAL_TO_NP = {a_value:a_key for a_key,a_value in DTYPES_NP_TO_GDAL.items()}
 
 VAR_LON = "lon"
 VAR_LAT = "lat"
@@ -41,8 +44,10 @@ VAR_LAT = "lat"
 TIME_SUM = "SUM"
 TIME_AVG = "AVG"
 
+ATTRS_NODATA = ('_FillValue','missing_value')
 
-def expand_grid(ds,varname,expand_dims,outpath,val,mask):
+
+def expand_grid(ds,varname,expand_dims,outpath,mask,ndata = None):
             
     #Crop each raster dataset to only include cols,rows that are within the actual mask
     data = ds.variables[varname][:]    
@@ -64,6 +69,21 @@ def expand_grid(ds,varname,expand_dims,outpath,val,mask):
     nrows,ncols = data.shape
     var_dtype = ds.variables[varname].dtype
     
+    if ndata is None:
+    
+        for ndata_attr in ATTRS_NODATA:
+            
+            try:
+                ndata = np.asscalar(ds.variables[varname].getncattr(ndata_attr))
+                break
+            except AttributeError:
+                continue
+    
+    if ndata is None:
+        raise Exception('Could not determine no data values for input dataset variable: '
+                        +varname)
+    
+    
     #################################################################
     #Determine # of rows and columns to add to top/bottom,left/right
     #################################################################
@@ -73,7 +93,6 @@ def expand_grid(ds,varname,expand_dims,outpath,val,mask):
     if add_rows < 0 or add_cols < 0:
         raise Exception("Number of rows/cols to expand by must be greater than current number of rows/cols")
      
-    
     if add_rows%2.0 == 0.0:
         
         nadd = np.int(add_rows/2.0)
@@ -140,8 +159,8 @@ def expand_grid(ds,varname,expand_dims,outpath,val,mask):
     new_lats = np.concatenate((add_top_lats,lats,add_bot_lats))
     new_lons = np.concatenate((add_left_lons,lons,add_right_lons))
     
-    new_data = np.vstack((np.ones((add_row_top,data.shape[1]),dtype=var_dtype)*val,data,np.ones((add_row_bot,data.shape[1]),dtype=var_dtype)*val))
-    new_data = np.hstack((np.ones((new_data.shape[0],add_col_left),dtype=var_dtype)*val,new_data,np.ones((new_data.shape[0],add_col_right),dtype=var_dtype)*val))
+    new_data = np.vstack((np.ones((add_row_top,data.shape[1]),dtype=var_dtype)*ndata,data,np.ones((add_row_bot,data.shape[1]),dtype=var_dtype)*ndata))
+    new_data = np.hstack((np.ones((new_data.shape[0],add_col_left),dtype=var_dtype)*ndata,new_data,np.ones((new_data.shape[0],add_col_right),dtype=var_dtype)*ndata))
     
     ds_new = Dataset(outpath,'w')
 
@@ -167,14 +186,50 @@ def expand_grid(ds,varname,expand_dims,outpath,val,mask):
         ncdf_var.setncattr(attrname,ds.variables[varname].getncattr(attrname))
     
     ds_new.close()
-        
-def to_ncdf(rast_path,varname,out_path,np_dtype,nodata=None):
+
+def grid_wgs84_to_raster(fpath, a, lon, lat, gdal_dtype, ndata=None, gdal_driver="GTiff"):
+    
+    '''
+    Create GDAL geotransform list to define resolution and bounds
+    GeoTransform[0] /* top left x */
+    GeoTransform[1] /* w-e pixel resolution */
+    GeoTransform[2] /* rotation, 0 if image is "north up" */
+    GeoTransform[3] /* top left y */
+    GeoTransform[4] /* rotation, 0 if image is "north up" */
+    GeoTransform[5] /* n-s pixel resolution */
+    '''
+    geo_t = [None]*6
+    #n-s pixel height/resolution needs to be negative.  not sure why?
+    geo_t[5] = -np.abs(lat[0] - lat[1])   
+    geo_t[1] = np.abs(lon[0] - lon[1])
+    geo_t[2],geo_t[4] = (0.0,0.0)
+    geo_t[0] = lon[0] - (geo_t[1]/2.0) 
+    geo_t[3] = lat[0] + np.abs(geo_t[5]/2.0)
+    
+    ds_out = gdal.GetDriverByName(gdal_driver).Create(fpath, int(a.shape[1]),
+                                                      int(a.shape[0]),
+                                                      1, gdal_dtype)
+    ds_out.SetGeoTransform(geo_t)
+    
+    sr = osr.SpatialReference()
+    sr.ImportFromEPSG(PROJ_GEO_WGS84)
+    ds_out.SetProjection(sr.ExportToWkt())
+    
+    band_out = ds_out.GetRasterBand(1)
+    if ndata is not None:
+        band_out.SetNoDataValue(ndata)
+    band_out.WriteArray(np.ma.filled(a, ndata))
+                
+    ds_out.FlushCache()
+    ds_out = None
+    
+def raster_wgs84_to_ncdf(rast_path,varname,out_path,attdict=None):
     
     rast = RasterDataset(rast_path)
-    a = rast.read_as_array().data
+    a = np.ma.getdata(rast.read_as_array())
+    nodata = rast.gdal_ds.GetRasterBand(1).GetNoDataValue()
     
-    lat = rast.getLatLon(0.0,np.arange(rast.rows),transform=False)[0]
-    lon = rast.getLatLon(np.arange(rast.cols),0.0,transform=False)[1]
+    lat,lon = rast.get_coord_grid_1d()
     
     ncdf_file = Dataset(out_path,'w')
 
@@ -194,10 +249,11 @@ def to_ncdf(rast_path,varname,out_path,np_dtype,nodata=None):
     longitudes.standard_name = "longitude"
     longitudes[:] = lon
     
-    ncdf_var = ncdf_file.createVariable(varname,np_dtype,('lat','lon',),fill_value=False)
-    if nodata is not None:
-        ncdf_var.missing_value = nodata
-    
+    ncdf_var = ncdf_file.createVariable(varname,a.dtype,('lat','lon',),fill_value=False)
+    #if nodata is not None:
+    ncdf_var.missing_value = nodata
+    ncdf_var.setncatts(attdict)
+        
     ncdf_var[:,:] = a
     ncdf_file.close()
     
@@ -287,7 +343,7 @@ class NcdfRaster():
     def toGTiff(self,fpathOut,a,proj4='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'):
         
         drvr =  gdal.GetDriverByName('GTiff')
-        dsOut = drvr.Create(fpathOut, a.shape[1], a.shape[0], 1, DTYPES_MAP[a.dtype])
+        dsOut = drvr.Create(fpathOut, a.shape[1], a.shape[0], 1, DTYPES_NP_TO_GDAL[a.dtype])
         
         sr = osr.SpatialReference()
         sr.ImportFromProj4(proj4)
@@ -420,7 +476,7 @@ def toGTiff(a,ds,pathOut,fill=None):
     
     #Get the GDAL datatype
     try:
-        dtype = DTYPES_MAP[a.dtype]
+        dtype = DTYPES_NP_TO_GDAL[a.dtype]
     except KeyError:
         print "".join(["Warning: Numpy Datatype ",str(a.dtype),
                        " not supported. Defaulting to float64."])
@@ -464,7 +520,7 @@ def to_geotiff(ncdf_file,var,path,time_index=None,dtype=None,nodata_val=None,pro
     cols = len(ncdf_file.dimensions['lon'])
     
     try:
-        dtype = dtype if dtype != None else DTYPES_MAP[ncdf_file.variables[var].dtype]
+        dtype = dtype if dtype != None else DTYPES_NP_TO_GDAL[ncdf_file.variables[var].dtype]
     except KeyError:
         raise Exception("Didn't recognize dtype in ncdf variable.  Pass dtype explicitly.")
     
@@ -527,7 +583,7 @@ def to_geotiffa(ncdf_file,a,path,nodata_val,proj=PROJ_GEO_WGS84):
     cols = len(ncdf_file.dimensions['lon'])
     
     try:
-        dtype = DTYPES_MAP[a.dtype]
+        dtype = DTYPES_NP_TO_GDAL[a.dtype]
     except KeyError:
         raise Exception("Didn't recognize dtype in ncdf variable.  Pass dtype explicitly.")
     
