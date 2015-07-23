@@ -5,3 +5,4 @@ from . import homog
 from . import infill
 from . import raster
 from . import interp
+__version__ = '1.1.0'
