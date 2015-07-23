@@ -250,7 +250,7 @@ def create_quick_db(path,stns,days,variables):
     # Set global attributes
     title = "Weather Station Database"
     ncdf_file.title = title
-    ncdf_file.institution = "University of Montana Numerical Terradynamics Simulation Group"
+    ncdf_file.institution = "University of Montana"
     ncdf_file.history = "".join(["Created on: ", datetime.datetime.strftime(datetime.date.today(), "%Y-%m-%d")])
 
     print "Creating netCDF4 database for " + str(days[DATE][0]) + " to " + str(days[DATE][-1]) + " for " + str(stns.size) + " stations."

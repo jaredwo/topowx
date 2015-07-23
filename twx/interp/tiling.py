@@ -29,6 +29,7 @@ import datetime
 from datetime import date
 from twx.utils import YMD, DATE
 import netCDF4
+import twx
 
 # factor by which daily outputs are scaled.
 # everything is stored as int16
@@ -353,8 +354,8 @@ class TileWriter():
         # Set global attributes
         title = "".join(["Daily Interpolated Meteorological Data ", str(days[YMD][0]), "-", str(days[YMD][-1])])
         ds.title = title
-        ds.institution = "University of Montana Numerical Terradynamics Simulation Group"
-        ds.source = "TopoWx v1.0.0"
+        ds.institution = "University of Montana"
+        ds.source = "TopoWx %s"%twx.__version__
         ds.history = "".join(["Created on: ", datetime.datetime.strftime(date.today(), "%Y-%m-%d")]) 
         ds.references = "http://www.ntsg.umt.edu/project/TopoWx"
         ds.comment = "30-arcsec spatial resolution, daily timestep"
