@@ -413,7 +413,7 @@ def matchGhcnToUshcn(stnsG,stnsUS):
   
     return np.array(matchUSIds)
 
-def create_ushcn_db(path_ushcn_data, fpath_out, min_yr, max_yr):
+def create_ushcn_db(path_ushcn_data, fpath_out, min_yr, max_yr, ushcn_vars=USHCN_VARIABLES):
     
     fnames = np.array(os.listdir(path_ushcn_data))
     fnames = np.array([os.path.join(path_ushcn_data,a_name) for a_name in fnames])
@@ -427,9 +427,9 @@ def create_ushcn_db(path_ushcn_data, fpath_out, min_yr, max_yr):
     stns = _parse_stns(os.path.join(path_ushcn_data,FNAME_USHCN_STNS))
     mths = utld.get_mth_metadata(min_yr,max_yr)
     
-    create_quick_db(fpath_out, stns, mths, USHCN_VARIABLES)
+    create_quick_db(fpath_out, stns, mths, ushcn_vars)
     
-    ushcn_variable_names = [a_var[0] for a_var in USHCN_VARIABLES]
+    ushcn_variable_names = [a_var[0] for a_var in ushcn_vars]
     
     ds = Dataset(fpath_out,'r+')
     
