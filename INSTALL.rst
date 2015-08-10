@@ -34,24 +34,29 @@ may work, but have not been fully tested.
 Python Packages
 -----------------
 
-* fiona 1.1.5
-* gdal 1.10.1
-* matplotlib 1.4.2 (basemap toolkit 1.0.7)
+* fiona 1.5.1
+* gdal 1.11.2
+* matplotlib 1.4.3 (basemap toolkit 1.0.7)
 * mpi4py 1.3.1
-* netCDF4 1.1.0 (netCDF 4.2.1.1, HDF5 1.8.12)
-* numpy 1.9.1
-* rpy2 2.3.9 (R version 3.0.3)
-* scipy 0.13.3
-* shapely 1.3.0
+* netCDF4 1.1.8 (netCDF 4.3.2, HDF5 1.8.14)
+* numpy 1.9.2
+* pandas 0.16.2
+* pyproj 1.9.4
+* rpy2 2.6.0 (R version 3.2.0)
+* scipy 0.15.1
+* shapely 1.5.8
+* statsmodels 0.6.1
+* tzwhere 1.0
+* xray 0.5.2
 
 R Packages
 -----------------
 
 * changepoint 1.1.5
-* gstat 1.0-18
+* gstat 1.0-25
 * norm 1.0-9.5
-* pcaMethods 1.52.1
-* sp 1.0-14
+* pcaMethods 1.58.0
+* sp 1.1-1
 
 External programs
 -----------------

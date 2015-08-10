@@ -26,7 +26,7 @@ for a_rlib in r_libs_require:
 setup(
     name='topowx',
     
-    version='1.0',
+    version='1.1.0',
     
     packages=find_packages(),
     
@@ -39,7 +39,7 @@ setup(
     
     author='Jared W. Oyler',
     
-    author_email='jared.oyler@ntsg.umt.edu',
+    author_email='jaredwo@gmail.com',
 
     license='GPL',
 
@@ -67,8 +67,13 @@ setup(
                       'mpi4py',
                       'netCDF4',
                       'numpy',
+                      'pandas',
+                      'pyproj',
                       'rpy2',
                       'scipy',
                       'shapely',
+                      'statsmodels',
+                      'tzwhere',
+                      'xray'
     ] 
 )

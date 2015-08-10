@@ -6,10 +6,10 @@ TopoWx ("Topography Weather") is an open source framework written in Python and
 R for interpolating temperature observations at a "topoclimatic" spatial scale
 (<= 10 km). Using digital elevation model (DEM) variables and remotely sensed
 observations of land skin temperature, TopoWx empirically models the effect
-of various topoclimatic factors (eg. elevation, cold air drainge potential,
+of various topoclimatic factors (eg. elevation, cold air drainage potential,
 slope/aspect, coastal proximity) on air temperature. The current interpolation
 procedures include moving window regression kriging and geographically
-weighted regression.  To avoid artificial climate trends, TopoWx homogenizes
+weighted regression. To avoid artificial climate trends, TopoWx homogenizes
 all input station data using the `GHCN/USHCN Pairwise Homogenization
 Algorithm <http://www.ncdc.noaa.gov/oa/climate/research/ushcn/#phas>`_. TopoWx
 was developed at University of Montana within the `Numerical Terradynamic
@@ -34,11 +34,12 @@ http://www.ntsg.umt.edu/project/TopoWx
 
 References
 =============
-Oyler, J.W., Ballantyne, A., Jencso, K., Sweet, M. and Running, S. W. (2014),
+Oyler, J.W., Ballantyne, A., Jencso, K., Sweet, M. and Running, S. W. (2014).
 Creating a topoclimatic daily air temperature dataset for the conterminous
 United States using homogenized station data and remotely sensed land skin
 temperature. Int. J. Climatol. http://dx.doi.org/10.1002/joc.4127.
 
-Oyler, J.W., Dobrowski, S.Z., Ballantyne, A.P., Klene, A.E., Running, S.W. (In
-Press). Artificial Amplification of Warming Trends Across the Mountains of
-the Western United States. Geophysical Research Letters.
+Oyler, J.W., Dobrowski, S.Z., Ballantyne, A.P., Klene, A.E., Running, S.W.
+(2015). Artificial amplification of warming trends across the mountains of
+the western United States. Geophysical Research Letters.
+http://dx.doi.org/10.1002/2014GL062803.
