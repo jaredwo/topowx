@@ -30,6 +30,7 @@ import numpy as np
 from twx.utils import get_days_metadata, get_days_metadata_dates, set_chunk_cache_params
 from netCDF4 import Dataset, num2date, chartostring
 import netCDF4
+import xarray as xr
 
 TMIN = "TMIN"
 TMAX = "TMAX"
@@ -45,11 +46,11 @@ MONTH = "MONTH"
 DAY = "DAY"
 YDAY = "YDAY"
 
-LON = "lon"
-LAT = "lat"
-ELEV = "elev"
-STN_ID = "stn_id"
-STN_NAME = "name"
+LON = "longitude"
+LAT = "latitude"
+ELEV = "elevation"
+STN_ID = "station_id"
+STN_NAME = "station_name"
 STATE = "state"
 NORM_OBS = "norm"
 TDI = "tdi"  # Topographic Dissection
@@ -71,8 +72,6 @@ MEAN_TMAX = 'mean_tmax'
 VAR_TMIN = 'var_tmin'
 VAR_TMAX = 'var_tmax'
 UTC_OFFSET = 'utc_offset'
-
-NO_DATA = -9999
 
 def get_mean_varname(varname, mth=None):
     
@@ -137,14 +136,18 @@ def _build_stn_struct(ds):
         # for now assume second dimension on char array
         # starts with string
         return (len(a_var.dimensions) == 2 and
-                a_var.dimensions[0] == 'stn_id' and 
+                a_var.dimensions[0] == STN_ID and 
                 a_var.dimensions[1].startswith('string'))
             
     for var_name in varnames:
         
         is_chara = is_chararray(ds.variables[var_name])
         
-        if ds.variables[var_name].dimensions == ('stn_id',) or is_chara:
+        if ds.variables[var_name].dimensions == (STN_ID,) or is_chara:
+            
+            prev_mask = ds.variables[var_name].mask
+            prev_scale = ds.variables[var_name].scale
+            ds.variables[var_name].set_auto_maskandscale(True)
             
             var_data = ds.variables[var_name][:]
             var_dtype = var_data.dtype
@@ -169,7 +172,10 @@ def _build_stn_struct(ds):
             stn_var_dtype.append((str(var_name), var_dtype))
             stn_var_name.append(var_name)
             
-    stns = np.empty(len(ds.dimensions['stn_id']), dtype=stn_var_dtype)
+            ds.variables[var_name].set_auto_mask(prev_mask)
+            ds.variables[var_name].set_auto_scale(prev_scale)
+            
+    stns = np.empty(len(ds.dimensions[STN_ID]), dtype=stn_var_dtype)
     
     for var_name, var_data in zip(stn_var_name, stn_var_data):
         stns[var_name] = var_data
@@ -178,7 +184,7 @@ def _build_stn_struct(ds):
 
 def _parse_stn_ids(a_ds):
     
-    var_stnid = a_ds.variables['stn_id']
+    var_stnid = a_ds.variables[STN_ID]
     
     if len(var_stnid.dimensions) == 2:
         stn_ids = chartostring(var_stnid[:])
@@ -193,7 +199,8 @@ class StationDataDb(object):
     a netCDF4 weather station database.
     '''
     
-    def __init__(self, nc_path, startend_ymd=None, vcc_size=None, vcc_nelems=None, vcc_preemption=None, mode="r"):
+    def __init__(self, nc_path, startend_ymd=None, vcc_size=None,
+                 vcc_nelems=None, vcc_preemption=None, mode="r"):
         '''
         Parameters
         ----------
@@ -212,9 +219,12 @@ class StationDataDb(object):
         mode : str, optional
             The dataset read mode (r or r+)
         '''
-        
+                
         self.nc_path = nc_path
-        self.ds = Dataset(self.nc_path, mode=mode)
+        
+        store = xr.backends.NetCDF4DataStore(nc_path, mode=mode)
+        self.xrds = xr.open_dataset(store)
+        self.ds = store.ds #Dataset(self.nc_path, mode=mode)
         
         var_time = self.ds.variables['time']
         dates = num2date(var_time[:], var_time.units)  
@@ -227,7 +237,7 @@ class StationDataDb(object):
         
         for a_varname in self.ds.variables.keys():
             
-            if self.ds.variables[a_varname].dimensions == ('time', 'stn_id'):
+            if self.ds.variables[a_varname].dimensions == ('time', 'station_id'):
                 
                 self.ds.variables[a_varname].set_auto_maskandscale(False)
                 main_vars.append(self.ds.variables[a_varname])
@@ -267,13 +277,22 @@ class StationDataDb(object):
         self.stn_idxs = {}
         for x in np.arange(self.stn_ids.size):
             self.stn_idxs[self.stn_ids[x]] = x
+            
+        #Add DataFrame version of stations
+        self.stns_df = self.xrds[list(self.stns.dtype.names)].to_dataframe()
+        self.stns_df['station_index'] = np.arange(len(self.stns_df))
+        self.stns_df['station_id'] = self.stns_df.index
+        
+        self.stns_df.loc[:, self.stns_df.dtypes == object] = self.stns_df.loc[:, self.stns_df.dtypes == object].astype(np.str)
+        self.stns_df.index = self.stns_df.index.astype(np.str)
+        
     
     def __set_day_mask(self, start_ymd, end_ymd):
         
         self.day_mask = np.nonzero(np.logical_and(self.days[YMD] >= start_ymd, self.days[YMD] <= end_ymd))[0]
         self.days = self.days[self.day_mask]
            
-    def add_stn_variable(self, varname, long_name, units, dtype, fill_value=None):
+    def add_stn_variable(self, varname, long_name, units, dtype, fill_value=None, reset=True):
         '''
         Add and initialize a station variable. If the variable
         already exists, it will be reset.
@@ -302,7 +321,7 @@ class StationDataDb(object):
         
         if varname not in self.ds.variables.keys():
             
-            newvar = self.ds.createVariable(varname, dtype, ('stn_id',),
+            newvar = self.ds.createVariable(varname, dtype, (STN_ID,),
                                             fill_value=fill_value)
             newvar.long_name = long_name
             newvar.units = units
@@ -310,7 +329,64 @@ class StationDataDb(object):
         else:
             
             newvar = self.ds.variables[varname]
-            newvar[:] = fill_value
+            
+            if reset:
+            
+                newvar[:] = fill_value
+        
+        self.ds.sync()
+        
+        return newvar
+    
+    def add_obs_variable(self, varname, long_name, units, dtype,
+                         fill_value=None, zlib=True, chunksizes=None,
+                         reset=True):
+        '''Add and initialize a 2D observation variable
+        
+        Parameters
+        ----------
+        varname : str
+            The name of the variable.
+        long_name : str
+            The long name of the variable.
+        units : str
+            The units of the variable.
+        dtype : str
+            The data type of the variable as a string.
+        fill_value : int or float
+            The fill or no data value for the variable.
+            If None, the default netCDF4 fill value will be used
+        zlib : boolean, optional
+            Use zlib compression for the variable. Default: True
+        chunksize: tuple of ints, optional
+            Chunksize of the variable
+        reset: boolean, optional
+            Reset variable values if already exists. Default: True
+            
+        Returns
+        -------
+        newvar : netCDF4.Variable
+            The new netCDF4 variable
+        '''
+        
+        fill_value = netCDF4.default_fillvals[dtype] if fill_value is None else fill_value
+        
+        if varname not in self.ds.variables.keys():
+            
+            newvar = self.ds.createVariable(varname, dtype, ('time', STN_ID),
+                                            fill_value=fill_value, zlib=zlib,
+                                            chunksizes=chunksizes)
+            newvar.long_name = long_name
+            newvar.missing_value = fill_value
+            newvar.units = units
+                        
+        else:
+            
+            newvar = self.ds.variables[varname]
+            
+            if reset:
+            
+                newvar[:] = fill_value
         
         self.ds.sync()
         
@@ -372,9 +448,10 @@ class StationDataDb(object):
                 flags = np.zeros(vals.shape, dtype=np.str)
         
         if set_flagged_nan:
-            vals[np.logical_or(vals == NO_DATA, np.logical_not(flags == ""))] = np.nan
+            vals[np.logical_or(vals == self.ds[var].missing_value,
+                               np.logical_not(flags == ""))] = np.nan
         else:
-            vals[vals == NO_DATA] = np.nan
+            vals[vals == self.ds[var].missing_value] = np.nan
 
         if num_stns == 1:
             
@@ -439,13 +516,15 @@ class StationDataDb(object):
         
         if set_flagged_nan:
             
-            tmin[np.logical_or(tmin == NO_DATA, np.logical_not(flag_tmin == ""))] = np.nan
-            tmax[np.logical_or(tmax == NO_DATA, np.logical_not(flag_tmax == ""))] = np.nan
+            tmin[np.logical_or(tmin == self.ds['tmin'].missing_value,
+                               np.logical_not(flag_tmin == ""))] = np.nan
+            tmax[np.logical_or(tmax == self.ds['tmax'].missing_value,
+                               np.logical_not(flag_tmax == ""))] = np.nan
 
         else:
             
-            tmin[tmin == NO_DATA] = np.nan
-            tmax[tmax == NO_DATA] = np.nan
+            tmin[tmin == self.ds['tmin'].missing_value] = np.nan
+            tmax[tmax == self.ds['tmax'].missing_value] = np.nan
         
         if num_stns == 1:
             
@@ -464,7 +543,7 @@ class StationDataDb(object):
         flag_tmax = None
 
         return obs
-        
+            
 class StationSerialDataDb(object):
     '''
     A class for accessing stations and observations from
@@ -615,7 +694,7 @@ class StationSerialDataDb(object):
         
         if varname not in self.ds.variables.keys():
             
-            newvar = self.ds.createVariable(varname, dtype, ('stn_id',),
+            newvar = self.ds.createVariable(varname, dtype, (STN_ID,),
                                             fill_value=fill_value)
             newvar.long_name = long_name
             newvar.units = units
@@ -628,3 +707,9 @@ class StationSerialDataDb(object):
         self.ds.sync()
         
         return newvar
+
+def create_stnobs_nc(fpath, start_date, end_date, ls_obsio):
+    pass
+    
+    
+
