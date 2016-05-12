@@ -163,16 +163,13 @@ class InsertTobs(twx.db.Insert):
     station dataset and performs time-of-observation adjustments.
     '''
     
-    def __init__(self,stnda,fpath_tobs_ds,stns_tmin,stns_tmax):
+    def __init__(self,stnda, stns_tmin, stns_tmax):
         '''
         Parameters
         ----------
         stnda : twx.db.StationDataDb
             A StationDataDb object pointing to a netCDF station dataset
             from which stations and observations should be loaded
-        fpath_tobs_ds : str
-            The file path to a netCDF4 time of observation database built
-            by create_tobs_db
         stns_tmin : structured ndarray
             Stations for which Tmin observations should be inserted. 
             Structured station array must contain at least the following fields:
@@ -185,26 +182,22 @@ class InsertTobs(twx.db.Insert):
             twx.db.StationDataDb.
         '''
         
-        twx.db.Insert.__init__(self,stnda.days[DATE][0],stnda.days[DATE][-1])
+        twx.db.Insert.__init__(self,stnda.days[DATE][0], stnda.days[DATE][-1])
         
         self.stnda = stnda
         self.stns_tmin = stns_tmin
         self.stns_tmax = stns_tmax
-        self.stns_all = np.concatenate((self.stns_tmin,self.stns_tmax[~np.in1d(self.stns_tmax[STN_ID],
-                                                                               self.stns_tmin[STN_ID], assume_unique=True)]))
+        self.stns_all = np.concatenate((self.stns_tmin,
+                                        self.stns_tmax[~np.in1d(self.stns_tmax[STN_ID],
+                                                                self.stns_tmin[STN_ID],
+                                                                assume_unique=True)]))
         self.stns_all = self.stns_all[np.argsort(self.stns_all[STN_ID])]
-
-#         por = twx.db.load_por_csv(fpathPor)
-#         mask_por_tmin, mask_por_tmax = twx.db.build_valid_por_masks(por)
-#                 
-#         self.stns_tmin = stnda.stns[mask_por_tmin]
-#         self.stns_tmax = stnda.stns[mask_por_tmax]
                 
-        self.stn_list = [(stn[STN_ID],stn[LAT],stn[LON],stn[ELEV],stn[STATE],stn[STN_NAME]) for stn in self.stns_all]
-        
-        self.ds_tobs = Dataset(fpath_tobs_ds)
-        self.ds_tobs_stnids = self.ds_tobs.variables['stn_id'][:].astype("<S16")
-        
+        self.stn_list = [(stn[STN_ID], stn[LAT], stn[LON], stn[ELEV], '',
+                          stn[STN_NAME]) for stn in self.stns_all]
+                
+        #self.empty_obs_tmin = np.ones(stnda.days.size)*self.stnda.ds['tmin'].missing_value
+        #self.empty_obs_tmax = np.ones(stnda.days.size)*self.stnda.ds['tmax'].missing_value
         self.empty_obs = np.ones(stnda.days.size)*MISSING
         self.empty_qa = np.zeros(stnda.days.size,dtype=np.str)
     
@@ -222,8 +215,9 @@ class InsertTobs(twx.db.Insert):
         
         if stn_id in self.stns_tmax[STN_ID]:
 
-            tmax = self.stnda.load_all_stn_obs_var(stn_id,'tmax')[0]
-            tobs = self.ds_tobs.variables['tobs'][:,np.nonzero(self.ds_tobs_stnids==stn_id)[0][0]]
+            tmax = self.stnda.load_all_stn_obs_var(stn_id, 'tmax')[0]
+            tobs = self.stnda.load_all_stn_obs_var(stn_id, 'tobs_tmax')[0]
+            #tobs = self.ds_tobs.variables['tobs'][:,np.nonzero(self.ds_tobs_stnids==stn_id)[0][0]]
             tmax = _tobs_shift_tmax(tmax, tobs)
             tmax[np.isnan(tmax)] = MISSING
             
@@ -246,20 +240,16 @@ class InsertTobs(twx.db.Insert):
                 
         return obs
     
-def _tobs_shift_tmax(tmax,tobs):
+def _tobs_shift_tmax(tmax, tobs):
     '''
     Shift morning observations of Tmax back a calendar day
-    '''
-    
-    #consider no tobs as 2400
-    tobs = np.ma.filled(tobs, 2400)
-    
+    '''    
     #any tobs before 1100 is considered morning
-    tobs_mask_am = tobs < 1100
+    tobs_mask_am = np.logical_and(tobs > 0, tobs < 1100)
             
     if np.sum(tobs_mask_am) > 0:
                         
-        tobs_mask_ok = np.logical_and(~tobs_mask_am,np.isfinite(tmax))
+        tobs_mask_ok = np.logical_and(~tobs_mask_am, np.isfinite(tmax))
         idx_shift = np.nonzero(tobs_mask_am)[0]
         idx_shift = idx_shift[idx_shift > 0]
         idx_shift = idx_shift[~tobs_mask_ok[idx_shift-1]]
