@@ -57,7 +57,7 @@ class XvalInfill(object):
             missing and used for validation
         '''
 
-        if xval_stnids == None:
+        if xval_stnids is None:
             xval_stnids = load_default_xval_stnids(stnda.stn_ids)
 
         # Load observations for each station

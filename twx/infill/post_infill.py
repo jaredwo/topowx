@@ -20,7 +20,7 @@ from twx.infill.infill_daily import NONOPTIM_IMPOSS_VAL, NONOPTIM_VARI_CHGPT
 
 __all__ = ['add_monthly_normals', 'add_stn_raster_values',
            'create_serially_complete_db', 'find_dup_stns',
-           'set_bad_stations', 'update_daily_infill']
+           'set_bad_stations', 'update_daily_infill', 'get_bad_infill_stnids']
 
 import numpy as np
 from netCDF4 import Dataset, num2date
