@@ -22,18 +22,23 @@ along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 
 __all__ = ['UtcOffset', 'GeonamesError', 'TZGeonamesClient']
 
+from datetime import datetime
+import json
 import numpy as np
+import pytz
 import urllib
 import urllib2
-import json
-import fiona
-from shapely.geometry import shape, MultiPolygon, Point, box
-from functools import partial
-import pyproj
-from shapely.ops import transform
+
+# tzwhere currently sets log level to debug when imported
+# get log level before import and then reset log level to this
+# value after tzwhere import
+import logging
+logger = logging.getLogger()
+log_level = logger.level
+
 from tzwhere.tzwhere import tzwhere
-from datetime import datetime
-import pytz
+
+logger.setLevel(log_level)
 
 class UtcOffset():
     '''
@@ -55,7 +60,8 @@ class UtcOffset():
             be found via the local shapefile.
         '''
         
-        self.tzw = tzwhere()
+        print "Initializing tzwhere..."
+        self.tzw = tzwhere(shapely=True, forceTZ=True)
         
         self.tz_offsets = {}
         tz_names = np.array(self.tzw.timezoneNamesToPolygons.keys())
@@ -96,7 +102,7 @@ class UtcOffset():
             determined, the ndata value is returned.
         '''
         
-        tz_name = self.tzw.tzNameAt(lat, lon)
+        tz_name = self.tzw.tzNameAt(lat, lon, forceTZ=True)
         offset = self.ndata
         
         if tz_name is not None:
