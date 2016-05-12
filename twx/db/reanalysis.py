@@ -85,6 +85,7 @@ def create_nnr_subset(path_nnr, fpath_out, yrs, days, varname_in, varname_out, l
     lons = ds.variables['lon'][:]
     lons[lons > 180] = lons[lons > 180] - 360.0
     lats = ds.variables['lat'][:]
+    ds.close()
 
     mask_levels = np.in1d(levels, levels_subset, True)
     mask_lons = np.logical_and(lons >= LON_LEFT, lons <= LON_RIGHT)
@@ -124,6 +125,8 @@ def create_nnr_subset(path_nnr, fpath_out, yrs, days, varname_in, varname_out, l
 
         ds_out.variables[varname_out][fnl_day_mask, :, :, :] = var_data
         ds_out.sync()
+        
+        ds.close()
 
         print yr
 
@@ -169,6 +172,8 @@ def create_nnr_subset_nolevel(path_nnr, fpath_out, yrs, days, varname_in, varnam
     lons = ds.variables['lon'][:]
     lons[lons > 180] = lons[lons > 180] - 360.0
     lats = ds.variables['lat'][:]
+    
+    ds.close()
 
     mask_lons = np.logical_and(lons >= LON_LEFT, lons <= LON_RIGHT)
     mask_lats = np.logical_and(lats >= LAT_BOTTOM, lats <= LAT_TOP)
@@ -207,6 +212,8 @@ def create_nnr_subset_nolevel(path_nnr, fpath_out, yrs, days, varname_in, varnam
 
         ds_out.variables[varname_out][fnl_day_mask, :, :] = var_data
         ds_out.sync()
+        
+        ds.close()
 
         print yr
 
@@ -248,6 +255,8 @@ def create_thickness_nnr_subset(path_nnr, fpath_out, yrs, days, level_up, level_
     lons = ds.variables['lon'][:]
     lons[lons > 180] = lons[lons > 180] - 360.0
     lats = ds.variables['lat'][:]
+    
+    ds.close()
 
     idx_levelup = np.nonzero(levels == level_up)[0][0]
     idx_levellow = np.nonzero(levels == level_low)[0][0]
@@ -287,7 +296,9 @@ def create_thickness_nnr_subset(path_nnr, fpath_out, yrs, days, level_up, level_
         data_thick = data_thick[mask_ymd, :, :]
 
         fnl_day_mask = np.in1d(days[YMD], ymd_yr, True)
-
+        
+        ds.close()
+        
         ds_out.variables['thick'][fnl_day_mask, :, :] = data_thick
         ds_out.sync()
 
