@@ -23,215 +23,77 @@ You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-__all__ = ["combine_locqa","qa_stn_locs","set_usrname_geonames","update_stn_locs"]
+__all__ = ['get_elevation', 'LocQA']
 
-import urllib, urllib2
-from twx.db.station_data import STN_ID, STATE, LON, LAT, ELEV
-import numpy as np
-import time
-from netCDF4 import Dataset
+from time import sleep
+from urllib2 import HTTPError
 import json
+import numpy as np
+import urllib
+import urllib2
+import pandas as pd
 
-# DEM service URLs
-URL_USGS_NED = 'http://ned.usgs.gov/epqs/pqs.php'
-URL_GEONAMES_SRTM = 'http://api.geonames.org/srtm3'
-URL_GEONAMES_ASTER = 'http://api.geonames.org/astergdem'
-USGS_NED_NODATA = -1000000
+def _get_elev_usgs(lon, lat, maxtries):
+    """Get elev value from USGS NED 1/3 arc-sec DEM.
 
-def _load_locqa_lines(path_locqa):
-    '''
-    Load a location quality assurance csv file. 
-    A location quality assurance csv file has the following headers: 
-    STN_ID: The station id of the station
-    ST: That state of the state
-    LON: The original longitude of the station
-    LAT: The original latitude of the station
-    ELEV: The elevation provided for the station from the original data source (meters)
-    DEM: The high-resolution DEM elevation for the station's original lat, lon (meters)
-    DIF: The difference between the DEM elevation and the original listed elevation (meters)
-    LON_NEW: A new, fixed longitude for the station (if applicable, manually added by the user)
-    LAT_NEW: A new, fixed latitude for the station (if applicable, manually added by the user)
-    ELEV_NEW: A new, fixed elevation for the station (if applicable, manually added by the user)
-     
-    Parameters
-    ----------
-    path_locqa : str
-        The file path to the location quality assurance csv file
-            
-    Returns
-    -------
-    locs : dict
-        A dict of line strings. The dict keys are station ids.
-    '''
+    http://ned.usgs.gov/epqs/
+    """
 
-    afile = open(path_locqa)
-    afile.readline()
+    URL_USGS_NED = 'http://ned.usgs.gov/epqs/pqs.php'
+    USGS_NED_NODATA = -1000000
 
-    locs = {}
-    for line in afile.readlines():
+    # url GET args
+    values = {'x': lon,
+              'y': lat,
+              'units': 'Meters',
+              'output': 'json'}
 
-        # STN_ID,ST,LON,LAT,ELEV,DEM,DIF,LON_NEW,LAT_NEW,ELEV_NEW
-        stn_id = line.split(",")[0].strip()
-        locs[stn_id] = line
+    data = urllib.urlencode(values)
 
-    return locs
-
-def _load_locs_fixed_all(path_locqa):
-    '''
-    Load a location quality assurance csv file. A location quality assurance csv file
-    has the following headers: 
-    STN_ID: The station id of the station
-    ST: That state of the state
-    LON: The original longitude of the station
-    LAT: The original latitude of the station
-    ELEV: The elevation provided for the station from the original data source (meters)
-    DEM: The high-resolution DEM elevation for the station's original lat, lon (meters)
-    DIF: The difference between the DEM elevation and the original listed elevation (meters)
-    LON_NEW: A new, fixed longitude for the station (if applicable, manually added by the user)
-    LAT_NEW: A new, fixed latitude for the station (if applicable, manually added by the user)
-    ELEV_NEW: A new, fixed elevation for the station (if applicable, manually added by the user)
-     
-    Parameters
-    ----------
-    path_locqa : str
-        The file path to the location quality assurance csv file.
-            
-    Returns
-    -------
-    locs : dict
-        A dict of tuples containing longitude, latitude, and elevation values for all
-        stations in the location quality assurance csv file. If a station has values
-        for the LON_NEW, LAT_NEW fields, the LON_NEW, LAT_NEW, and ELEV_NEW fields are
-        returned instead of the original. The dict keys are station ids
-    '''
-
-    afile = open(path_locqa)
-    afile.readline()
-
-    locs = {}
-    for line in afile.readlines():
-
-        # STN_ID,ST,LON,LAT,ELEV,DEM,DIF,LON_NEW,LAT_NEW,ELEV_NEW
-        vals = line.split(",")
-        vals = [x.strip() for x in vals]
-
-        # If fixed/new values are not empty, use these instead of originals
-        if vals[7] != '' and vals[8] != '':
-
-            locs[vals[0]] = [float(vals[7]), float(vals[8]), float(vals[9])]
-
-        else:
-
-            locs[vals[0]] = [float(vals[2]), float(vals[3]), float(vals[4])]
-
-    return locs
-
-def _load_locs_fixed(path_locqa):
-    '''
-    Load only manually fixed station locations in a location quality assurance csv file. 
-    A location quality assurance csv file has the following headers: 
-    STN_ID: The station id of the station
-    ST: That state of the state
-    LON: The original longitude of the station
-    LAT: The original latitude of the station
-    ELEV: The elevation provided for the station from the original data source (meters)
-    DEM: The high-resolution DEM elevation for the station's original lat, lon (meters)
-    DIF: The difference between the DEM elevation and the original listed elevation (meters)
-    LON_NEW: A new, fixed longitude for the station (if applicable, manually added by the user)
-    LAT_NEW: A new, fixed latitude for the station (if applicable, manually added by the user)
-    ELEV_NEW: A new, fixed elevation for the station (if applicable, manually added by the user)
-     
-    Parameters
-    ----------
-    path_locqa : str
-        The file path to the location quality assurance csv file
-            
-    Returns
-    -------
-    locs : dict
-        A dict of tuples containing LON_NEW,LAT_NEW,ELEV_NEW values for only stations
-        that had their locations manually fixed. The dict keys are station ids
-    '''
-
-    afile = open(path_locqa)
-    afile.readline()
-
-    locs = {}
-    for line in afile.readlines():
-
-        # STN_ID,ST,LON,LAT,ELEV,DEM,DIF,LON_NEW,LAT_NEW,ELEV_NEW
-        vals = line.split(",")
-
-        # If fixed/new values are not empty, load station
-        if vals[7] != '' and vals[8] != '':
-
-            locs[vals[0]] = [float(vals[7]), float(vals[8]), float(vals[9])]
-
-    return locs
-
-def combine_locqa(old_locqa, new_locqa, path_fout):
-    '''
-    Combines two location quality assurance csv files into a single
-    location quality assurance csv. If the 2 files have overlapping stations,
-    the new file takes precedence over the old file.
+    req = urllib2.Request(URL_USGS_NED, data)
+                
+    ntries = 0
     
-    Parameters
-    ----------
-    old_locqa : str
-        A file path to a location quality assurance csv file
-    new_locqa : str
-        A file path to a location quality assurance csv file
-    path_fout: str
-        The file path for the combined location quality assurance csv file
-    '''
-
-    locs_old = _load_locqa_lines(old_locqa)
-    locs_new = _load_locqa_lines(new_locqa)
-
-    stnids_old = np.array(locs_old.keys())
-    stnids_new = np.array(locs_new.keys())
-
-    stnids_old = stnids_old[np.logical_not(np.in1d(stnids_old, stnids_new, assume_unique=True))]
-
-    fout = open(path_fout, "w")
-    fout.write(",".join(["STN_ID", "ST", "LON", "LAT", "ELEV", "DEM", "DIF", "LON_NEW", "LAT_NEW", "ELEV_NEW", "\n"]))
-
-    for stn_id in stnids_old:
-
-        fout.write(locs_old[stn_id])
-
-    for stn_id in stnids_new:
-
-        fout.write(locs_new[stn_id])
-
-    fout.close()
-
-
-def _get_elev_geonames(lon, lat, usrname=None, url=URL_GEONAMES_SRTM):
-    '''
-    Get elev value from geonames web sevice (SRTM or ASTER). If usrname is None,
-    the existence of global variable USRNAME_GEONAMES will be checked to try to
-    retrieve a geonames username. USRNAME_GEONAMES can be set with set_usrname_geonames
-    '''
-
-    global USRNAME_GEONAMES
-
-    if usrname is None:
-
+    while 1:
+        
         try:
+            
+            response = urllib2.urlopen(req)
+            break
 
-            usrname = USRNAME_GEONAMES
+        except HTTPError:
+            
+            ntries += 1
+        
+            if ntries >= maxtries:
+        
+                raise
+        
+            sleep(1)
+            
+    json_response = json.loads(response.read())
+    elev = np.float(json_response['USGS_Elevation_Point_Query_Service']
+                    ['Elevation_Query']['Elevation'])
 
-        except NameError:
+    if elev == USGS_NED_NODATA:
 
-            raise Exception("_get_elev_geonames: usrname is None and  USRNAME_GEONAMES variable doesn't exist!")
+        elev = np.nan
+
+    return elev
+
+def _get_elev_geonames(lon, lat, usrname_geonames, maxtries):
+    """Get elev value from geonames web sevice (SRTM or ASTER)
+    """
+
+    URL_GEONAMES_SRTM = 'http://api.geonames.org/srtm3'
+    URL_GEONAMES_ASTER = 'http://api.geonames.org/astergdem'
+
+    url = URL_GEONAMES_SRTM
 
     while 1:
         # ?lat=50.01&lng=10.2&username=demo
         # url GET args
-        values = {'lat' : lat,
-        'lng' : lon,
-        'username' : usrname}
+        values = {'lat': lat, 'lng': lon, 'username': usrname_geonames}
 
         # encode the GET arguments
         data = urllib.urlencode(values)
@@ -240,7 +102,26 @@ def _get_elev_geonames(lon, lat, usrname=None, url=URL_GEONAMES_SRTM):
         get_url = "".join([url, "?", data])
 
         req = urllib2.Request(url=get_url)
-        response = urllib2.urlopen(req)
+        
+        ntries = 0
+        
+        while 1:
+            
+            try:
+                
+                response = urllib2.urlopen(req)
+                break
+
+            except HTTPError:
+                
+                ntries += 1
+            
+                if ntries >= maxtries:
+            
+                    raise
+            
+                sleep(1)
+        
         elev = float(response.read().strip())
 
         if elev == -32768.0 and url == URL_GEONAMES_SRTM:
@@ -249,202 +130,129 @@ def _get_elev_geonames(lon, lat, usrname=None, url=URL_GEONAMES_SRTM):
         else:
             break
 
-    # print "".join(["Geonames Elev: ",str(elev)])
-    return elev
-
-def _get_elev(stn):
-    '''
-    Get the elevation of a station's lon/lat from a DEM online datasource
-    
-    Parameters
-    ----------
-    stn : structured ndarray
-        A station record from a structured ndarray containing at least the
-        following fields: STN_ID,STATE,LON,LAT,ELEV
-            
-    Returns
-    -------
-    elev_dem : float
-        The DEM elevation corresponding to the station's lon/lat 
-    '''
-
-    # determine if a us station or not. currently, only stations outside us are in mexico or canada
-    us_stn = not (stn[STN_ID].find('CA') != -1 or stn[STN_ID].find('MX') != -1 or
-                  (stn[STATE] == '' or stn[STATE] == 'AK' or stn[STATE] == 'HI'))
-
-    while 1:
-
-        try:
-            # If the station is within the US, use the USGS data service
-            # If not in the US, use the geonames data service
-            if us_stn:
-                elev_dem = _get_elev_usgs(stn[LON], stn[LAT])
-            else:
-                elev_dem = _get_elev_geonames(stn[LON], stn[LAT])
-
-            return elev_dem
-
-        except urllib2.URLError:
-            print "Error in connection. sleep and try again..."
-            time.sleep(5)
-
-
-def _get_elev_usgs(lon, lat):
-    '''
-    Get elev value from USGS NED 1/3 arc-sec DEM.
-    http://ned.usgs.gov/epqs/
-    '''
-
-    # url GET args
-    values = {'x' : lon,
-              'y' : lat,
-              'units' : 'Meters',
-              'output' : 'json'}
-
-    data = urllib.urlencode(values)
-
-    req = urllib2.Request(URL_USGS_NED, data)
-    response = urllib2.urlopen(req)
-    
-    json_response = json.loads(response.read())
-    elev = json_response['USGS_Elevation_Point_Query_Service']['Elevation_Query']['Elevation']
-
-    if elev == USGS_NED_NODATA:
-        
-        print "".join(["ERROR: USGS NED NO DATA for point ", str(lon), ",", str(lat)])
+    if elev == -32768.0 or elev == -9999.0:
         elev = np.nan
-    
+
     return elev
 
-def update_stn_locs(path_db, path_locqa):
+def get_elevation(lon, lat, usrname_geonames=None, maxtries=3):
+
+    elev = _get_elev_usgs(lon, lat, maxtries)
+
+    if np.isnan(elev) and usrname_geonames is not None:
+
+        elev = _get_elev_geonames(lon, lat, usrname_geonames, maxtries)
+
+    return elev
+
+class LocQA(object):
+    '''Class for managing location quality assurance HDF database
     '''
-    Update the longitude, latitude, and elevation of stations in a netCDF database 
-    based on corrected locations in a location quality assurance csv file.
-    A location quality assurance csv file has the following headers: 
-    STN_ID: The station id of the station
-    ST: That state of the state
-    LON: The original longitude of the station
-    LAT: The original latitude of the station
-    ELEV: The elevation provided for the station from the original data source (meters)
-    DEM: The high-resolution DEM elevation for the station's original lat, lon (meters)
-    DIF: The difference between the DEM elevation and the original listed elevation (meters)
-    LON_NEW: A new, fixed longitude for the station (if applicable, manually added by the user)
-    LAT_NEW: A new, fixed latitude for the station (if applicable, manually added by the user)
-    ELEV_NEW: A new, fixed elevation for the station (if applicable, manually added by the user)
-     
-    Parameters
-    ----------
-    path_db : str
-        The file path to the netCDF4 database
-    path_locqa : str
-        The file path to the location quality assurance csv file
-    '''
-
-    locs_fixed = _load_locs_fixed(path_locqa)
-
-    ds = Dataset(path_db, 'r+')
-    var_lon = ds.variables['lon']
-    var_lat = ds.variables['lat']
-    var_elev = ds.variables['elev']
-    stn_ids = ds.variables['stn_id'][:]
-
-    cnt = 0
-    print "Total # of station locs to fix: " + str(len(locs_fixed.keys()))
-    for stn_id in locs_fixed.keys():
-
-        try:
-            x = np.nonzero(stn_ids == stn_id)[0][0]
-        except IndexError:
-            print "Could not update, since station not in database: " + stn_id
-            continue
-
-        lon, lat, elev = locs_fixed[stn_id]
-        var_lon[x] = lon
-        var_lat[x] = lat
-        var_elev[x] = elev
-        cnt += 1
-        ds.sync()
-    print "Total # of stations locs updated: " + str(cnt)
-
-def qa_stn_locs(stns, path_out, path_locqa_prev=None):
-    '''
-    Perform quality assurance of station locations by retrieving the DEM elevation for 
-    a station's lon/lat from a DEM online datasource and then comparing the DEM elevation
-    with that listed for the station. The results are written to an output location 
-    quality assurance csv file. Inspecting the output file, the user must decide if 
-    there is a location issue that warrants manually relocating a station and then update the
-    LON_NEW, LAT_NEW, and ELEV_NEW of the output file and run update_stn_locs. The output
-    file headers are:
-    STN_ID: The station id of the station
-    ST: That state of the state
-    LON: The original longitude of the station
-    LAT: The original latitude of the station
-    ELEV: The elevation provided for the station from the original data source (meters)
-    DEM: The high-resolution DEM elevation for the station's original lat, lon (meters)
-    DIF: The difference between the DEM elevation and the original listed elevation (meters)
-    LON_NEW: A new, fixed longitude for the station (if applicable, manually added by the user)
-    LAT_NEW: A new, fixed latitude for the station (if applicable, manually added by the user)
-    ELEV_NEW: A new, fixed elevation for the station (if applicable, manually added by the user)
-     
-    Parameters
-    ----------
-    stns : structured ndarray
-        A structured station array containing the longitude, latitude, and elevation of
-        the stations to be checked. A structured station array is an attribute
-        of twx.db.StationDataDb and can be subsetted.
-    path_out : str
-        The file path for the output location quality assurance csv file
-    path_locqa_prev : str, optional
-        A file path to a previous location quality assurance csv file. If a station location 
-        (lon, lat, elev) of the provided stns structured ndarray matches that in the
-        previous location quality assurance csv file, the station location will not be
-        QA'd and written to the output file  
-    '''
-
-    if path_locqa_prev is not None:
-
-        locs_fixed = _load_locs_fixed_all(path_locqa_prev)
-
-    else:
-
-        locs_fixed = {}
-
-    print "Total num of stations for location qa: " + str(stns.size)
-
-    fout = open(path_out, "w")
-    fout.write(",".join(["STN_ID", "ST", "LON", "LAT", "ELEV", "DEM", "DIF", "LON_NEW", "LAT_NEW", "ELEV_NEW", "\n"]))
-
-    for stn in stns:
-
-        chk_stn = False
-
-        if locs_fixed.has_key(stn[STN_ID]):
-
-            lon, lat, elev = locs_fixed[stn[STN_ID]]
-            if np.round(stn[LON], 4) != np.round(lon, 4) or np.round(stn[LAT], 4) != np.round(lat, 4) or np.round(stn[ELEV], 0) != np.round(elev, 0):
-                chk_stn = True
-
-        else:
-            chk_stn = True
-
-        if chk_stn:
-
-            elev_dem = _get_elev(stn)
-            dif = stn[ELEV] - elev_dem
-            print "Station %s elevation difference from DEM: %.2f meters." % (stn[STN_ID], dif)
-            fout.write(",".join([stn[STN_ID], stn[STATE], str(stn[LON]), str(stn[LAT]), str(stn[ELEV]), str(elev_dem), str(dif), "", "", "", "\n"]))
-
-    fout.close()
-
-def set_usrname_geonames(usr_name):
-    '''
-    Set a global USRNAME_GEONAMES username variable for _get_elev_geonames
     
-    Parameters
-    ----------
-    usr_name : str
-        A username for geonames
-    '''
+    _cols_locqa = ['station_id','station_name', 'longitude', 'latitude',
+                   'elevation','elevation_dem','longitude_qa','latitude_qa',
+                   'elevation_qa']
 
-    global USRNAME_GEONAMES
-    USRNAME_GEONAMES = usr_name
+    def __init__(self, fpath_locqa_hdf, mode='a', usrname_geonames=None):
+        
+        self.fpath_locqa_hdf = fpath_locqa_hdf
+        self.usrname_geonames = usrname_geonames
+        
+        self._store = pd.HDFStore(fpath_locqa_hdf, mode)
+        self.reload_stns_locqa()
+                    
+    def reload_stns_locqa(self):
+        
+        try:
+            
+            self._stns_locqa = self._store.select('stns')
+            
+        except KeyError:
+
+            self._stns_locqa = pd.DataFrame(columns=self._cols_locqa)
+            
+            # Make sure numeric columns are float
+            cols_flt = ['longitude','latitude','elevation','elevation_dem',
+                        'longitude_qa','latitude_qa','elevation_qa']
+            
+            self._stns_locqa[cols_flt] = self._stns_locqa[cols_flt].astype(np.float)
+        
+        self._stns_locqa = self._stns_locqa[~self._stns_locqa.index.duplicated(keep='last')].copy()
+        
+    
+    def get_elevation_dem(self, lon, lat):
+        
+        return get_elevation(lon, lat, self.usrname_geonames)
+        
+    def update_locqa_hdf(self, stns, reload_locqa=True):
+        
+        self._store.append('stns', stns[self._cols_locqa], min_itemsize={'station_id':50,
+                                                                         'station_name':50,
+                                                                         'index':50})
+        self._store.flush()
+        
+        if reload_locqa:
+        
+            self.reload_stns_locqa()
+    
+    def add_locqa_cols(self, stns):
+        
+        stns = stns.copy()
+        
+        locqa_cols = ['elevation_dem', 'longitude_qa', 'latitude_qa', 'elevation_qa']
+        
+        isclose_cols = ['longitude', 'latitude', 'elevation']
+#        isclose_cols_ = (pd.Series(isclose_cols) + '_').values
+#        rtols = [0]*len(isclose_cols)
+#        atols = [1e-02,1e-02,1]
+        
+        a_stns = stns[isclose_cols].join(self._stns_locqa, how='left', rsuffix='_')
+        
+        # Check if lon, lat, elev of a station is close to lon, lat, elev of
+        # the station in the loc qa store
+#        mask_isclose = self._isclose(a_stns, isclose_cols, isclose_cols_, rtols, atols)
+        # Check if lon, lat, elev of a station is close to the qa lon, lat, elev
+        # of the station
+#         mask_isclose2 = self._isclose(a_stns, isclose_cols,
+#                                       ['longitude_qa', 'latitude_qa',
+#                                        'elevation_qa'], rtols, atols) 
+#         
+#         # If 
+#         a_stns.loc[~np.logical_or(mask_isclose1, mask_isclose2), locqa_cols] = np.nan
+        
+        for c in locqa_cols:
+            stns[c] = a_stns[c]
+                                        
+        return stns
+        
+    def get_locqa_fail_stns(self, stns, elev_dif_thres=200):
+        
+        stns = stns.copy()
+        stns['elevation_dif'] = stns.elevation - stns.elevation_dem 
+        
+        mask_fail = ((stns.elevation_dif.abs() > elev_dif_thres) |
+                     (stns.elevation_dif.isnull())).values
+        mask_noqa = ((stns.longitude_qa.isnull()) | (stns.latitude_qa.isnull())
+                     | (stns.elevation_qa.isnull())).values
+        mask_fnl = np.logical_and(mask_fail, mask_noqa)
+                     
+        return stns[mask_fnl].copy()
+        
+        
+    def _isclose(self, stns, cols1, cols2, rtols, atols):
+    
+        mask_isclose = np.ones(len(stns), dtype=np.bool)
+        
+        for c1,c2,rtol,atol in zip(cols1,cols2,rtols,atols):
+            
+            a_mask = np.isclose(stns[c1].values, stns[c2].values,
+                                rtol=rtol, atol=atol, equal_nan=True)
+            mask_isclose = np.logical_and(a_mask, mask_isclose)
+        
+        return mask_isclose
+    
+    def close(self):
+        
+        self._store.close()
+        self._store = None
+    
