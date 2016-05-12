@@ -139,7 +139,7 @@ class XvalOutlier(object):
         self.stn_slct.set_ngh_stns(xval_stn[LAT], xval_stn[LON], bw_nngh, load_obs=False, stns_rm=stn_id)
         df_nghs = self.df_stns.loc[self.stn_slct.ngh_stns[STN_ID], :]
         
-        ls_fit = sm.wls('norm~lst+elev+lon+lat', data=df_nghs, weights=self.stn_slct.ngh_wgt).fit()
+        ls_fit = sm.wls('norm~lst+elevation+longitude+latitude', data=df_nghs, weights=self.stn_slct.ngh_wgt).fit()
         err = ls_fit.predict(df_xval_stn)[0] - df_xval_stn['norm']
         
         return err
