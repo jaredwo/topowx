@@ -604,29 +604,22 @@ def _qa_lagrange_inconsist(tmin, tmax, days, flags_tmin, flags_tmax):
 
     x = 0
     while x < days[DATE].size:
-
-        if x == 0:
-            tmin_prev = np.NAN
-            tmax_prev = np.NAN
+        
+        if x == 0 and x == days[DATE].size - 1:
+            window_indices = np.array([x])
+        elif x == 0:
+            window_indices = np.array([x, x + 1])
+        elif x == days[DATE].size - 1:
+            window_indices = np.array([x-1, x])
         else:
-            tmin_prev = tmin[x - 1]
-            tmax_prev = tmax[x - 1]
-
+            window_indices = np.array([x - 1, x, x + 1])
+        
+        tmin_window = tmin[list(window_indices)]
+        tmax_window = tmax[list(window_indices)]
+        
         tmin_cur = tmin[x]
         tmax_cur = tmax[x]
-
-        if x == days[DATE].size - 1:
-            tmin_nxt = np.NAN
-            tmax_nxt = np.NAN
-        else:
-            tmin_nxt = tmin[x + 1]
-            tmax_nxt = tmax[x + 1]
-
-        tmin_window = np.array([tmin_prev, tmin_cur, tmin_nxt])
-        tmax_window = np.array([tmax_prev, tmax_cur, tmax_nxt])
-
-        window_indices = np.array([x - 1, x, x + 1])
-
+        
         nan_mask_tmin = np.logical_not(np.isnan(tmin_window))
         nan_mask_tmax = np.logical_not(np.isnan(tmax_window))
 
@@ -751,10 +744,14 @@ def _qa_spatial_corrob(stn, stn_da, tmin, tmax, days, flags_tmin, flags_tmax, ng
     '''
 
     if ngh_data is None:
+        
         ngh_mask, dists = _stns_in_radius_mask(stn, stn_da)
         ngh_ids = stn_da.stns[STN_ID][ngh_mask]
-        ngh_ids = ngh_ids[np.logical_not(ngh_ids == stn[STN_ID])]
-        dists = dists[np.logical_not(ngh_ids == stn[STN_ID])]
+        
+        mask_rm_target = np.logical_not(ngh_ids == stn[STN_ID])
+        ngh_ids = ngh_ids[mask_rm_target]
+        dists = dists[mask_rm_target]
+        
         ngh_obs = None
     else:
         ngh_ids, dists, ngh_obs = ngh_data
