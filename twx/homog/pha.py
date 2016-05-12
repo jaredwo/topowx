@@ -40,7 +40,7 @@ CONF_LINE_END_YR = 'endyr=1999\n'
 CONF_LINE_MAX_YRS = 'maxyrs=500000\n'
 CONF_LINE_ELEMS = 'elems="tavg"\n'
 
-DTYPE_PHA_ADJ = [(STN_ID, "<S16"), ('ymd_start',np.int),('ymd_end',np.int),('adj', np.float64)]
+DTYPE_PHA_ADJ = [(STN_ID, "<S50"), ('ymd_start',np.int),('ymd_end',np.int),('adj', np.float64)]
 
 
 def setup_pha(fpath_pha_tar, path_out_src, path_out_run, yr_begin, yr_end, stns, tair, varname):
@@ -132,7 +132,7 @@ def run_pha(path_run, varname):
         Temperature variable name (tmin or tmax)
     '''
 
-    pha_cmd = os.path.join(path_run, 'testv52i-pha.sh') + "  world1 %s raw 0 0 P" % (varname,)
+    pha_cmd = 'bash ' + os.path.join(path_run, 'testv52i-pha.sh') + "  world1 %s raw 0 0 P" % (varname,)
     print "Running PHA for %s..." % (varname,)
     subprocess.call(pha_cmd, shell=True)
     
@@ -165,8 +165,8 @@ class HomogDaily():
         
         self.stnda = stnda
         self.varname = varname
-        
-        self.mthly_data = self.stnda.ds.variables['_'.join([varname,'mth'])][:]
+
+        self.mthly_data = np.ma.masked_invalid(self.stnda.xrds['_'.join([varname, 'mth'])][:].values)
         self.miss_data = self.stnda.ds.variables['_'.join([varname,'mthmiss'])][:]
         
         path_adj_log = os.path.join(path_pha_run,'data','benchmark','world1','output','pha_adj_%s.log'%(varname,))
@@ -235,7 +235,7 @@ class HomogDaily():
         miss_cnts = self.miss_data[:,self.stnda.stn_idxs[stn_id]]
         dly_vals_homog = dly_vals.copy()
         
-        stn_pha_adj = self.pha_adjs[self.pha_adjs['stn_id']==fstn_id]
+        stn_pha_adj = self.pha_adjs[self.pha_adjs[STN_ID]==fstn_id]
         stn_pha_adj = stn_pha_adj[np.argsort(stn_pha_adj['ymd_start'])]
         
         dif_cnt = 0
@@ -470,11 +470,11 @@ def _format_stnid(stnid):
     Format station id for PHA
     '''
 
-    if stnid.startswith("GHCN_"):
+    if stnid.startswith("GHCND_"):
 
         outid = stnid.split("_")[1]
 
-    elif stnid.startswith("SNOTEL_"):
+    elif stnid.startswith("NRCS_"):
 
         outid = stnid.split("_")[1]
         outid = "".join(["SNT", "{0:0>8}".format(outid)])
@@ -482,7 +482,7 @@ def _format_stnid(stnid):
     elif stnid.startswith("RAWS_"):
 
         outid = stnid.split("_")[1]
-        outid = "".join(["RAW", "{0:0>8}".format(outid)])
+        outid = "".join(["WRC", "{0:0>8}".format(outid)])
 
     else:
 
