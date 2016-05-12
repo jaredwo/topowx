@@ -431,6 +431,9 @@ def _load_R():
         global r
         global ri
         
+        # https://github.com/ContinuumIO/anaconda-issues/issues/152
+        import readline
+        
         import rpy2
         import rpy2.robjects
         robjects = rpy2.robjects
