@@ -1,36 +1,15 @@
-'''
-A MPI script for running Tmin/Tmax quality assurance procedures.
-Must be run using mpiexec or mpirun.
-
-Copyright 2014,2015, Jared Oyler.
-
-This file is part of TopoWx.
-
-TopoWx is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-TopoWx is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
-'''
-
 from mpi4py import MPI
+from netCDF4 import Dataset, date2index
+from twx.db import StationDataDb, STN_ID, TMIN, TMAX, TMIN_FLAG, TMAX_FLAG, add_obs_cnt
+from twx.utils import YMD, StatusCheck, ymdL_to_date, Unbuffered, TwxConfig, ymdL
+import argparse
 import numpy as np
-from twx.db import StationDataDb, STN_ID, TMIN, TMAX, TMIN_FLAG, TMAX_FLAG, STATE
-import twx.qa.qa_temp as qa_temp
-from netCDF4 import Dataset, date2num
-from twx.utils import YMD, StatusCheck, ymdL_to_date, Unbuffered
-import sys
 import os
-import twx
 import traceback
-from twx.utils.util_dates import YEAR
+import twx.qa.qa_temp as qa_temp
+import sys
+
+sys.stdout = Unbuffered(sys.stdout)
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -39,15 +18,6 @@ TAG_OBSMASKS = 3
 RANK_COORD = 0
 RANK_WRITE = 1
 N_NON_WRKRS = 2
-
-P_PATH_DB = 'P_PATH_DB'
-P_PATH_POR_OUT = 'P_PATH_POR_OUT'
-P_STN_MASK = 'P_STN_MASK'
-P_QA_SPATIAL = 'P_QA_SPATIAL'
-
-sys.stdout = Unbuffered(sys.stdout)
-
-NA_STATE = np.array(["NA"], dtype="<U2")[0]
 
 class IterFlagUpdate:
 
@@ -91,7 +61,7 @@ class IterMultiFlagUpdate:
         self.cur_iter = self.iters[self.x]
 
         ds = Dataset(db_path, 'r+')
-        stn_ids = ds.variables['stn_id'][:]
+        stn_ids = ds.variables[STN_ID][:]
         time_units = ds.variables['time'].units
 
         print self.cur_iter.stn_id
@@ -109,14 +79,19 @@ class IterMultiFlagUpdate:
                     stn_id = flag_row[2]
                     stn_idx = np.nonzero(stn_ids == stn_id)[0][0]
 
-                time_idx = int(date2num(ymdL_to_date(flag_row[3]), units=time_units))
-
+                time_idx = int(date2index(ymdL_to_date(flag_row[3]), ds.variables['time']))
+                
+                if flag_row[0] != '':
+                    print 'qflag_tmin',stn_id, time_idx, stn_idx,flag_row[0]
+                if flag_row[1] != '':
+                    print 'qflag_tmax',stn_id, time_idx, stn_idx,flag_row[1]
                 ds.variables['qflag_tmin'][time_idx, stn_idx] = flag_row[0]
                 ds.variables['qflag_tmax'][time_idx, stn_idx] = flag_row[1]
 
             except StopIteration:
                 break
-
+        
+        ds.sync()
         ds.close()
 
     def next(self):
@@ -137,35 +112,41 @@ class IterMultiFlagUpdate:
                         if self.x > self.max:
                             raise StopIteration
 
-def proc_work(params, rank):
+def proc_work(twx_cfg, qa_spatial, rank):
 
     status = MPI.Status()
-    stn_da = StationDataDb(params[P_PATH_DB])
+    stndb = StationDataDb(twx_cfg.fpath_stndata_nc_all)
 
     while 1:
 
         try:
 
-            stn_id = MPI.COMM_WORLD.recv(source=RANK_COORD, tag=MPI.ANY_TAG, status=status)
+            stn_id = MPI.COMM_WORLD.recv(source=RANK_COORD, tag=MPI.ANY_TAG,
+                                         status=status)
 
             if status.tag == TAG_STOPWORK:
                 MPI.COMM_WORLD.send(None, dest=RANK_WRITE, tag=TAG_STOPWORK)
                 print "".join(["Worker ", str(rank), ": Finished"])
                 return 0
 
-            obs = stn_da.load_all_stn_obs(np.array([stn_id]))
-            stn = stn_da.stns[stn_da.stn_ids == stn_id][0]
+            obs = stndb.load_all_stn_obs(np.array([stn_id]))
+            stn = stndb.stns[stndb.stn_ids == stn_id][0]
             
-            if params[P_QA_SPATIAL]:
+            if qa_spatial:
                 
-                flags_tmin, flags_tmax = qa_temp.run_qa_spatial_only(stn, stn_da, obs[TMIN], obs[TMAX], stn_da.days)
+                flags_tmin, flags_tmax = qa_temp.run_qa_spatial_only(stn, stndb,
+                                                                     obs[TMIN],
+                                                                     obs[TMAX],
+                                                                     stndb.days)
             
             else:
                 
-                flags_tmin, flags_tmax = qa_temp.run_qa_non_spatial(obs[TMIN], obs[TMAX], stn_da.days)
+                flags_tmin, flags_tmax = qa_temp.run_qa_non_spatial(obs[TMIN],
+                                                                    obs[TMAX],
+                                                                    stndb.days)
             
 
-            a_iter = create_update_iter(stn, flags_tmin, flags_tmax, stn_da.days,
+            a_iter = create_update_iter(stn, flags_tmin, flags_tmax, stndb.days,
                                              obs[TMIN_FLAG], obs[TMAX_FLAG])
 
             MPI.COMM_WORLD.send(a_iter, dest=RANK_WRITE, tag=TAG_DOWORK)
@@ -176,11 +157,14 @@ def proc_work(params, rank):
 
         MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
 
+def create_update_iter(stn, flags_tmin, flags_tmax, days,
+                       prev_flgs_tmin=np.array([]),
+                       prev_flgs_tmax=np.array([])):
 
-def create_update_iter(stn, flags_tmin, flags_tmax, days, prev_flgs_tmin=np.array([]), prev_flgs_tmax=np.array([])):
-
-    mask_tmin = np.logical_not(np.logical_or(flags_tmin == qa_temp.QA_OK, flags_tmin == qa_temp.QA_MISSING))
-    mask_tmax = np.logical_not(np.logical_or(flags_tmax == qa_temp.QA_OK, flags_tmax == qa_temp.QA_MISSING))
+    mask_tmin = np.logical_not(np.logical_or(flags_tmin == qa_temp.QA_OK,
+                                             flags_tmin == qa_temp.QA_MISSING))
+    mask_tmax = np.logical_not(np.logical_or(flags_tmax == qa_temp.QA_OK,
+                                             flags_tmax == qa_temp.QA_MISSING))
 
     nobs_tmin = np.sum(flags_tmin != qa_temp.QA_MISSING)
     nobs_tmax = np.sum(flags_tmax != qa_temp.QA_MISSING)
@@ -198,14 +182,16 @@ def create_update_iter(stn, flags_tmin, flags_tmax, days, prev_flgs_tmin=np.arra
     else:
         pctflg_tmax = (nflag_tmax / float(nobs_tmax)) * 100.0
 
-    print "%s: Pct. of Tmin|Tmax observations flagged: %.2f|%.2f" % (stn[STN_ID], pctflg_tmin, pctflg_tmax)
+    print ("%s: Pct. of Tmin|Tmax observations flagged: %.2f (%d total)|%.2f (%d total)" %
+           (stn[STN_ID], pctflg_tmin, nflag_tmin, pctflg_tmax, nflag_tmax))
 
     mask_all = np.logical_or(mask_tmin, mask_tmax)
     # make sure previous flags are not overwritten in the update
     flags_tmin = set_prev_flags(flags_tmin, prev_flgs_tmin)
     flags_tmax = set_prev_flags(flags_tmax, prev_flgs_tmax)
 
-    return IterFlagUpdate(stn[STN_ID], flags_tmin[mask_all], flags_tmax[mask_all], days[YMD][mask_all])
+    return IterFlagUpdate(stn[STN_ID], flags_tmin[mask_all],
+                          flags_tmax[mask_all], days[YMD][mask_all])
 
 def set_prev_flags(flags, prev_flgs):
 
@@ -218,19 +204,22 @@ def set_prev_flags(flags, prev_flgs):
             if flag != "":
 
                 mask_flg = prev_flgs == flag
+                mask_set = np.logical_and(mask_flg,
+                                          np.logical_or(flags == qa_temp.QA_OK,
+                                                        flags == qa_temp.QA_MISSING))
 
-                flags[np.logical_and(mask_flg, np.logical_or(flags == qa_temp.QA_OK, flags == qa_temp.QA_MISSING))] = qa_temp.GHCN_TO_TWX_FLAGS_MAP[flag]
+                flags[mask_set] = qa_temp.GHCN_TO_TWX_FLAGS_MAP[flag]
 
     return flags
 
-def proc_write(params, nwrkers):
+def proc_write(twx_cfg, mask_stns, nwrkers):
 
     status = MPI.Status()
     nwrkrs_done = 0
 
     iter_all = IterMultiFlagUpdate()
 
-    nstns = np.nonzero(params[P_STN_MASK])[0].size
+    nstns = np.nonzero(mask_stns)[0].size
     stat_chk = StatusCheck(nstns, 10)
 
     while 1:
@@ -244,21 +233,30 @@ def proc_write(params, nwrkers):
                 
                 print "Writer: updating QA flags in database..."
                 
-                iter_all.update_flags(params[P_PATH_DB])
+                iter_all.update_flags(twx_cfg.fpath_stndata_nc_all)
                 
-                print "Writer: Creating new period-of-record csv file..."
-                # Create new period-of-record csv file
-                # since some stations might now fall below the minimum
+                # Recalculate period-of-record for Tmin and Tmax
+                # since some stations might now fall below the min
                 # por requirement after QA is run
-                stn_da = StationDataDb(params[P_PATH_DB])
-                stns = stn_da.stns
                 
-                fpath_out = os.path.join(params[P_PATH_POR_OUT],
-                                         'all_por_%d_%d.csv' % (stn_da.days[YEAR][0], stn_da.days[YEAR][-1]))
+                for elem in ['tmin', 'tmax']:
                 
-                twx.db.output_por_csv(stn_da, stns, fpath_out)
+                    print ("Updating monthly observation counts for %s from %d to %d... " % 
+                           (elem, ymdL(twx_cfg.obs_start_date),
+                            ymdL(twx_cfg.obs_end_date)))
+
+                    add_obs_cnt(twx_cfg.fpath_stndata_nc_all, elem,
+                                twx_cfg.obs_start_date, twx_cfg.obs_end_date,
+                                twx_cfg.stn_agg_chunk)
+                    
+                    print ("Updating monthly observation counts for %s from %d to %d... " % 
+                           (elem, ymdL(twx_cfg.interp_start_date), ymdL(twx_cfg.interp_end_date)))
+                    
+                    add_obs_cnt(twx_cfg.fpath_stndata_nc_all, elem,
+                                twx_cfg.interp_start_date, twx_cfg.interp_end_date,
+                                twx_cfg.stn_agg_chunk)
                 
-                
+                                
                 print "Writer: Finished"
                 return 0
         else:
@@ -266,10 +264,10 @@ def proc_write(params, nwrkers):
             iter_all.add_iter(a_iter)
             stat_chk.increment()
 
-def proc_coord(params, nwrkers):
+def proc_coord(twx_cfg, mask_stns, nwrkers):
 
-    stn_da = StationDataDb(params[P_PATH_DB])
-    stns = stn_da.stns[params[P_STN_MASK]]
+    stndb = StationDataDb(twx_cfg.fpath_stndata_nc_all)
+    stns = stndb.stns[mask_stns]
 
     cnt = 0
     nrec = 0
@@ -289,40 +287,41 @@ def proc_coord(params, nwrkers):
         MPI.COMM_WORLD.send(stn[STN_ID], dest=w + N_NON_WRKRS, tag=TAG_STOPWORK)
 
 if __name__ == '__main__':
+    
+    twx_cfg = TwxConfig(os.getenv('TOPOWX_INI'))
 
-    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
-    START_YEAR = 1895
-    END_YEAR = 2015
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--spatial", help="run spatial QA checks",
+                        action="store_true")
 
+    args = parser.parse_args()
+
+    # Need to run this QA script twice
+    # First run, only apply non-spatial QA checks (qa_spatial = False)
+    # Second run, only apply spatial QA checks (qa_spatial = True)
+    qa_spatial = args.spatial
+    
     np.seterr(all='raise')
     np.seterr(under='ignore')
     np.seterr(invalid='ignore')
 
     rank = MPI.COMM_WORLD.Get_rank()
     nsize = MPI.COMM_WORLD.Get_size()
-
-    params = {}
-    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'all', 'all_%s_%s.nc' % (START_YEAR, END_YEAR))
-    params[P_PATH_POR_OUT] = os.path.join(FPATH_STNDATA, 'all')
     
-    # Need to run this QA script twice
-    # First run, only apply non-spatial QA checks (P_QA_SPATIAL = False)
-    # Second run, only apply spatial QA checks (P_QA_SPATIAL = True)
-    params[P_QA_SPATIAL] = False
+    print "Process %d of %d. Is spatial QA: %s"%(rank,nsize,qa_spatial)
     
     # Only run QA for SNOTEL and RAWS stations since GHCH-D observations
     # are already flagged by the Durre et al. 2010 procedures
-    stn_da = StationDataDb(params[P_PATH_DB])
-    mask_sntl = np.logical_and(np.char.startswith(stn_da.stn_ids, "SNOTEL"), stn_da.stns[STATE] != "AK")
-    mask_raws = np.char.startswith(stn_da.stn_ids, "RAWS")
-    params[P_STN_MASK] = np.logical_or(mask_raws, mask_sntl)
-    stn_da.ds.close()
-    stn_da = None
+    stndb = StationDataDb(twx_cfg.fpath_stndata_nc_all)
+    mask_stns = stndb.stns_df.provider.isin(['NRCS','WRCC']).values
+    stndb.ds.close()
+    stndb = None
+    
+    #mask_stns[0:-100] = False
 
     if rank == RANK_COORD:
-        proc_coord(params, nsize - N_NON_WRKRS)
+        proc_coord(twx_cfg, mask_stns, nsize - N_NON_WRKRS)
     elif rank == RANK_WRITE:
-        proc_write(params, nsize - N_NON_WRKRS)
+        proc_write(twx_cfg, mask_stns, nsize - N_NON_WRKRS)
     else:
-        proc_work(params, rank)
+        proc_work(twx_cfg, qa_spatial, rank)

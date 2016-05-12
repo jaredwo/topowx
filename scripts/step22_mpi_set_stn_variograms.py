@@ -1,7 +1,7 @@
 '''
 MPI script for setting moving window regression kriging variogram
 parameters at each station location based on the U.S. climate
-division optimal station bandwidths from step13_mpi_optim_nstns_norms.py.
+division optimal station bandwidths from step21_mpi_optim_nstns_norms.py.
 Adds an exponential variogram nugget, partial sill,
 and range station attribute for each month to the serially-complete
 station database.

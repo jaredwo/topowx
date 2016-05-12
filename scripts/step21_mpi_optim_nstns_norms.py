@@ -4,7 +4,7 @@ of monthly temperature normals interpolated using
 moving window regression kriging. Once cross validation
 is complete, the script uses the mean absolute error of
 the cross validation results to set the optimal bandwidth
-for the local number of station to be used for point interpolation
+for the local number of stations to be used for point interpolation
 in each U.S. climate division.
 
 Must be run using mpiexec or mpirun.
