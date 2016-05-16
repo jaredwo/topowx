@@ -7,35 +7,19 @@ and range station attribute for each month to the serially-complete
 station database.
 
 Must be run using mpiexec or mpirun.
-
-Copyright 2014,2015, Jared Oyler.
-
-This file is part of TopoWx.
-
-TopoWx is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-TopoWx is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import readline
-import numpy as np
 from mpi4py import MPI
-import sys
 from twx.db import StationSerialDataDb, \
 STN_ID, MASK, BAD, get_krigparam_varname, VARIO_NUG, VARIO_PSILL, VARIO_RNG
-from twx.utils import StatusCheck, Unbuffered
-import netCDF4
 from twx.interp import StationKrigParams
+from twx.utils import StatusCheck, Unbuffered
+from twx.utils.config import TwxConfig
+import argparse
+import netCDF4
+import numpy as np
 import os
+import sys
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -50,15 +34,16 @@ P_VARNAME = 'P_VARNAME'
 
 sys.stdout = Unbuffered(sys.stdout)
 
-def proc_work(params, rank):
+def proc_work(fpath_stndb, elem, rank):
 
     status = MPI.Status()
 
-    kparams = StationKrigParams(params[P_PATH_DB], params[P_VARNAME])
+    kparams = StationKrigParams(fpath_stndb, elem)
 
     while 1:
 
-        stn_id = MPI.COMM_WORLD.recv(source=RANK_COORD, tag=MPI.ANY_TAG, status=status)
+        stn_id = MPI.COMM_WORLD.recv(source=RANK_COORD, tag=MPI.ANY_TAG,
+                                     status=status)
 
         if status.tag == TAG_STOPWORK:
 
@@ -74,21 +59,24 @@ def proc_work(params, rank):
 
             except Exception as e:
 
-                print "".join(["ERROR: WORKER ", str(rank), ": could not get krig params for ", stn_id, str(e)])
+                print "".join(["ERROR: WORKER ", str(rank),
+                               ": could not get krig params for ", stn_id, str(e)])
                 nug = np.ones(12) * netCDF4.default_fillvals['f8']
                 psill = np.ones(12) * netCDF4.default_fillvals['f8']
                 rng = np.ones(12) * netCDF4.default_fillvals['f8']
 
-            MPI.COMM_WORLD.send((stn_id, nug, psill, rng), dest=RANK_WRITE, tag=TAG_DOWORK)
+            MPI.COMM_WORLD.send((stn_id, nug, psill, rng), dest=RANK_WRITE,
+                                tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
 
-def proc_write(params, nwrkers):
+def proc_write(fpath_stndb, elem, nwrkers):
 
     status = MPI.Status()
     nwrkrs_done = 0
 
-    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME], mode="r+")
-    mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]), np.isnan(stn_da.stns[BAD]))
+    stn_da = StationSerialDataDb(fpath_stndb, elem, mode="r+")
+    mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]),
+                               np.isnan(stn_da.stns[BAD]))
     nstns = np.sum(mask_stns)
 
     dsvars = {}
@@ -106,7 +94,8 @@ def proc_write(params, nwrkers):
 
     while 1:
 
-        stn_id, nug, psill, rng = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+        stn_id, nug, psill, rng = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,
+                                                      tag=MPI.ANY_TAG, status=status)
 
         if status.tag == TAG_STOPWORK:
 
@@ -128,9 +117,9 @@ def proc_write(params, nwrkers):
 
             stat_chk.increment()
 
-def proc_coord(params, nwrkers):
+def proc_coord(fpath_stndb, elem, nwrkers):
 
-    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(fpath_stndb, elem)
     # Only set kriging params for stations within mask and that are not marked as bad
     mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]), np.isnan(stn_da.stns[BAD]))
     stns = stn_da.stns[mask_stns]
@@ -157,26 +146,35 @@ def proc_coord(params, nwrkers):
     print "COORD: done"
 
 if __name__ == '__main__':
-
-    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
-
+    
+    twx_cfg = TwxConfig(os.getenv('TOPOWX_INI'))
     np.seterr(all='raise')
     np.seterr(under='ignore')
+    
+    # Run for Tmin or Tmax
+    parser = argparse.ArgumentParser()
+    parser.add_argument("elem",
+                        help="name of observation element (e.g.-tmin)")
+    args = parser.parse_args()
+    elem = args.elem
+    
+    if elem == 'tmin':
+        fpath_stndb = twx_cfg.fpath_stndata_nc_serial_tmin
+    elif elem == 'tmax':
+        fpath_stndb = twx_cfg.fpath_stndata_nc_serial_tmax
+    else:
+        raise ValueError("Unrecognized element: " + elem)
 
     rank = MPI.COMM_WORLD.Get_rank()
     nsize = MPI.COMM_WORLD.Get_size()
-
-    params = {}
-    #Run for Tmin or Tmax
-    params[P_VARNAME] = 'tmax'
-    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_%s.nc'%params[P_VARNAME])
+    
+    print "Process %d of %d: element is %s" % (rank, nsize, elem)
     
     if rank == RANK_COORD:
-        proc_coord(params, nsize - N_NON_WRKRS)
+        proc_coord(fpath_stndb, elem, nsize - N_NON_WRKRS)
     elif rank == RANK_WRITE:
-        proc_write(params, nsize - N_NON_WRKRS)
+        proc_write(fpath_stndb, elem, nsize - N_NON_WRKRS)
     else:
-        proc_work(params, rank)
+        proc_work(fpath_stndb, elem, rank)
 
     MPI.COMM_WORLD.Barrier()
