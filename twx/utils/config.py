@@ -142,6 +142,11 @@ class TwxConfig():
                                                          'serial_tmin.nc')
         self.fpath_stndata_nc_serial_tmax = os.path.join(self.path_stndata_infill,
                                                          'serial_tmax.nc')
+        # Make data directories for storing interp param optimization files
+        # Temperature normals
+        self.path_interp_optim_norms = os.path.join(self.path_stndata_infill,
+                                                    'optim_norm')
+        mkdir_p(self.path_interp_optim_norms)
         
         # Make TopoWx data directory for raster data
         self.path_rasters = os.path.join(self.twx_data_root, 'rasters')

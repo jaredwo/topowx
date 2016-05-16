@@ -87,21 +87,21 @@ class dbDataset(Dataset):
 
         self.createDimension('stn_id', stn_ids.size)
 
-        stations = self.createVariable('stn_id', 'str', ('stn_id',))
+        stations = self.createVariable('stn_id', np.str, ('stn_id',))
         stations.long_name = "station id"
         stations.standard_name = "station id"
         stations[:] = stn_ids.astype(np.object)
 
     def db_create_names_var(self, names):
 
-        namesvar = self.createVariable('name', 'str', ('stn_id',))
+        namesvar = self.createVariable('name', np.str, ('stn_id',))
         namesvar.long_name = "station name"
         namesvar.standard_name = "name"
         namesvar[:] = names.astype(np.object)
 
     def db_create_states_var(self, states):
 
-        statesvar = self.createVariable('state', 'str', ('stn_id',))
+        statesvar = self.createVariable('state', np.str, ('stn_id',))
         statesvar.long_name = "state"
         statesvar.standard_name = "state"
         statesvar[:] = states.astype(np.object)

@@ -8,35 +8,18 @@ for the local number of stations to be used for point interpolation
 in each U.S. climate division.
 
 Must be run using mpiexec or mpirun.
-
-Copyright 2014,2015, Jared Oyler.
-
-This file is part of TopoWx.
-
-TopoWx is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-TopoWx is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import readline
-import numpy as np
 from mpi4py import MPI
-import sys
-from twx.db import StationSerialDataDb,STN_ID,MASK,BAD,CLIMDIV
-from twx.utils import StatusCheck, Unbuffered
 from netCDF4 import Dataset
-from twx.interp import XvalTairNorm, set_optim_nstns_tair_norm,\
-build_nstn_bandwidths,create_climdiv_optim_nstns_db
+from twx.db import StationSerialDataDb, STN_ID, MASK, BAD, CLIMDIV
+from twx.interp import XvalTairNorm, set_optim_nstns_tair_norm, \
+build_nstn_bandwidths, create_climdiv_optim_nstns_db
+from twx.utils import StatusCheck, Unbuffered, TwxConfig
+import argparse
+import numpy as np
 import os
+import sys
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -46,45 +29,41 @@ RANK_COORD = 0
 RANK_WRITE = 1
 N_NON_WRKRS = 2
 
-P_PATH_DB = 'P_PATH_DB'
-P_PATH_OUT = 'P_PATH_OUT'
-P_NGH_RNG = 'P_NGH_RNG'
-P_VARNAME = 'P_VARNAME'
-P_CLIMDIVS = 'P_CLIMDIVS'
+sys.stdout = Unbuffered(sys.stdout)
 
-sys.stdout=Unbuffered(sys.stdout)
-
-def proc_work(params,rank):
+def proc_work(fpath_stndb, elem, ngh_rng, rank):
     
     status = MPI.Status()
     
-    optim = XvalTairNorm(params[P_PATH_DB], params[P_VARNAME])
+    optim = XvalTairNorm(fpath_stndb, elem)
     
     bcast_msg = None
     MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)
             
     while 1:
     
-        stn_id = MPI.COMM_WORLD.recv(source=RANK_COORD,tag=MPI.ANY_TAG,status=status)
+        stn_id = MPI.COMM_WORLD.recv(source=RANK_COORD, tag=MPI.ANY_TAG, status=status)
         
         if status.tag == TAG_STOPWORK:
-            MPI.COMM_WORLD.send([None]*2, dest=RANK_WRITE, tag=TAG_STOPWORK)
-            print "".join(["WORKER ",str(rank),": Finished"]) 
+            MPI.COMM_WORLD.send([None] * 2, dest=RANK_WRITE, tag=TAG_STOPWORK)
+            print "".join(["WORKER ", str(rank), ": Finished"]) 
             return 0
         else:
             
             try:
       
-                err = optim.run_xval(stn_id, params[P_NGH_RNG])
-                MPI.COMM_WORLD.send((stn_id,err), dest=RANK_WRITE, tag=TAG_DOWORK)
+                err = optim.run_xval(stn_id, ngh_rng)
+                MPI.COMM_WORLD.send((stn_id, err), dest=RANK_WRITE,
+                                    tag=TAG_DOWORK)
                                             
             except Exception as e:
             
-                print "".join(["ERROR: WORKER ",str(rank),": could not xval ",stn_id,str(e)])
+                print "".join(["ERROR: WORKER ", str(rank), ": could not xval ",
+                               stn_id, str(e)])
                             
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
                 
-def proc_write(params,nwrkers):
+def proc_write(fpath_stndb, elem, climdivs, ngh_rng, path_out_optim, nwrkers):
 
     status = MPI.Status()
     nwrkrs_done = 0
@@ -94,21 +73,21 @@ def proc_write(params,nwrkers):
     stn_ids = bcast_msg
     print "WRITER: Received broadcast msg"
     
-    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME],mode="r+")
-    stn_mask = np.in1d(stn_da.stn_ids,stn_ids,True)
+    stn_da = StationSerialDataDb(fpath_stndb, elem, mode="r+")
+    stn_mask = np.in1d(stn_da.stn_ids, stn_ids, True)
     stns = stn_da.stns[stn_mask]
     
     climdiv_ds = {}
     ttl_xval_stns = 0
-    for climdiv in params[P_CLIMDIVS]:
+    for climdiv in climdivs:
         
-        stnids_climdiv = stns[STN_ID][stns[CLIMDIV]==climdiv]
+        stnids_climdiv = stns[STN_ID][stns[CLIMDIV] == climdiv]
         
-        a_ds =  create_climdiv_optim_nstns_db(params[P_PATH_OUT], params[P_VARNAME],
-                                              stnids_climdiv, params[P_NGH_RNG], climdiv)
-        climdiv_ds[climdiv] = a_ds,stnids_climdiv
+        a_ds = create_climdiv_optim_nstns_db(path_out_optim, elem,
+                                              stnids_climdiv, ngh_rng, climdiv)
+        climdiv_ds[climdiv] = a_ds, stnids_climdiv
         
-        ttl_xval_stns+=stnids_climdiv.size
+        ttl_xval_stns += stnids_climdiv.size
     
     print "WRITER: Output NCDF files created"
     
@@ -118,22 +97,23 @@ def proc_write(params,nwrkers):
             
     ttl_xvals = ttl_xval_stns
     
-    stat_chk = StatusCheck(ttl_xvals,10)
+    stat_chk = StatusCheck(ttl_xvals, 10)
     
     while 1:
        
-        stn_id,err = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,tag=MPI.ANY_TAG,status=status)
+        stn_id, err = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,
+                                         tag=MPI.ANY_TAG, status=status)
         
         if status.tag == TAG_STOPWORK:
             
-            nwrkrs_done+=1
+            nwrkrs_done += 1
             if nwrkrs_done == nwrkers:
                 
                 
                 ######################################################
                 print "WRITER: Setting the optim # of nghs..."
                                 
-                set_optim_nstns_tair_norm(stn_da, params[P_PATH_OUT])
+                set_optim_nstns_tair_norm(stn_da, path_out_optim)
             
                 ######################################################
                 
@@ -142,21 +122,22 @@ def proc_write(params,nwrkers):
         else:
                         
             stn = stns[stn_idxs[stn_id]]
-            ds,stnids_climdiv = climdiv_ds[stn[CLIMDIV]]
-            dim2 = np.nonzero(stnids_climdiv==stn_id)[0][0]         
-            ds.variables['mae'][:,:,dim2] = np.abs(err)
+            ds, stnids_climdiv = climdiv_ds[stn[CLIMDIV]]
+            dim2 = np.nonzero(stnids_climdiv == stn_id)[0][0]         
+            ds.variables['mae'][:, :, dim2] = np.abs(err)
             ds.sync()
             
             stat_chk.increment()
                 
-def proc_coord(params,nwrkers):
+def proc_coord(fpath_stndb, elem, climdivs, nwrkers):
         
-    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
-    #Only run xval optimization for stations within mask and that are not marked as bad
-    mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]),np.isnan(stn_da.stns[BAD])) 
+    stn_da = StationSerialDataDb(fpath_stndb, elem)
+    # Only run xval optimization for stations within mask and that are not marked as bad
+    mask_stns = np.logical_and(np.isfinite(stn_da.stns[MASK]),
+                               np.isnan(stn_da.stns[BAD])) 
     stns = stn_da.stns[mask_stns]
         
-    #Send stn ids to all processes
+    # Send stn ids to all processes
     MPI.COMM_WORLD.bcast(stns[STN_ID], root=RANK_COORD)
         
     print "COORD: Done initialization. Starting to send work."
@@ -164,59 +145,71 @@ def proc_coord(params,nwrkers):
     cnt = 0
     nrec = 0
                     
-    for climdiv in params[P_CLIMDIVS]:
+    for climdiv in climdivs:
     
-        mask_stns_xval = np.logical_and(stn_da.stns[CLIMDIV]==climdiv,mask_stns)
+        mask_stns_xval = np.logical_and(stn_da.stns[CLIMDIV] == climdiv, mask_stns)
         stn_ids_xval = stn_da.stn_ids[mask_stns_xval]
     
         for stn_id in stn_ids_xval:
                 
             if cnt < nwrkers:
-                dest = cnt+N_NON_WRKRS
+                dest = cnt + N_NON_WRKRS
             else:
                 dest = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
-                nrec+=1
+                nrec += 1
 
             MPI.COMM_WORLD.send(stn_id, dest=dest, tag=TAG_DOWORK)
-            cnt+=1
+            cnt += 1
     
-        print "".join(["COORD: Finished xval of climate division: ",str(climdiv)])
+        print "".join(["COORD: Finished xval of climate division: ", str(climdiv)])
     
     for w in np.arange(nwrkers):
-        MPI.COMM_WORLD.send(None, dest=w+N_NON_WRKRS, tag=TAG_STOPWORK)
+        MPI.COMM_WORLD.send(None, dest=w + N_NON_WRKRS, tag=TAG_STOPWORK)
         
     print "COORD: done"
 
 if __name__ == '__main__':
     
-    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
-    
+    twx_cfg = TwxConfig(os.getenv('TOPOWX_INI'))
     np.seterr(all='raise')
     np.seterr(under='ignore')
     
+    # Run for Tmin or Tmax
+    parser = argparse.ArgumentParser()
+    parser.add_argument("elem",
+                        help="name of observation element (e.g.-tmin)")
+    args = parser.parse_args()
+    elem = args.elem
+    
+    if elem == 'tmin':
+        fpath_stndb = twx_cfg.fpath_stndata_nc_serial_tmin
+    elif elem == 'tmax':
+        fpath_stndb = twx_cfg.fpath_stndata_nc_serial_tmax
+    else:
+        raise ValueError("Unrecognized element: " + elem)
+      
     rank = MPI.COMM_WORLD.Get_rank()
     nsize = MPI.COMM_WORLD.Get_size()
 
-    params = {}
-    #Run for Tmin or Tmax
-    params[P_VARNAME] = 'tmax'
-    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_%s.nc'%params[P_VARNAME])
-    params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill', 'optim')  
-    params[P_NGH_RNG] = build_nstn_bandwidths(35, 150, 0.10)
+    # out path for optimization files
+    path_out_optim = twx_cfg.path_interp_optim_norms
     
-    #Run for all climate divisions
-    ds = Dataset(params[P_PATH_DB])
+    # Neighbor bandwidths over which to run cross validation
+    ngh_rng = build_nstn_bandwidths(35, 150, 0.10)
+    
+    # Run for all climate divisions
+    ds = Dataset(fpath_stndb)
     divs = ds.variables[CLIMDIV][:]
-    params[P_CLIMDIVS] = np.unique(divs.data[np.logical_not(divs.mask)])
+    climdivs = np.unique(divs.data[np.logical_not(divs.mask)])
     ds.close()
     ds = None
-    
+
     if rank == RANK_COORD:        
-        proc_coord(params,nsize-N_NON_WRKRS)
+        proc_coord(fpath_stndb, elem, climdivs, nsize - N_NON_WRKRS)
     elif rank == RANK_WRITE:
-        proc_write(params,nsize-N_NON_WRKRS)
+        proc_write(fpath_stndb, elem, climdivs, ngh_rng, path_out_optim,
+                   nsize - N_NON_WRKRS)
     else:
-        proc_work(params,rank)
+        proc_work(fpath_stndb, elem, ngh_rng, rank)
 
     MPI.COMM_WORLD.Barrier()

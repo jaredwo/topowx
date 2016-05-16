@@ -54,10 +54,10 @@ library(gstat)
 get_vario_params <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,ngh_dist)
 {	
 	#Build dataframes
-	stns_ngh <- data.frame(lon=ngh_lon,lat=ngh_lat,elev=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,tair=ngh_tair)
+	stns_ngh <- data.frame(longitude=ngh_lon,latitude=ngh_lat,elevation=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,tair=ngh_tair)
 	
 	#Turn dataframes into spatial dataframes
-	coordinates(stns_ngh) <- ~lon+lat
+	coordinates(stns_ngh) <- ~longitude+latitude
 	proj4string(stns_ngh)=CRS("+proj=longlat +datum=WGS84")
 	
 	cutoff <- max(ngh_dist)*1.4
@@ -198,8 +198,8 @@ krig_all <- function(pt,ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wg
 krig_meantair <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_wgt,pt,nug,psill,range)
 {	
 	#Build dataframes
-	stns_ngh <- data.frame(lon=ngh_lon,lat=ngh_lat,elev=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,tair=ngh_tair,ngh_wgt=ngh_wgt)
-	pt <- data.frame(lon=pt[1],lat=pt[2],elev=pt[3],tdi=pt[4],lst=pt[5])
+	stns_ngh <- data.frame(longitude=ngh_lon,latitude=ngh_lat,elevation=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,tair=ngh_tair,ngh_wgt=ngh_wgt)
+	pt <- data.frame(longitude=pt[1],latitude=pt[2],elevation=pt[3],tdi=pt[4],lst=pt[5])
 	
 	#a.lm <- lm(FORMULA,stns_ngh)#,weights=ngh_wgt)
 	#print(a.lm)
@@ -215,9 +215,9 @@ krig_meantair <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_tair,ngh_
 #	pt$vcf <- asin(sqrt(pt$vcf/100))
 	
 	#Turn dataframes into spatial dataframes
-	coordinates(stns_ngh) <- ~lon+lat
+	coordinates(stns_ngh) <- ~longitude+latitude
 	proj4string(stns_ngh)=CRS("+proj=longlat +datum=WGS84")
-	coordinates(pt) <- ~lon+lat
+	coordinates(pt) <- ~longitude+latitude
 	proj4string(pt)=CRS("+proj=longlat +datum=WGS84")
 	
 	if (range == 0)
@@ -276,8 +276,8 @@ build_formula <- function(y_var,x_vars)
 
 save_stn_spatial_df <- function(stn_id,lon,lat,elev,tdi,lst,neon,tair,imp_flag,fpath_out)
 {
-	STNS <- data.frame(stn_id=stn_id,lon=lon,lat=lat,elev=elev,tdi=tdi,lst=lst,neon=neon,tair=tair,imp_flag=imp_flag)
-	coordinates(STNS) <- ~lon+lat
+	STNS <- data.frame(stn_id=stn_id,longitude=lon,latitude=lat,elevation=elev,tdi=tdi,lst=lst,neon=neon,tair=tair,imp_flag=imp_flag)
+	coordinates(STNS) <- ~longitude+latitude
 	proj4string(STNS)=CRS("+proj=longlat +datum=WGS84")
 	save(list=c("STNS"),file=fpath_out)
 }
@@ -432,7 +432,7 @@ my.autofit.gwvario <- function(experimental_variogram, model = c("Sph", "Exp", "
 gwr_anomaly <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_wgt,obs_matrix,pt)
 {
 	#Build dataframes
-	stns_ngh <- data.frame(lon=ngh_lon,lat=ngh_lat,elev=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,ngh_wgt=ngh_wgt)
+	stns_ngh <- data.frame(longitude=ngh_lon,latitude=ngh_lat,elevation=ngh_elev,tdi=ngh_tdi,lst=ngh_lst,ngh_wgt=ngh_wgt)
 	pt <- data.frame(lon=pt[1],lat=pt[2],elev=pt[3],tdi=pt[4],lst=pt[5],neon=pt[6])
 	
 	pt_anom <- rep(0,nrow(obs_matrix))
@@ -445,7 +445,7 @@ gwr_anomaly <- function(ngh_lon,ngh_lat,ngh_elev,ngh_tdi,ngh_lst,ngh_wgt,obs_mat
 		
 		#pt_anom[x] <- weighted.mean(stns_ngh$anom,stns_ngh$ngh_wgt)
 		
-		a.lm <- lm(anom~lon+lat+elev+tdi+lst,stns_ngh,weights=ngh_wgt)
+		a.lm <- lm(anom~longitude+latitude+elevation+tdi+lst,stns_ngh,weights=ngh_wgt)
 		pt_anom[x] <- predict.lm(a.lm,pt)
 		pt_r2[x] <- summary(a.lm)$r.squared
 		
