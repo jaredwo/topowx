@@ -2,38 +2,21 @@
 MPI script for running a leave-one-out cross validation
 of interpolated temperature normals and daily temperatures
 using the optimal variogram and station bandwidth parameters
-set in steps 13-15.
+set in steps 21-23.
 
 Must be run using mpiexec or mpirun.
-
-Copyright 2014,2015, Jared Oyler.
-
-This file is part of TopoWx.
-
-TopoWx is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-TopoWx is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
-import readline
-import numpy as np
+
 from mpi4py import MPI
-import sys
 from twx.db import StationSerialDataDb, STN_ID, MASK, BAD, \
-    get_norm_varname
-from twx.utils import StatusCheck, Unbuffered
-import netCDF4
+    get_norm_varname, create_quick_db
 from twx.interp import XvalTairOverall
+from twx.utils import StatusCheck, Unbuffered, TwxConfig
+import argparse
+import netCDF4
+import numpy as np
 import os
-from twx.db import create_quick_db
+import sys
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 2
@@ -43,20 +26,18 @@ RANK_COORD = 0
 RANK_WRITE = 1
 N_NON_WRKRS = 2
 
-P_PATH_DB = 'P_PATH_DB'
-P_PATH_OUT = 'P_PATH_OUT'
-P_VARNAME = 'P_VARNAME'
-
-DB_VARIABLES = {'tmin':[('tmin', 'f4', netCDF4.default_fillvals['f4'], 'minimum air temperature', 'C')],
-                'tmax':[('tmax', 'f4', netCDF4.default_fillvals['f4'], 'maximum air temperature', 'C')]}
+DB_VARIABLES = {'tmin':[('tmin', 'f4', netCDF4.default_fillvals['f4'],
+                         'minimum air temperature', 'C')],
+                'tmax':[('tmax', 'f4', netCDF4.default_fillvals['f4'],
+                         'maximum air temperature', 'C')]}
 
 sys.stdout = Unbuffered(sys.stdout)
 
-def proc_work(params, rank):
+def proc_work(fpath_stndb, elem, rank):
     
     status = MPI.Status()
     
-    xval = XvalTairOverall(params[P_PATH_DB], params[P_VARNAME])
+    xval = XvalTairOverall(fpath_stndb, elem)
     ndays = xval.stn_da.days.size
         
     while 1:
@@ -77,31 +58,34 @@ def proc_work(params, rank):
                                             
             except Exception as e:
             
-                print "".join(["ERROR: Worker ", str(rank), ": could not xval ", stn_id, str(e)])
+                print "".join(["ERROR: Worker ", str(rank),
+                               ": could not xval ", stn_id, str(e)])
                 
-                tair_daily = np.ones(ndays) * netCDF4.default_fillvals['f8']
+                tair_daily = np.ones(ndays) * netCDF4.default_fillvals['f4']
                 tair_norms = np.ones(12) * netCDF4.default_fillvals['f8']
             
-            MPI.COMM_WORLD.send((stn_id, tair_daily, tair_norms), dest=RANK_WRITE, tag=TAG_DOWORK)
+            MPI.COMM_WORLD.send((stn_id, tair_daily, tair_norms),
+                                dest=RANK_WRITE, tag=TAG_DOWORK)
             MPI.COMM_WORLD.send(rank, dest=RANK_COORD, tag=TAG_DOWORK)
                 
-def proc_write(params, nwrkers):
+def proc_write(fpath_stndb, elem, fpath_out, nwrkers):
 
     status = MPI.Status()
     nwrkrs_done = 0
         
-    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
+    stn_da = StationSerialDataDb(fpath_stndb, elem)
     stn_ids = stn_da.stn_ids
     stns = stn_da.stns
-    stn_mask = np.logical_and(np.isfinite(stn_da.stns[MASK]), np.isnan(stn_da.stns[BAD]))    
+    stn_mask = np.logical_and(np.isfinite(stn_da.stns[MASK]),
+                              np.isnan(stn_da.stns[BAD]))    
     days = stn_da.days
     stn_da.ds.close()
     stn_da = None
     
     print "WRITER: Creating output station netCDF database..."
     
-    create_quick_db(params[P_PATH_OUT], stns, days, DB_VARIABLES[params[P_VARNAME]])
-    stnda_out = StationSerialDataDb(params[P_PATH_OUT], params[P_VARNAME], mode='r+')
+    create_quick_db(fpath_out, stns, days, DB_VARIABLES[elem])
+    stnda_out = StationSerialDataDb(fpath_out, elem, mode='r+')
     
     mth_names = []
     for mth in np.arange(1, 13):
@@ -121,7 +105,9 @@ def proc_write(params, nwrkers):
     
     while 1:
        
-        stn_id, tair_daily, tair_norms = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+        stn_id, tair_daily, tair_norms = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,
+                                                             tag=MPI.ANY_TAG,
+                                                             status=status)
         
         if status.tag == TAG_STOPWORK:
             
@@ -132,7 +118,7 @@ def proc_write(params, nwrkers):
         else:
             
             x = np.nonzero(stn_ids == stn_id)[0][0]
-            stnda_out.ds.variables[params[P_VARNAME]][:, x] = tair_daily
+            stnda_out.ds.variables[elem][:, x] = tair_daily
             
             for i in mths:
                 stnda_out.ds.variables[mth_names[i]][x] = tair_norms[i]
@@ -141,10 +127,11 @@ def proc_write(params, nwrkers):
             
             stat_chk.increment()
                 
-def proc_coord(params, nwrkers):
+def proc_coord(fpath_stndb, elem, nwrkers):
     
-    stn_da = StationSerialDataDb(params[P_PATH_DB], params[P_VARNAME])
-    stn_mask = np.logical_and(np.isfinite(stn_da.stns[MASK]), np.isnan(stn_da.stns[BAD]))    
+    stn_da = StationSerialDataDb(fpath_stndb, elem)
+    stn_mask = np.logical_and(np.isfinite(stn_da.stns[MASK]),
+                              np.isnan(stn_da.stns[BAD]))    
     stns = stn_da.stns[stn_mask]
             
     print "COORD: Done initialization. Starting to send work."
@@ -170,29 +157,36 @@ def proc_coord(params, nwrkers):
 
 if __name__ == '__main__':
     
-    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
-    
+    twx_cfg = TwxConfig(os.getenv('TOPOWX_INI'))
     np.seterr(all='raise')
     np.seterr(under='ignore')
     
+    # Run for Tmin or Tmax
+    parser = argparse.ArgumentParser()
+    parser.add_argument("elem",
+                        help="name of observation element (e.g.-tmin)")
+    args = parser.parse_args()
+    elem = args.elem
+    
+    if elem == 'tmin':
+        fpath_stndb = twx_cfg.fpath_stndata_nc_serial_tmin
+        fpath_out = twx_cfg.fpath_xval_interp_nc_tmin
+    elif elem == 'tmax':
+        fpath_stndb = twx_cfg.fpath_stndata_nc_serial_tmax
+        fpath_out = twx_cfg.fpath_xval_interp_nc_tmax
+    else:
+        raise ValueError("Unrecognized element: " + elem)
+        
     rank = MPI.COMM_WORLD.Get_rank()
     nsize = MPI.COMM_WORLD.Get_size()
     
-    params = {}
-    #Run for Tmin or Tmax
-    params[P_VARNAME] = 'tmax'
-    params[P_PATH_DB] = os.path.join(FPATH_STNDATA, 'infill', 'serial_%s.nc'%params[P_VARNAME])
-    #Path to database file where interpolated normals and daily values will
-    #be output.
-    params[P_PATH_OUT] = os.path.join(FPATH_STNDATA, 'infill', 'xval_interp_%s.nc'%params[P_VARNAME])
-
-        
+    print "Process %d of %d: element is %s" % (rank, nsize, elem)
+            
     if rank == RANK_COORD:        
-        proc_coord(params, nsize - N_NON_WRKRS)
+        proc_coord(fpath_stndb, elem, nsize - N_NON_WRKRS)
     elif rank == RANK_WRITE:
-        proc_write(params, nsize - N_NON_WRKRS)
+        proc_write(fpath_stndb, elem, fpath_out, nsize - N_NON_WRKRS)
     else:
-        proc_work(params, rank)
+        proc_work(fpath_stndb, elem, rank)
 
     MPI.COMM_WORLD.Barrier()

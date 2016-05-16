@@ -147,8 +147,15 @@ class TwxConfig():
         self.path_interp_optim_norms = os.path.join(self.path_stndata_infill,
                                                     'optim_norm')
         mkdir_p(self.path_interp_optim_norms)
+        # Daily anomalies
+        self.path_interp_optim_anoms = os.path.join(self.path_stndata_infill,
+                                                    'optim_anom')
+        mkdir_p(self.path_interp_optim_anoms)
+        self.fpath_xval_interp_nc_tmin = os.path.join(self.path_stndata_infill,
+                                                      'xval_interp_tmin.nc')
+        self.fpath_xval_interp_nc_tmax = os.path.join(self.path_stndata_infill,
+                                                      'xval_interp_tmax.nc')
         
         # Make TopoWx data directory for raster data
         self.path_rasters = os.path.join(self.twx_data_root, 'rasters')
         mkdir_p(self.path_rasters)
-        
