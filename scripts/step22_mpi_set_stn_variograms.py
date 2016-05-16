@@ -13,8 +13,7 @@ from mpi4py import MPI
 from twx.db import StationSerialDataDb, \
 STN_ID, MASK, BAD, get_krigparam_varname, VARIO_NUG, VARIO_PSILL, VARIO_RNG
 from twx.interp import StationKrigParams
-from twx.utils import StatusCheck, Unbuffered
-from twx.utils.config import TwxConfig
+from twx.utils import StatusCheck, Unbuffered, TwxConfig
 import argparse
 import netCDF4
 import numpy as np
@@ -28,9 +27,6 @@ TAG_OBSMASKS = 3
 RANK_COORD = 0
 RANK_WRITE = 1
 N_NON_WRKRS = 2
-
-P_PATH_DB = 'P_PATH_DB'
-P_VARNAME = 'P_VARNAME'
 
 sys.stdout = Unbuffered(sys.stdout)
 
