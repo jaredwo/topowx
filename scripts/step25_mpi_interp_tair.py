@@ -3,36 +3,18 @@ Main MPI script for interpolating daily temperatures
 and monthly temperature normals across a specified grid 
 
 Must be run using mpiexec or mpirun.
-
-Copyright 2014, Jared Oyler.
-
-This file is part of TopoWx.
-
-TopoWx is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-TopoWx is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import readline
-from mpi4py import MPI
-import sys
-from twx.db import LON, LAT, CLIMDIV, ELEV, TDI
-from twx.utils import StatusCheck, Unbuffered
-from netCDF4 import Dataset
-import netCDF4
 from collections import deque
+from mpi4py import MPI
+from netCDF4 import Dataset
+from twx.db import LON, LAT, CLIMDIV, ELEV, TDI
+from twx.interp import Tiler, TileWriter, StationDataWrkChk, PtInterpTair
+from twx.utils import StatusCheck, Unbuffered, TwxConfig
+import netCDF4
 import numpy as np
 import os
-from twx.interp import Tiler, TileWriter, StationDataWrkChk, PtInterpTair
+import sys
 
 TAG_DOWORK = 1
 TAG_STOPWORK = 1000
@@ -73,7 +55,8 @@ def proc_work(params, rank):
     ptInterp = PtInterpTair(stndaTmin, stndaTmax)    
     
     days = ptInterp.days   
-    ninvalid_warn_cutoff = np.round(days.size * .10)  # 10% or greater days tmin >= tmax
+    # 10% or greater days tmin >= tmax
+    ninvalid_warn_cutoff = np.round(days.size * .10)  
     
     bcast_msg = None
     bcast_msg = MPI.COMM_WORLD.bcast(bcast_msg, root=RANK_COORD)    
@@ -82,19 +65,27 @@ def proc_work(params, rank):
         
     awriter = TileWriter(tile_grid_info, params[P_PATH_OUT])
     
-    wrk_chk = np.zeros((tile_grid_info.chk_size_i, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X])) * np.nan
+    wrk_chk = np.zeros((tile_grid_info.chk_size_i, params[P_CHCKSIZE_Y],
+                        params[P_CHCKSIZE_X])) * np.nan
     
-    rslt_tmin = np.empty((days.size, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]), dtype=np.int16)
+    rslt_tmin = np.empty((days.size, params[P_CHCKSIZE_Y],
+                          params[P_CHCKSIZE_X]), dtype=np.int16)
     rslt_tmin.fill(netCDF4.default_fillvals['i2'])
-    rslt_tmin_norm = np.ones((12, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]), dtype=np.float32) * netCDF4.default_fillvals['f4']
-    rslt_tmin_se = np.ones((12, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]), dtype=np.float32) * netCDF4.default_fillvals['f4']
+    rslt_tmin_norm = np.ones((12, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]),
+                             dtype=np.float32) * netCDF4.default_fillvals['f4']
+    rslt_tmin_se = np.ones((12, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]),
+                           dtype=np.float32) * netCDF4.default_fillvals['f4']
     
-    rslt_tmax = np.empty((days.size, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]), dtype=np.int16)
+    rslt_tmax = np.empty((days.size, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]),
+                         dtype=np.int16)
     rslt_tmax.fill(netCDF4.default_fillvals['i2'])
-    rslt_tmax_norm = np.ones((12, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]), dtype=np.float32) * netCDF4.default_fillvals['f4']
-    rslt_tmax_se = np.ones((12, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]), dtype=np.float32) * netCDF4.default_fillvals['f4']
+    rslt_tmax_norm = np.ones((12, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]),
+                             dtype=np.float32) * netCDF4.default_fillvals['f4']
+    rslt_tmax_se = np.ones((12, params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]),
+                           dtype=np.float32) * netCDF4.default_fillvals['f4']
     
-    rslt_ninvalid = np.ones((params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]), dtype=np.int32) * netCDF4.default_fillvals['i4']
+    rslt_ninvalid = np.ones((params[P_CHCKSIZE_Y], params[P_CHCKSIZE_X]),
+                            dtype=np.int32) * netCDF4.default_fillvals['i4']
     
     tile_num = np.zeros(1, dtype=np.int32)
     
@@ -102,7 +93,8 @@ def proc_work(params, rank):
     
     while 1:
     
-        MPI.COMM_WORLD.Recv([wrk_chk, MPI.DOUBLE], source=RANK_COORD, tag=MPI.ANY_TAG, status=status)
+        MPI.COMM_WORLD.Recv([wrk_chk, MPI.DOUBLE], source=RANK_COORD,
+                            tag=MPI.ANY_TAG, status=status)
         
         if status.tag == TAG_STOPWORK:
             
@@ -128,7 +120,8 @@ def proc_work(params, rank):
             stndaTmax.set_obs(bnds)
             
             if rank == 2:
-                stat_chk = StatusCheck(params[P_CHCKSIZE_Y] * params[P_CHCKSIZE_X], 30)
+                stat_chk = StatusCheck(params[P_CHCKSIZE_Y] *
+                                       params[P_CHCKSIZE_X], 30)
             
             for r in np.arange(params[P_CHCKSIZE_Y]):
             
@@ -153,13 +146,17 @@ def proc_work(params, rank):
                             tmin_dly, tmax_dly, tmin_norms, tmax_norms, tmin_se, tmax_se, ninvalid = ptInterp.interp_pt()
                           
                             if ninvalid >= ninvalid_warn_cutoff:
-                                print "".join(["WARNING: ", "Point had ", str(ninvalid), " days tmin >= tmax: ",
-                                               str(ptInterp.a_pt[LON]), " ", str(ptInterp.a_pt[LAT])])
+                                print "".join(["WARNING: ", "Point had ", str(ninvalid),
+                                               " days tmin >= tmax: ", 
+                                               str(ptInterp.a_pt[LON]), " ",
+                                               str(ptInterp.a_pt[LAT])])
                             
                         except Exception as e:
                             
                             print "".join(["ERROR: Could not interp ",
-                                           str(ptInterp.a_pt[LON]), " ", str(ptInterp.a_pt[LAT]), ". Leaving output as fill values: ", str(e)])
+                                           str(ptInterp.a_pt[LON]), " ",
+                                           str(ptInterp.a_pt[LAT]),
+                                           ". Leaving output as fill values: ", str(e)])
                             error = True
                             
                         if not error:                                          
@@ -225,7 +222,8 @@ def proc_write(params, nwrkers):
     
     while 1:
         
-        MPI.COMM_WORLD.Recv([tile_num_msg, MPI.INT], source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+        MPI.COMM_WORLD.Recv([tile_num_msg, MPI.INT], source=MPI.ANY_SOURCE,
+                            tag=MPI.ANY_TAG, status=status)
         
         tile_num = tile_num_msg[0]
         
@@ -237,7 +235,8 @@ def proc_write(params, nwrkers):
             
             else:
             
-                MPI.COMM_WORLD.Send([tile_num_msg, MPI.INT], dest=status.source, tag=TAG_WRITE_PERMIT)
+                MPI.COMM_WORLD.Send([tile_num_msg, MPI.INT],
+                                    dest=status.source, tag=TAG_WRITE_PERMIT)
                 tile_queues[tile_num].append(status.source)
         
         elif status.tag == TAG_DONE_WRITE:
@@ -251,7 +250,8 @@ def proc_write(params, nwrkers):
             try:
             
                 dest = tile_queues[tile_num][0]
-                MPI.COMM_WORLD.Send([tile_num_msg, MPI.INT], dest=dest, tag=TAG_WRITE_PERMIT)
+                MPI.COMM_WORLD.Send([tile_num_msg, MPI.INT], dest=dest,
+                                    tag=TAG_WRITE_PERMIT)
             
             except IndexError:
                 
@@ -270,9 +270,11 @@ def proc_coord(params, nwrkers):
     ds_tdi = Dataset(params[P_PATH_TDI])
     ds_climdiv = Dataset(params[P_PATH_CLIMDIV])
     
-    ds_attrs = [(ELEV, ds_elev), (TDI, ds_tdi), (CLIMDIV, ds_climdiv)]
-    ds_attrs_lst_tmin = [('tmin%02d' % mth, Dataset(params[P_PATH_LST_TMIN][mth - 1])) for mth in np.arange(1, 13)]
-    ds_attrs_lst_tmax = [('tmax%02d' % mth, Dataset(params[P_PATH_LST_TMAX][mth - 1])) for mth in np.arange(1, 13)]
+    ds_attrs = [('elev', ds_elev), (TDI, ds_tdi), (CLIMDIV, ds_climdiv)]
+    ds_attrs_lst_tmin = [('tmin%02d' % mth, Dataset(params[P_PATH_LST_TMIN][mth - 1]))
+                         for mth in np.arange(1, 13)]
+    ds_attrs_lst_tmax = [('tmax%02d' % mth, Dataset(params[P_PATH_LST_TMAX][mth - 1]))
+                         for mth in np.arange(1, 13)]
     ds_attrs.extend(ds_attrs_lst_tmin)
     ds_attrs.extend(ds_attrs_lst_tmax)
     
@@ -295,7 +297,8 @@ def proc_coord(params, nwrkers):
             if cnt < nwrkers:
                 dest = cnt + N_NON_WRKRS
             else:
-                dest = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
+                dest = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE,
+                                           tag=MPI.ANY_TAG)
             
             cnt += 1
             
@@ -305,19 +308,17 @@ def proc_coord(params, nwrkers):
         pass
         
     for w in np.arange(nwrkers):
-        MPI.COMM_WORLD.Send([wrk_chk, MPI.DOUBLE], dest=w + N_NON_WRKRS, tag=TAG_STOPWORK)
+        MPI.COMM_WORLD.Send([wrk_chk, MPI.DOUBLE], dest=w + N_NON_WRKRS,
+                            tag=TAG_STOPWORK)
     
     print "COORD: done"
 
 if __name__ == '__main__':
     
+    twx_cfg = TwxConfig(os.getenv('TOPOWX_INI'))
     np.seterr(all='raise')
     np.seterr(under='ignore')
-    
-    PROJECT_ROOT = os.getenv('TOPOWX_DATA')
-    FPATH_STNDATA = os.path.join(PROJECT_ROOT, 'station_data')
-    FPATH_PREDICTOR_GRIDS = os.path.join(PROJECT_ROOT, 'rasters', 'conus_interp_grids', 'ncdf')
-    
+        
     rank = MPI.COMM_WORLD.Get_rank()
     nsize = MPI.COMM_WORLD.Get_size()
 
@@ -326,19 +327,23 @@ if __name__ == '__main__':
     # CONUS SCALE RUN
     ############################################################################################
     # Paths to station data
-    params[P_PATH_DB_TMIN] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmin.nc')
-    params[P_PATH_DB_TMAX] = os.path.join(FPATH_STNDATA, 'infill', 'serial_tmax.nc')
-
+    params[P_PATH_DB_TMIN] = twx_cfg.fpath_stndata_nc_serial_tmin
+    params[P_PATH_DB_TMAX] = twx_cfg.fpath_stndata_nc_serial_tmax
+    twx_cfg.path_predictor_rasters
     # Paths to predictor grids
-    params[P_PATH_MASK] = os.path.join(FPATH_PREDICTOR_GRIDS, 'mask.nc')
-    params[P_PATH_ELEV] = os.path.join(FPATH_PREDICTOR_GRIDS, 'elev.nc')
-    params[P_PATH_TDI] = os.path.join(FPATH_PREDICTOR_GRIDS, 'tdi.nc')
-    params[P_PATH_CLIMDIV] = os.path.join(FPATH_PREDICTOR_GRIDS, 'climdiv.nc')
-    params[P_PATH_LST_TMIN] = [os.path.join(FPATH_PREDICTOR_GRIDS, 'lst','LST_Night.%02d.nc' % mth) for mth in np.arange(1, 13)]
-    params[P_PATH_LST_TMAX] = [os.path.join(FPATH_PREDICTOR_GRIDS, 'lst','LST_Day.%02d.nc' % mth) for mth in np.arange(1, 13)]
+    params[P_PATH_MASK] = os.path.join(twx_cfg.path_predictor_rasters, 'mask.nc')
+    params[P_PATH_ELEV] = os.path.join(twx_cfg.path_predictor_rasters, 'elev.nc')
+    params[P_PATH_TDI] = os.path.join(twx_cfg.path_predictor_rasters, 'tdi.nc')
+    params[P_PATH_CLIMDIV] = os.path.join(twx_cfg.path_predictor_rasters, 'climdiv.nc')
+    params[P_PATH_LST_TMIN] = [os.path.join(twx_cfg.path_predictor_rasters,
+                                            'lst','LST_Night.%02d.nc' % mth)
+                               for mth in np.arange(1, 13)]
+    params[P_PATH_LST_TMAX] = [os.path.join(twx_cfg.path_predictor_rasters,
+                                            'lst','LST_Day.%02d.nc' % mth)
+                               for mth in np.arange(1, 13)]
     
     # Main path to write output
-    params[P_PATH_OUT] = os.path.join(PROJECT_ROOT, 'tile_output')
+    params[P_PATH_OUT] = twx_cfg.path_tile_out
     
     # Size of output tiles and unit of work chunks
     params[P_TILESIZE_X] = 250

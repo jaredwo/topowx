@@ -159,3 +159,10 @@ class TwxConfig():
         # Make TopoWx data directory for raster data
         self.path_rasters = os.path.join(self.twx_data_root, 'rasters')
         mkdir_p(self.path_rasters)
+        self.path_predictor_rasters = os.path.join(self.path_rasters,
+                                                   'conus_interp_grids', 'ncdf')
+        mkdir_p(self.path_predictor_rasters)
+        
+        # Make TopoWx data directory for writing output tiles
+        self.path_tile_out = os.path.join(self.twx_data_root, 'tile_output')
+        mkdir_p(self.path_tile_out)
