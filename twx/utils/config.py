@@ -76,7 +76,9 @@ class TwxConfig():
                                          'username_geonames')
         self.fpath_log_daily_infill = cfg.get('TOPOWX_CONFIG',
                                               'fpath_log_daily_infill')
-
+        self.twx_data_version = cfg.get('TOPOWX_CONFIG',
+                                        'twx_data_version')
+        
         # Make TopoWx data directory for local storage of station observations
         self.path_stndata = os.path.join(self.twx_data_root, 'station_data')
         mkdir_p(self.path_stndata)
@@ -166,3 +168,15 @@ class TwxConfig():
         # Make TopoWx data directory for writing output tiles
         self.path_tile_out = os.path.join(self.twx_data_root, 'tile_output')
         mkdir_p(self.path_tile_out)
+        
+        # Make TopoWx data directory for writing final output mosaics
+        self.path_mosaic_out = os.path.join(self.twx_data_root, 'mosaic_output')
+        mkdir_p(self.path_mosaic_out)
+        self.path_mosaic_norms = os.path.join(self.path_mosaic_out, 'normals')
+        mkdir_p(self.path_mosaic_norms)
+        self.path_mosaic_daily = os.path.join(self.path_mosaic_out, 'daily')
+        mkdir_p(self.path_mosaic_daily)
+        self.path_mosaic_monthly = os.path.join(self.path_mosaic_out, 'monthly')
+        mkdir_p(self.path_mosaic_monthly)
+        
+        

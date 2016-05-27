@@ -313,7 +313,7 @@ if __name__ == '__main__':
     # Need to run this mpi script twice. First run, min_daily_nnghs is set to 
     # 3 stations. Second run, path to log file from previous run is passed as
     # and argument and infilling is executed again for those stations
-    # with suspect infilling models, but with min_dialy_nnghs set to 7.
+    # with suspect infilling models, but with min_daily_nnghs set to 7.
     parser = argparse.ArgumentParser()
     parser.add_argument("--logfile", help="path to logfile from previous run")
     parser.add_argument("--nc_mode", help="netcdf access mode. 'w' or 'r+'",

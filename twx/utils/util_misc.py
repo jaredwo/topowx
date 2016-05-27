@@ -99,13 +99,13 @@ def mkdir_p(path):
             pass
         else: raise 
         
-def read_xarray_netcdfs(fpaths, dim, transform_func=None):
+def read_xarray_netcdfs(fpaths, dim, transform_func=None, engine=None):
     '''
     Based off example at: http://xarray.pydata.org/en/stable/io.html#combining-multiple-files
     '''
     def process_one_path(path):
         # use a context manager, to ensure the file gets closed after use
-        with xr.open_dataset(path) as ds:
+        with xr.open_dataset(path, engine=engine) as ds:
             # transform_func should do some sort of selection or
             # aggregation
             if transform_func is not None:

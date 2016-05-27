@@ -329,7 +329,7 @@ if __name__ == '__main__':
     # Paths to station data
     params[P_PATH_DB_TMIN] = twx_cfg.fpath_stndata_nc_serial_tmin
     params[P_PATH_DB_TMAX] = twx_cfg.fpath_stndata_nc_serial_tmax
-    twx_cfg.path_predictor_rasters
+    
     # Paths to predictor grids
     params[P_PATH_MASK] = os.path.join(twx_cfg.path_predictor_rasters, 'mask.nc')
     params[P_PATH_ELEV] = os.path.join(twx_cfg.path_predictor_rasters, 'elev.nc')
