@@ -39,4 +39,5 @@ if __name__ == '__main__':
                  
         mtwx.create_dly_ann_mosaics(tile_names, a_elem, twx_cfg.path_tile_out,
                                     path_mosaic_out, twx_cfg.interp_start_date.year,
-                                    twx_cfg.interp_end_date.year, twx_cfg.twx_data_version)
+                                    twx_cfg.interp_end_date.year, twx_cfg.twx_data_version,
+                                    chunk_cache_size = 250000000.0) #250 MB

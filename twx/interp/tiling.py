@@ -19,12 +19,13 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
+
 __all__ = ['Tiler', 'TileWriter', 'TileGridInfo', 'TileMosaic', 'write_ds_mthly']
 
 from datetime import date, datetime, timedelta
 from netCDF4 import Dataset, date2num, num2date
 from twx.utils import MONTH, get_mth_metadata, StatusCheck, YMD, DATE, YEAR, \
-    get_days_metadata_dates, get_days_metadata
+    get_days_metadata_dates, get_days_metadata, set_chunk_cache_params
 import netCDF4
 import numpy as np
 import os
@@ -564,7 +565,8 @@ class TileMosaic():
         self.lat = ds_mask.variables['lat'][:]
             
     def create_dly_ann_mosaics(self, tiles, varname, path_in, path_out,
-                               start_yr, end_yr, ds_version_str):
+                               start_yr, end_yr, ds_version_str,
+                               chunk_cache_size):
         
         tcols = np.array([np.int(tile[1:3]) for tile in tiles])
         trows = np.array([np.int(tile[4:]) for tile in tiles])
@@ -716,6 +718,7 @@ class TileMosaic():
             var_tair = ds_mosaic.createVariable(varname, 'i2', ('time', 'lat', 'lon',),
                                                 chunksizes=(1, 325, 700),
                                                 fill_value=fill_value, zlib=True)
+            set_chunk_cache_params(chunk_cache_size, var_tair)
             
             var_tair.long_name = long_name
             var_tair.units = units
@@ -762,7 +765,6 @@ class TileMosaic():
                         
                         print "Year: %d" % (yr,)
                         a_ds.variables[varname][:, start_row:end_row, start_col:end_col] = np.take(tair, indices=a_mask, axis=0)
-                        a_ds.sync()
                                    
                 except RuntimeError:
                     
