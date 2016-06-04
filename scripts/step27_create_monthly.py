@@ -20,10 +20,11 @@ if __name__ == '__main__':
         for a_yr in yrs:
         
             print "Processing %s for %d..." % (a_elem, a_yr)
-            path_ds_in = os.path.join(twx_cfg.path_mosaic_daily, a_elem,
-                                      '%s_%d.nc'%(a_elem,a_yr))
-            path_ds_out = os.path.join(twx_cfg.path_mosaic_monthly, a_elem, 
-                                       '%s_%d.nc'%(a_elem, a_yr))
+            fpath_ds_in = os.path.join(twx_cfg.path_mosaic_daily, a_elem,
+                                       '%s_%d.nc'%(a_elem,a_yr))
+            path_ds_out = os.path.join(twx_cfg.path_mosaic_monthly, a_elem)
             mkdir_p(path_ds_out)
-            write_ds_mthly(Dataset(path_ds_in), path_ds_out, a_elem, a_yr,
+            fpath_ds_out = os.path.join(path_ds_out, '%s_%d.nc'%(a_elem, a_yr))
+            
+            write_ds_mthly(Dataset(fpath_ds_in), fpath_ds_out, a_elem, a_yr,
                            twx_cfg.twx_data_version)   
