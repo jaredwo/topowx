@@ -22,15 +22,19 @@ You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-__all__ = ['setup_pha', 'run_pha', 'HomogDaily', 'InsertHomog']
 
-import numpy as np
-import subprocess
-import os
-import glob
-from twx.db import LON, LAT, STN_ID, ELEV, STATE, STN_NAME, MISSING, DTYPE_STNOBS
+__all__ = ['setup_pha', 'run_pha', 'HomogDaily', 'InsertHomog',
+           'load_snotel_sensor_hist', 'get_pha_adj_df']
+
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from twx.db import LON, LAT, STN_ID, ELEV, STATE, STN_NAME, MISSING, DTYPE_STNOBS
 from twx.utils import get_mth_metadata, YEAR, MONTH, YMD, DATE, DAY
+import glob
+import numpy as np
+import os
+import pandas as pd
+import subprocess
 import twx
 
 INCL_LINE_BEGIN_YR = '        parameter (begyr = 1895)\n'
@@ -43,7 +47,8 @@ CONF_LINE_ELEMS = 'elems="tavg"\n'
 DTYPE_PHA_ADJ = [(STN_ID, "<S50"), ('ymd_start',np.int),('ymd_end',np.int),('adj', np.float64)]
 
 
-def setup_pha(fpath_pha_tar, path_out_src, path_out_run, yr_begin, yr_end, stns, tair, varname):
+def setup_pha(fpath_pha_tar, path_out_src, path_out_run, yr_begin, yr_end, stns,
+              tair, varname, stnhist=None):
     '''
     Perform setup for running external Pairwise Homogenization Algorithm (PHA) software
     from NCDC. Setup has been tested against PHA v52i downloaded from 
@@ -75,16 +80,21 @@ def setup_pha(fpath_pha_tar, path_out_src, path_out_run, yr_begin, yr_end, stns,
         same order as stns.
     varname : str
         Temperature variable name (tmin or tmax)
+    stnhist : pandas.DataFrame, optional
+        DataFrame of station history metadata: station_id as index and
+        change_date column specifying the date of a station change.
     '''
-
+        
     n_stns = stns.size
+    
     n_stnyrs = (yr_end - yr_begin + 1) * n_stns
     yrs = np.arange(yr_begin, yr_end + 1)
 
     print "Uncompressing PHA..."
     subprocess.call(["tar", "-xzvf", fpath_pha_tar, '-C', path_out_src])
 
-    fpath_incl = os.path.join(path_out_src, 'phav52i', 'source_expand', 'parm_includes', 'inhomog.parm.MTHLY.TEST.incl')
+    fpath_incl = os.path.join(path_out_src, 'phav52i', 'source_expand',
+                              'parm_includes', 'inhomog.parm.MTHLY.TEST.incl')
     f_incl = open(fpath_incl, 'r')
     incl_lines = f_incl.readlines()
     f_incl.close()
@@ -117,7 +127,7 @@ def setup_pha(fpath_pha_tar, path_out_src, path_out_run, yr_begin, yr_end, stns,
     _write_conf(os.path.join(path_out_run, "data", "world1.conf"), yr_end, n_stnyrs, varname)
 
     print "Writing input station data ASCII files..."
-    _write_input_station_data(path_out_run, varname, stns, tair, yrs)
+    _write_input_station_data(path_out_run, varname, stns, tair, yrs, stnhist)
     
     
 def run_pha(path_run, varname):
@@ -416,29 +426,44 @@ def _write_conf(fpath_conf, endyr, n_stnyrs, varname):
         elif a_line == CONF_LINE_ELEMS:
             a_line = a_line.replace('tavg', varname)
             conf_lines[x] = a_line
-
+            
     f_conf = open(fpath_conf, 'w')
     f_conf.writelines(conf_lines)
     f_conf.close()
 
-def _write_input_station_data(path_pha_run, varname, stns, tair, yrs):
+def _write_input_station_data(path_pha_run, varname, stns, tair, yrs,
+                              stnhist=None):
     '''
     Write station data to GHCN format for input to PHA
     '''
-
-    _write_stn_list(stns, os.path.join(path_pha_run, 'data', 'benchmark', 'world1', 'meta', 'world1_stnlist.%s' % (varname,)))
-
-    os.remove(os.path.join(path_pha_run, 'data', 'benchmark', 'world1', 'meta', 'world1_stnlist.tavg'))
-    fpath_metafile = os.path.join(path_pha_run, 'data', 'benchmark', 'world1', 'meta', 'world1_metadata_file.txt')
-    f = open(fpath_metafile, 'w')
-    f.close()
-
-    path_stn_obs = os.path.join(path_pha_run, 'data', 'benchmark', 'world1', 'monthly', 'raw')
+        
+    _write_stn_list(stns, os.path.join(path_pha_run, 'data', 'benchmark',
+                                       'world1', 'meta',
+                                       'world1_stnlist.%s' % (varname,)))
+    
+    os.remove(os.path.join(path_pha_run, 'data', 'benchmark', 'world1', 'meta',
+                           'world1_stnlist.tavg'))
+    fpath_metafile = os.path.join(path_pha_run, 'data', 'benchmark', 'world1',
+                                  'meta', 'world1_metadata_file.txt')
+    
+    with open(fpath_metafile, 'w') as f:
+        
+        if stnhist is not None:
+            
+            for stn_id, a_date in zip(stnhist.station_id,
+                                      pd.DatetimeIndex(stnhist.change_date).strftime('%Y%m')):
+                
+                stn_id = _format_stnid(stn_id)
+                f.write("  %s %s 1\n"%(stn_id, a_date))
+        
+    path_stn_obs = os.path.join(path_pha_run, 'data', 'benchmark', 'world1',
+                                'monthly', 'raw')
     rm_stn_files = glob.glob(os.path.join(path_stn_obs, "*.tavg"))
     for a_fpath in rm_stn_files:
         os.remove(a_fpath)
-
+        
     _write_stn_obs_files(stns, tair, yrs, varname, path_stn_obs)
+        
 
 def _write_stn_list(stns, fpath_out):
     '''
@@ -483,6 +508,10 @@ def _format_stnid(stnid):
 
         outid = stnid.split("_")[1]
         outid = "".join(["WRC", "{0:0>8}".format(outid)])
+        
+    elif stnid.startswith("USH"):
+
+        outid = stnid
 
     else:
 
@@ -554,3 +583,107 @@ def _parse_pha_adj(path_adj_log):
     vals_adj = np.array(vals_adj,dtype=DTYPE_PHA_ADJ)
     
     return vals_adj
+
+def load_snotel_sensor_hist(station_ids=None):
+    '''Load SNOTEL metadata history for YSI extended range sensor installs.
+    
+    Metadata extracted from NRCS station sensor history pages:
+    e.g.: http://wcc.sc.egov.usda.gov/nwcc/sensorhistory?sitenum=542
+    
+    Parameters
+    ----------
+    station_ids : list-like, optional
+        Station IDs for which sensor history should be loaded.
+
+    Returns
+    -------
+    stnhist : pandas.DataFrame
+        DataFrame with station_id as index and change_date column specifying
+        the date that the YSI extended range sensor was installed
+    '''
+
+    path_root = os.path.dirname(__file__)
+    fpath_stnhist = os.path.join(path_root, 'data', 'snotel_sensor_installs.csv')
+    
+    stnhist = pd.read_csv(fpath_stnhist, index_col='station_id')
+    stnhist.index = "NRCS_"+stnhist.index
+    stnhist['date_new_sensor'] = pd.to_datetime(stnhist['date_new_sensor'])
+    
+    if station_ids is not None:
+        stnhist = stnhist.loc[station_ids].dropna()
+    
+    stnhist = stnhist.reset_index().rename(columns={'index':'station_id',
+                                                    'date_new_sensor':'change_date'})
+    return stnhist
+    
+def get_pha_adj_df(fpath_pha_adj_log, stns, elem):
+    '''Build DataFrame of PHA adjustments.
+    
+    Parameters
+    ----------
+    fpath_pha_adj_log : str
+        File path to PHA adjustment log file generated by a run_pha.
+        e.g.: [pha_run_path]/run/data/benchmark/world1/output/pha_adj_tmin.log
+    stns : structured ndarray
+        Stations for which PHA was run. Structured station array must contain at
+        least the following fields: STN_ID, STN_NAME, LAT, LON and can be obtained from
+        twx.db.StationDataDb
+    elem : str
+        Element for which PHA was run (e.g.: tmin, tmax)
+
+    Returns
+    -------
+    stnhist : pandas.DataFrame
+        DataFrame with following columns:
+        YEAR_MONTH_START
+        YEAR_MONTH_END
+        ADJ(C)
+        VARIABLE
+        STN_ID
+        NAME
+        LON
+        LAT
+        ELEV(m)
+    '''
+        
+    stnids = np.array([_format_stnid(stnid) for stnid in stns[STN_ID]])
+    
+    stn_meta = {}
+    for i in np.arange(stnids.size):
+        stn_meta[stnids[i]] = stns[i]
+    
+    pha_adj = _parse_pha_adj(fpath_pha_adj_log)
+    pha_adj = pha_adj[np.in1d(pha_adj[STN_ID], stnids, assume_unique=False)]
+    pha_adj = pha_adj[np.abs(pha_adj['adj']) > 0]
+    pha_adj['adj'] = -pha_adj['adj']
+    
+    a_month = relativedelta(months=1)
+    dates_start_chgpt = [datetime.strptime(str(a_ymd),"%Y%m%d") + a_month
+                         for a_ymd in pha_adj['ymd_start']]
+    dates_end_chgpt = [datetime.strptime(str(a_ymd),"%Y%m%d") + a_month
+                       for a_ymd in pha_adj['ymd_end']]
+    
+    mthyr_start_chgpt = ['%d%02d'%(a_date.year,a_date.month)
+                         for a_date in dates_start_chgpt]
+    mthyr_end_chgpt = ['%d%02d'%(a_date.year,a_date.month)
+                       for a_date in dates_end_chgpt]
+    
+    stnelev_chgpt = np.round([stn_meta[a_stnid][ELEV]
+                              for a_stnid in pha_adj[STN_ID]]).astype(np.int)
+    stnlon_chgpt = [stn_meta[a_stnid][LON] for a_stnid in pha_adj[STN_ID]]
+    stnlat_chgpt = [stn_meta[a_stnid][LAT] for a_stnid in pha_adj[STN_ID]]
+    stnname_chgpt = [stn_meta[a_stnid][STN_NAME] for a_stnid in pha_adj[STN_ID]]
+    stnid_chgpt = [stn_meta[a_stnid][STN_ID] for a_stnid in pha_adj[STN_ID]]
+    varnames = [elem]*pha_adj.size
+    
+    df = pd.DataFrame({'YEAR_MONTH_START':mthyr_start_chgpt,
+                       'YEAR_MONTH_END':mthyr_end_chgpt,
+                       'ADJ(C)':pha_adj['adj'], 'VARIABLE':varnames,
+                       'STN_ID':stnid_chgpt, 'NAME':stnname_chgpt,
+                       'LON':stnlon_chgpt, 'LAT':stnlat_chgpt,
+                       'ELEV(m)':stnelev_chgpt})
+    
+    df = df[['YEAR_MONTH_START', 'YEAR_MONTH_END', 'ADJ(C)', 'VARIABLE',
+             'STN_ID','NAME','LON','LAT','ELEV(m)']]
+    df = df.set_index('STN_ID')
+    return df     
