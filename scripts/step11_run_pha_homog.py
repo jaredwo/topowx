@@ -6,14 +6,14 @@ via pairwise comparisons. J. Climate, 22, 1700-1717.
 '''
 
 from ftplib import FTP
+from obsio.factory import ObsIoFactory
 from twx.db import add_obs_cnt, STN_ID, LON, LAT
 from twx.homog import HomogDaily, load_snotel_sensor_hist
 from twx.utils import DATE, mkdir_p, ymdL, TwxConfig
 import numpy as np
 import os
-import twx
-from obsio.factory import ObsIoFactory
 import pandas as pd
+import twx
 
 if __name__ == '__main__':
     
