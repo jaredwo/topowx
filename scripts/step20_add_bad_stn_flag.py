@@ -87,9 +87,11 @@ if __name__ == '__main__':
         out_xval = XvalOutlier(a_stnda)
         stn_ids = a_stnda.stn_ids[np.isnan(a_stnda.stns[BAD])]
         
-        out_stnids = out_xval.find_xval_outliers(stn_ids)[0]
+        out_stnids = out_xval.find_xval_outliers(stn_ids)
         print out_stnids
-        set_bad_stations(a_stnda.ds, out_stnids, reset=False)
+        # Mark station bad for both Tmin and Tmax
+        set_bad_stations(stnda_tmin.ds, out_stnids, reset=False)
+        set_bad_stations(stnda_tmax.ds, out_stnids, reset=False)
         
         print "%d stations removed due to being outliers" % (out_stnids.size,)
         

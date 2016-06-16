@@ -83,9 +83,9 @@ def create_climdiv_optim_nstns_db(path_out, tair_var, stn_ids, nstns_rng, climdi
 
 class XvalOutlier(object):
     '''
-    Class for running a leave-one-out cross validation of a simple
-    geographically weighted regression model of station annual normals 
-    to determine if a station is an outlier has possible erroneous values 
+    Class for running a leave-one-out cross validation of simple
+    geographically weighted regression models of station monthly and annual normals 
+    to determine if a station is an outlier and has possible erroneous values 
     based on unrealistic model error.
     '''
     
@@ -116,7 +116,7 @@ class XvalOutlier(object):
     def run_xval_stn(self, stn_id, bw_nngh=100):
         '''
         Run a single leave-one-out cross validation of a geographically
-        weighted regression model of a station's annual normal
+        weighted regression model of a station's monthly and annual normals
         (norm~lst+elev+lon+lat).
         
         Parameters
@@ -136,18 +136,32 @@ class XvalOutlier(object):
         
         xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
         df_xval_stn = self.df_stns.loc[stn_id, :]
-        self.stn_slct.set_ngh_stns(xval_stn[LAT], xval_stn[LON], bw_nngh, load_obs=False, stns_rm=stn_id)
+        self.stn_slct.set_ngh_stns(xval_stn[LAT], xval_stn[LON], bw_nngh,
+                                   load_obs=False, stns_rm=stn_id)
         df_nghs = self.df_stns.loc[self.stn_slct.ngh_stns[STN_ID], :]
         
-        ls_fit = sm.wls('norm~lst+elevation+longitude+latitude', data=df_nghs, weights=self.stn_slct.ngh_wgt).fit()
-        err = ls_fit.predict(df_xval_stn)[0] - df_xval_stn['norm']
+        errs = np.empty(13)
         
-        return err
+        # Errors for monthly normals
+        for mth in np.arange(1,13):
+            
+            ls_form = 'norm%.2d~lst%.2d+elevation+longitude+latitude'%(mth, mth)
+            ls_fit = sm.wls(ls_form, data=df_nghs, weights=self.stn_slct.ngh_wgt).fit()
+            err = ls_fit.predict(df_xval_stn)[0] - df_xval_stn['norm%.2d'%mth]
+            errs[mth-1] = err
+        
+        # Error for annual normal
+        ls_form = 'norm~lst+elevation+longitude+latitude'
+        ls_fit = sm.wls(ls_form, data=df_nghs, weights=self.stn_slct.ngh_wgt).fit()
+        err = ls_fit.predict(df_xval_stn)[0] - df_xval_stn['norm']
+        errs[-1] = err
+        
+        return errs
     
     def find_xval_outliers(self, stn_ids=None, bw_nngh=100, zscore_threshold=6):
         '''
         Runs a leave-one-out cross validation of a geographically
-        weighted regression model of station annual normals
+        weighted regression model of station monthly and annual normals
         (norm~lst+elev+lon+lat) and returns those stations whose error is
         a specified # of standard deviations above/below the mean
         
@@ -175,24 +189,22 @@ class XvalOutlier(object):
         if stn_ids is None:
             stn_ids = self.stn_da.stn_ids
         
-        schk = StatusCheck(stn_ids.size, check_cnt=500)
+        schk = StatusCheck(stn_ids.size, check_cnt=250)
         
-        xval_errs = np.zeros(stn_ids.size)
+        xval_errs = np.zeros((13,stn_ids.size))
         
         for i, a_id in enumerate(stn_ids):
             
-            xval_errs[i] = self.run_xval_stn(a_id, bw_nngh)
+            xval_errs[:,i] = self.run_xval_stn(a_id, bw_nngh)
             schk.increment()
             
-        xval_errs = pd.Series(xval_errs)
-        zscores = ((xval_errs - xval_errs.mean()) / xval_errs.std()).abs().values
-        
-        mask_zscores = zscores >= zscore_threshold
-        
-        out_stnids = stn_ids[mask_zscores]
-        out_errs = xval_errs[mask_zscores]
-        
-        return out_stnids,out_errs
+        xval_errs = pd.DataFrame(xval_errs)
+        xval_errs.columns = stn_ids
+        zscores = (xval_errs.subtract(xval_errs.mean(axis=1), axis=0).
+                   divide(xval_errs.std(axis=1), axis=0).abs())
+        out_stnids = zscores.columns[(zscores > zscore_threshold).any(axis=0)].values
+                
+        return out_stnids
         
         
 class XvalTairNorm(object):

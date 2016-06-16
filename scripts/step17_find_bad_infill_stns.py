@@ -1,3 +1,7 @@
+"""
+Script to find stations with suspect infilled time series.
+"""
+
 from rpy2.rinterface import RRuntimeError
 from twx.db import STN_ID
 from twx.infill import get_bad_infill_stnids
@@ -7,9 +11,11 @@ import numpy as np
 import os
 import pandas as pd
 import xarray as xr
-idly._load_R()
 
 if __name__ == '__main__':
+    
+    # Load R environment used for daily infilling
+    idly._load_R()
     
     twx_cfg = TwxConfig(os.getenv('TOPOWX_INI'))
         
