@@ -765,11 +765,14 @@ class TileMosaic():
                         
                         print "Year: %d" % (yr,)
                         a_ds.variables[varname][:, start_row:end_row, start_col:end_col] = np.take(tair, indices=a_mask, axis=0)
-                                   
-                except RuntimeError:
+                        a_ds.sync()
+                        
+                except RuntimeError as e:
                     
-                    print "Tile %s does not exist. Values for tile will be fill values." % (mosaic_tnames[x],)
-                
+                    if e.args[0] == 'No such file or directory':
+                        print "Tile %s does not exist. Values for tile will be fill values." % (mosaic_tnames[x],)
+                    else:
+                        raise
                 x += 1
         
         for a_ds in yr_ds:
