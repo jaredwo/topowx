@@ -19,12 +19,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with TopoWx.  If not, see <http://www.gnu.org/licenses/>.
 '''
+from twx.db.station_data import StationSerialDataDb, BAD, StationDataDb
+from datetime import date
 
 __all__ = ['Insert', 'InsertGhcn', 'InsertRaws', 'InsertSnotel',
            'create_netcdf_db', 'insert_data_netcdf_db',
            'MISSING', 'DTYPE_STNOBS', 'NCDF_CHK_COLS', 'add_monthly_means',
            'add_utc_offset','dbDataset','create_quick_db', 'SnotelPreciseLoc',
-           'add_obs_cnt']
+           'add_obs_cnt', 'create_aux_db']
 
 import os
 import numpy as np
@@ -252,7 +254,7 @@ def create_quick_db(path,stns,days,variables):
     # Set global attributes
     title = "Weather Station Database"
     ncdf_file.title = title
-    ncdf_file.institution = "University of Montana"
+    ncdf_file.institution = "Pennsylvania State University"
     ncdf_file.history = "".join(["Created on: ", datetime.datetime.strftime(datetime.date.today(), "%Y-%m-%d")])
 
     print "Creating netCDF4 database for " + str(days[DATE][0]) + " to " + str(days[DATE][-1]) + " for " + str(stns.size) + " stations."
@@ -1445,6 +1447,187 @@ def add_obs_cnt(ds_path, elem, start_date, end_date, stn_chk=500):
     
     ds.sync()
     ds.close()
+
+def create_aux_db(path_all_db, path_infill_db_in, path_serial_db_in,
+                  path_db_out, varname, start_year, end_year,
+                  ds_version_str):
+    '''Create a station netCDF database file to include in the public auxiliary data
+        
+    Parameters
+    ----------
+    path_all_db : str
+        File path to the initial netCDF station database with raw observations from
+        all networks 
+    path_infill_db_in : str
+        File path to the netCDF station database with infilled observations
+    path_serial_db_in : str
+        File path to the netCDF station database with final observation time
+        series used as input to TopoWx
+    path_db_out : str
+        File path to write the output netCDF file
+    varname : str
+        The observation variable to write (tmin or tmax)
+    start_year : int
+        The start year of the observation time series
+    end_year : int
+        The end year of the observation time series
+    ds_version_str : str
+        The TopoWx dataset version string
+    '''
     
+    out_variables_dict = {'tmax':[('tmax_raw', 'f4',
+                                   netCDF4.default_fillvals['f4'],
+                                   'maximum air temperature', 'C'),
+                                  ('tmax_homog', 'f4',
+                                   netCDF4.default_fillvals['f4'],
+                                   'maximum air temperature', 'C'),
+                                  ('tmax_infilled', 'f4',
+                                   netCDF4.default_fillvals['f4'],
+                                   'maximum air temperature', 'C')],
+                          'tmin':[('tmin_raw', 'f4',
+                                   netCDF4.default_fillvals['f4'],
+                                   'minimum air temperature', 'C'),
+                                  ('tmin_homog', 'f4',
+                                   netCDF4.default_fillvals['f4'],
+                                   'minimum air temperature', 'C'),
+                                  ('tmin_infilled', 'f4', 
+                                   netCDF4.default_fillvals['f4'],
+                                   'minimum air temperature', 'C')]}
+    
+    out_variables = out_variables_dict[varname]
+    
+    stnda_serial = StationSerialDataDb(path_serial_db_in, varname)
+    mask_stns = np.nonzero(np.isnan(stnda_serial.stns[BAD]))[0]
+    stns = stnda_serial.stns[mask_stns]
+    days = stnda_serial.days
+    mask_days = np.nonzero(np.logical_and(days[YEAR]>=start_year,
+                                          days[YEAR]<=end_year))[0]
+    stnda_serial.ds.close()
+    del stnda_serial
+    
+    print "Creating %s..."%path_db_out
+    create_quick_db(path_db_out, stns, days, out_variables)
+    
+    ds_in = Dataset(path_serial_db_in)
+    ds_out = Dataset(path_db_out,'r+')
+    
+    print "Reading data from %s..."%path_serial_db_in
+    tair_in = ds_in.variables[varname][:,mask_stns]
+    tair_in = tair_in[mask_days,:]
+    
+    print "Writing data to %s..."%path_db_out
+    ds_out.variables["%s_infilled"%varname][:] = tair_in
+    ds_out.sync()
+    ds_in.close()
+    
+    stnda = StationDataDb(path_all_db)
+    mask_stns = np.nonzero(np.in1d(stnda.stn_ids, stns[STN_ID], True))[0]
+    days = stnda.days
+    mask_days = np.nonzero(np.logical_and(days[YEAR]>=start_year,
+                                          days[YEAR]<=end_year))[0]
+    stnda.ds.close()
+    del stnda
+    
+    ds_in = Dataset(path_all_db)
+    
+    print "Reading data from %s..."%path_all_db
+    tair_in = ds_in.variables[varname][:,mask_stns]
+    tair_in = tair_in[mask_days,:]
+    
+    print "Writing data to %s..."%path_db_out
+    ds_out.variables["%s_raw"%varname][:] = tair_in
+    ds_out.sync()
+    ds_in.close()
+    
+    stnda_infill = StationDataDb(path_infill_db_in)
+    mask_stns = np.nonzero(np.in1d(stnda_infill.stn_ids,
+                                   stns[STN_ID], True))[0]
+    days = stnda_infill.days
+    mask_days = np.nonzero(np.logical_and(days[YEAR]>=start_year,
+                                          days[YEAR]<=end_year))[0]
+    stnda_infill.ds.close()
+    del stnda_infill
+    
+    ds_in = Dataset(path_infill_db_in)
+    
+    print "Reading data from %s..."%path_infill_db_in
+    tair_in = ds_in.variables[varname][:,mask_stns]
+    tair_in = tair_in[mask_days,:]
+    flag_infill = ds_in.variables['flag_infilled'][:,mask_stns].astype(np.bool)
+    flag_infill = flag_infill[mask_days,:]
+    tair_in = np.ma.masked_array(tair_in,flag_infill)
+        
+    print "Writing data to %s..."%path_db_out
+    ds_out.variables["%s_homog"%varname][:] = tair_in
+    ds_out.sync()
+    ds_in.close()
+    
+    ds_out.variables["%s_raw"%varname].comment = ("Original %s "
+                                                  "observations from "
+                                                  "data provider")%varname
+    
+    ds_out.variables["%s_homog"%varname].comment = ("QA'd and homogenized "
+                                                    "daily %s observations "
+                                                    "with missing values NOT "
+                                                    "infilled.")%varname
+
+    ds_out.variables['%s_infilled'%varname].comment = ("Final QA'd, "
+                                                       "homogenized, and "
+                                                       "missing value "
+                                                       "infilled daily %s "
+                                                       "observations used as "
+                                                       "input to TopoWx. For "
+                                                       "a station with more "
+                                                       "than 5 continuous "
+                                                       "years of missing "
+                                                       "observations, all the "
+                                                       "station's observations"
+                                                       " were replaced with "
+                                                       "values from the "
+                                                       "station's infill "
+                                                       "model. This was done "
+                                                       "to avoid "
+                                                       "inhomogeneities "
+                                                       "between long segments "
+                                                       "of infilled vs. "
+                                                       "observed "
+                                                       "values.")%varname
+    
+    
+    ds_out.title = ("TopoWx weather station database of %d-%d daily %s "
+                    "observations")%(start_year,end_year,varname)
+    
+    ds_out.comment = ("Original raw, QA'd, homogenized, and infilled %d-%d "
+                      "daily %s temperature observations for stations used as "
+                      "input to TopoWx. Includes stations with at least 5 "
+                      "years of observations in each month from GHCN-Daily, "
+                      "NRCS SNOTEL/SCAN, and WRCC RAWS.")%(start_year,end_year,varname)
+                      
+    ds_out.references = ("http://dx.doi.org/10.1002/joc.4127 , "
+                         "http://dx.doi.org/10.1002/2014GL062803 , "
+                         "http://dx.doi.org/10.1175/JAMC-D-15-0276.1")
+    
+    ds_out.source =  ("TopoWx software version %s "
+                      "(https://github.com/jaredwo/topowx)")%twx.__version__
+    ds_out.history = "".join(["Created on: ",datetime.datetime.strftime(date.today(),
+                                                               "%Y-%m-%d"),
+                              " , ","dataset version %s"%ds_version_str])
+    
+    ds_out.variables[STN_ID].comment = ("Original network station IDs with "
+                                        "added prefix. GHCND station IDs start "
+                                        "with 'GHCND_', NRCS SNOTEL/SCAN station "
+                                        "IDs start with 'NRCS_' and RAWS "
+                                        "station IDs start with 'RAWS_'. "
+                                        "Stored as a variable-length string "
+                                        "array.")
+    
+    ds_out.variables[STN_NAME].comment = ("Stored as a variable-length string "
+                                          "array.")
+    
+    ds_out.variables[STATE].comment = ("Stored as a variable-length string array. "
+                                       "Note: Some RAWS station states provided "
+                                       "by the WRCC do not appear to be correct.")
+    
+    ds_out.close()
     
         

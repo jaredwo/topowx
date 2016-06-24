@@ -7,3 +7,4 @@ from util_tair import *
 from pca import *
 from ncdf_chunking import *
 from config import *
+from readmes import *

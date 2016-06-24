@@ -144,6 +144,7 @@ class TwxConfig():
                                                          'serial_tmin.nc')
         self.fpath_stndata_nc_serial_tmax = os.path.join(self.path_stndata_infill,
                                                          'serial_tmax.nc')
+                
         # Make data directories for storing interp param optimization files
         # Temperature normals
         self.path_interp_optim_norms = os.path.join(self.path_stndata_infill,
@@ -169,14 +170,35 @@ class TwxConfig():
         self.path_tile_out = os.path.join(self.twx_data_root, 'tile_output')
         mkdir_p(self.path_tile_out)
         
-        # Make TopoWx data directory for writing final output mosaics
-        self.path_mosaic_out = os.path.join(self.twx_data_root, 'mosaic_output')
-        mkdir_p(self.path_mosaic_out)
-        self.path_mosaic_norms = os.path.join(self.path_mosaic_out, 'normals')
+        
+        # Make TopoWx log directory
+        self.path_logs = os.path.join(self.twx_data_root, 'logs')
+        mkdir_p(self.path_logs)
+        
+        ##################################
+        # Make TopoWx data directory for final outputs
+        ##################################
+        
+        self.path_final_output = os.path.join(self.twx_data_root, 'final_output_data')
+        mkdir_p(self.path_final_output)
+        
+        # Final auxiliary data directories
+        self.path_aux_data = os.path.join(self.path_final_output, 'auxiliary_data')
+        mkdir_p(self.path_aux_data)
+        self.path_aux_stndata = os.path.join(self.path_aux_data, 'station_data')
+        mkdir_p(self.path_aux_stndata)
+        self.fpath_stndata_nc_aux_tmin = os.path.join(self.path_aux_stndata,
+                                                         'stn_obs_tmin.nc')
+        self.fpath_stndata_nc_aux_tmax = os.path.join(self.path_aux_stndata,
+                                                         'stn_obs_tmax.nc')
+        self.fpath_pha_adj_aux = os.path.join(self.path_aux_stndata, 'homog_adjust.csv')
+        self.path_aux_grids = os.path.join(self.path_aux_data, 'auxiliary_grids')
+        mkdir_p(self.path_aux_grids)
+        
+        # Final TopoWx output mosaics for normals, daily, and monthly data
+        self.path_mosaic_norms = os.path.join(self.path_final_output, 'normals')
         mkdir_p(self.path_mosaic_norms)
-        self.path_mosaic_daily = os.path.join(self.path_mosaic_out, 'daily')
+        self.path_mosaic_daily = os.path.join(self.path_final_output, 'daily')
         mkdir_p(self.path_mosaic_daily)
-        self.path_mosaic_monthly = os.path.join(self.path_mosaic_out, 'monthly')
+        self.path_mosaic_monthly = os.path.join(self.path_final_output, 'monthly')
         mkdir_p(self.path_mosaic_monthly)
-        
-        
