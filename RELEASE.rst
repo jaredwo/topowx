@@ -1,3 +1,12 @@
+v1.2.0 (August 2, 2016)
+=============
+
+This release updates the TopoWx dataset through 2015. Highlights include:
+
+* Added monthly USHCN observations and SNOTEL sensor change metadata to
+  the homogenization step to increase homogenization algorithm stability
+* Improved script automation and refactored 
+
 v1.1.0 (August 10, 2015)
 =============
 
