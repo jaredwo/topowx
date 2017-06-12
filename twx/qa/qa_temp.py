@@ -953,13 +953,18 @@ def _get_valid_ngh_stns(stn, stn_obs, mask_obs_mth_yr, var, stn_da, ngh_ids, ngh
             mask_overlap = np.logical_and(mask_obs_mth_yr, mask_valid_ngh)
 
             if np.sum(mask_overlap) >= MIN_DAYS_MTH_WINDOW and stn[STN_ID] != ngh_ids[x]:
-
-                ngh_stns[NGH_STNS_ID].append(ngh_ids[x])
-                ngh_stns[NGH_STNS_MASK_OVERLAP].append(mask_overlap)
-
-                wght, mod = _get_wght_mod_temp(stn_obs[mask_overlap], ngh_obs[var][:, x][mask_overlap])
-                ngh_stns[NGH_STNS_WGHTS].append(wght)
-                ngh_stns[NGH_STNS_MODEL].append(mod)
+                
+                ovlp_stn_obs = stn_obs[mask_overlap]
+                ovlp_ngh_obs = ngh_obs[var][:, x][mask_overlap]
+                
+                if np.unique(ovlp_stn_obs).size > 1 and np.unique(ovlp_ngh_obs).size > 1:
+                
+                    ngh_stns[NGH_STNS_ID].append(ngh_ids[x])
+                    ngh_stns[NGH_STNS_MASK_OVERLAP].append(mask_overlap)
+    
+                    wght, mod = _get_wght_mod_temp(ovlp_stn_obs, ovlp_ngh_obs)
+                    ngh_stns[NGH_STNS_WGHTS].append(wght)
+                    ngh_stns[NGH_STNS_MODEL].append(mod)
 
         ngh_stns[NGH_STNS_ID] = np.array(ngh_stns[NGH_STNS_ID])
         ngh_stns[NGH_STNS_MASK_OVERLAP] = np.array(ngh_stns[NGH_STNS_MASK_OVERLAP])
