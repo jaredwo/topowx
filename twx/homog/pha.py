@@ -502,6 +502,11 @@ def _format_stnid(stnid):
     elif stnid.startswith("NRCS_"):
 
         outid = stnid.split("_")[1]
+        
+        # Check for triplet-style NRCS ID
+        if ":" in outid:
+            outid =  outid.replace(":", "")[0:8]
+        
         outid = "".join(["SNT", "{0:0>8}".format(outid)])
 
     elif stnid.startswith("RAWS_"):
@@ -516,7 +521,10 @@ def _format_stnid(stnid):
     else:
 
         raise Exception("Do not recognize stn id prefix for stnid: " + stnid)
-
+    
+    if len(outid) != 11:
+        raise ValueError("Formatted station id for PHA was not 11 characters: %s"%outid)
+    
     return outid
 
 def _write_stn_obs_files(stns, data, yrs, varname, path_out):
