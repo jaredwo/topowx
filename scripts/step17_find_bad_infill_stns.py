@@ -56,10 +56,11 @@ if __name__ == '__main__':
         
         except RRuntimeError as e:
         
-            if e.args[0].find("missing value where TRUE/FALSE needed") != -1:
+            if ((e.args[0].find("missing value where TRUE/FALSE needed") != -1)
+                or (e.args[0].find("Missing value: NA is not allowed") != -1)):
                 
-                # Infill completely failed on this station and its values are
-                # all NA
+                # Infill completely failed on this station and there are NA or
+                # infinite values
                 is_bad = True
             else:
                 raise
