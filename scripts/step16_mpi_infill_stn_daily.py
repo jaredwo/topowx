@@ -35,7 +35,7 @@ def proc_work(twx_cfg, start_ymd, end_ymd, params_ppca, rank):
     stn_da = StationDataDb(twx_cfg.fpath_stndata_nc_tair_homog,
                            (start_ymd, end_ymd))
     days = stn_da.days
-    ndays = float(days.size)
+    ndays = days.size
 
     empty_fill = np.ones(ndays, dtype=np.float32) * netCDF4.default_fillvals['f4']
     empty_flags = np.ones(ndays, dtype=np.int8) * netCDF4.default_fillvals['i1']
