@@ -135,7 +135,7 @@ class XvalOutlier(object):
         '''
         
         xval_stn = self.stn_da.stns[self.stn_da.stn_idxs[stn_id]]
-        df_xval_stn = self.df_stns.loc[stn_id, :]
+        df_xval_stn = self.df_stns.loc[stn_id:stn_id, :]
         self.stn_slct.set_ngh_stns(xval_stn[LAT], xval_stn[LON], bw_nngh,
                                    load_obs=False, stns_rm=stn_id)
         df_nghs = self.df_stns.loc[self.stn_slct.ngh_stns[STN_ID], :]
