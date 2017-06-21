@@ -106,7 +106,7 @@ def create_serially_complete_db(fpath_infill_db, tair_var, fpath_out_serial_db):
     all_infill_flags = np.ones(days.size, dtype=np.bool)
     all_infill_stns = np.zeros(stns.size, dtype=np.bool)
     
-    stat_chk = StatusCheck(stns.size, 100)
+    stat_chk = StatusCheck(stns.size, 1000)
     
     for x in np.arange(stns.size):
         
@@ -132,7 +132,19 @@ def create_serially_complete_db(fpath_infill_db, tair_var, fpath_out_serial_db):
             
             tair_stn = ds_infill.variables[tair_var][:, x]
             flag_stn = infill_mask
+        
+        # If there was an issue with infilling a station, there still could be
+        # non-finite values. Check for non-finite values and if found, set to fill value
+        # before writing. Also print message to ensure that the station is flagged
+        mask_miss = ~np.isfinite(tair_stn)
+        
+        if mask_miss.any():
+            tair_stn[mask_miss] = ds_out.variables[tair_var]._FillValue
             
+            print ("Warning: Station %s has missing values even after infill."
+                   " Ensure station is flagged as bad.")%stns[STN_ID][x]
+            
+        
         ds_out.variables[tair_var][:, x] = tair_stn
         ds_out.variables['flag_infilled'][:, x] = flag_stn
         ds_out.sync()
