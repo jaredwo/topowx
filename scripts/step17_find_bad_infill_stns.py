@@ -18,7 +18,9 @@ if __name__ == '__main__':
     idly._load_R()
     
     twx_cfg = TwxConfig(os.getenv('TOPOWX_INI'))
-        
+    
+    # Load station ids with suspect infill values based on log file from second
+    # infilling run
     stnids = get_bad_infill_stnids(twx_cfg.fpath_log_daily_infill)
             
     ds_tmin = xr.open_dataset(twx_cfg.fpath_stndata_nc_infill_tmin)
@@ -54,7 +56,7 @@ if __name__ == '__main__':
         
         except RRuntimeError as e:
         
-            if e.args[0].find("Missing value: NA is not allowed") != -1:
+            if e.args[0].find("missing value where TRUE/FALSE needed") != -1:
                 
                 # Infill completely failed on this station and its values are
                 # all NA
