@@ -41,7 +41,7 @@ import twx
 import pandas as pd
 from twx.db.download_stndata import load_snotel_stn_inventory
 from twx.db.stn_utc_offsets import GeonamesError
-import xray as xr
+import xarray as xr
 
 MISSING = -9999.
 NCDF_CHK_COLS = 50
