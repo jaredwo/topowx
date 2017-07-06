@@ -4,9 +4,13 @@ Script to mosaic TopoWx tiles into single CONUS-wide netCDF files
 from twx.interp import TileMosaic
 from twx.utils import TwxConfig, mkdir_p
 import fnmatch
+import numpy as np  
 import os
 
 if __name__ == '__main__':
+
+    np.seterr(all='raise')
+    np.seterr(under='ignore')
     
     twx_cfg = TwxConfig(os.getenv('TOPOWX_INI'))
     
