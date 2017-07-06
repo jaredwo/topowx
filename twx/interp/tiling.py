@@ -337,7 +337,7 @@ class TileWriter():
             
             ds = Dataset(fpath, 'r+')
             
-        except RuntimeError:
+        except IOError:
             
             if not os.path.exists(os.path.join(self.path_out, tile_id)):
                 
@@ -607,7 +607,7 @@ class TileMosaic():
                                                "".join([a_tname,
                                                         "_", varname, ".nc"])))
                 break
-            except RuntimeError:
+            except IOError:
                 continue
             
         days_all = get_days_metadata_dates(num2date(ds_tile.variables['time'][:],
@@ -767,7 +767,7 @@ class TileMosaic():
                         a_ds.variables[varname][:, start_row:end_row, start_col:end_col] = np.take(tair, indices=a_mask, axis=0)
                         a_ds.sync()
                         
-                except RuntimeError as e:
+                except IOError as e:
                     
                     if e.args[0] == 'No such file or directory':
                         print "Tile %s does not exist. Values for tile will be fill values." % (mosaic_tnames[x],)
@@ -947,12 +947,12 @@ class TileMosaic():
                     end_col = start_col + self.atiler.tile_size_x
                     
                     tile_tair = ds_tile.variables[varname_norm][:]
-                    tile_tair = np.ma.round(tile_tair, 2) / SCALE_FACTOR
+                    tile_tair = np.ma.round(tile_tair.astype(np.float), 2) / SCALE_FACTOR
                     tile_tair = np.ma.asarray(tile_tair, dtype=np.int16)
                     tile_tair = np.ma.filled(tile_tair, netCDF4.default_fillvals['i2'])
                     
                     tile_se = ds_tile.variables[varname_se][:]
-                    tile_se = np.ma.round(tile_se, 2) / SCALE_FACTOR
+                    tile_se = np.ma.round(tile_se.astype(np.float), 2) / SCALE_FACTOR
                     tile_se = np.ma.asarray(tile_se, dtype=np.int16)
                     tile_se = np.ma.filled(tile_se, netCDF4.default_fillvals['i2'])
                     
@@ -960,7 +960,7 @@ class TileMosaic():
                     var_se[:, start_row:end_row, start_col:end_col] = tile_se
                     ds_mosaic.sync()
                     
-                except RuntimeError:
+                except IOError:
                     
                     print ("Tile %s does not exist. Values for tile will be fill values."
                            % (mosaic_tnames[x],))
