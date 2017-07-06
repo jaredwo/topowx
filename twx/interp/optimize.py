@@ -402,7 +402,7 @@ def build_nstn_bandwidths(rng_min, rng_max, pct_step):
         min_nghs.append(n)
         n = n + np.round(pct_step * n)
 
-    return np.array(min_nghs)
+    return np.array(min_nghs, dtype=np.int)
 
 
 class StationKrigParams(object):
