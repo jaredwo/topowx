@@ -17,12 +17,12 @@ uncertainty (prediction standard error).
 REFERENCE / HOW TO CITE
 Oyler, J. W., Ballantyne, A., Jencso, K., Sweet, M. and Running, S. W. (2015), Creating a 
 topoclimatic daily air temperature dataset for the conterminous United States using homogenized 
-station data and remotely sensed land skin temperature. Int. J. Climatol. 35 (9): 2258–79. 
+station data and remotely sensed land skin temperature. Int. J. Climatol. 35 (9): 2258-79. 
 http://dx.doi.org/10.1002/joc.4127. 
 
 LICENSE
-This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
-International License (http://creativecommons.org/licenses/by-nc-sa/4.0/). 
+This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 
+International License (http://creativecommons.org/licenses/by-sa/4.0/). 
 
 OPEN SOURCE REPOSITORY
 An Open Source code repository for TopoWx is available on GitHub at https://github.com/jaredwo/topowx 
@@ -33,4 +33,11 @@ Software version: %s
 Data version: %s
 
 CONTACT
-Jared Oyler (jaredwo@gmail.com) 
+Jared Oyler (jaredwo@gmail.com)
+
+ACKNOWLEDGEMENTS
+This work was supported by the National Science Foundation through the Network for Sustainable
+Climate Risk Management (SCRiM) under NSF cooperative agreement GEO-1240507. Original TopoWx
+development supported by the National Science Foundation under EPSCoR Grant EPS-1101342, the US
+Geological Survey North Central Climate Science Center Grant G-0734-2 and the US Geological
+Survey Energy Resources Group Grant G11AC20487.
