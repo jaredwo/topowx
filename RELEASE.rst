@@ -1,3 +1,11 @@
+v1.3.0 (July 10, 2017)
+=============
+
+This release updates the TopoWx dataset through 2016. Highlights include:
+
+* Minor code maintenance and technical bug fixes
+* No algorithm or science changes with this release
+
 v1.2.0 (August 2, 2016)
 =============
 
