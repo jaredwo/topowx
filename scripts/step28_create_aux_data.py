@@ -25,7 +25,7 @@ if __name__ == '__main__':
                   twx_cfg.interp_start_date.year,
                   twx_cfg.interp_end_date.year,
                   twx_cfg.twx_data_version)
-    
+     
     create_aux_db(twx_cfg.fpath_stndata_nc_all,
                   twx_cfg.fpath_stndata_nc_infill_tmax,
                   twx_cfg.fpath_stndata_nc_serial_tmax,
@@ -35,18 +35,18 @@ if __name__ == '__main__':
                   twx_cfg.twx_data_version)
     
     # Write CSV file of PHA adjustments
-    stns = StationDataDb(twx_cfg.fpath_stndata_nc_all).stns
-    
+    stns = StationDataDb(twx_cfg.fpath_stndata_nc_tair_tobs_adj).stns
+     
     def build_pha_log_fpath(elem):
-        
+         
         fpath_adj_log = os.path.join(twx_cfg.path_homog_pha, elem, 'run', 'data',
                                      'benchmark', 'world1','output',
                                      'pha_adj_%s.log'%elem)
         return fpath_adj_log
-    
+     
     pha_adj_tmin = get_pha_adj_df(build_pha_log_fpath('tmin'), stns, 'tmin')
     pha_adj_tmax = get_pha_adj_df(build_pha_log_fpath('tmax'), stns, 'tmax')
-    
+     
     pha_adj = pd.concat([pha_adj_tmin.reset_index(),
                          pha_adj_tmax.reset_index()],
                         ignore_index=True)
@@ -55,6 +55,7 @@ if __name__ == '__main__':
     pha_adj.to_csv(twx_cfg.fpath_pha_adj_aux, index=False)
     
     # Update metadata attributes on auxiliary grids
+    # Auxiliary grids must be manually copied to this location first
     fpaths_grids = sorted(glob.glob(os.path.join(twx_cfg.path_aux_grids,
                                                  'topowx_grids_netcdf', '*.nc')))
     for fpath_grid in fpaths_grids:
@@ -68,18 +69,18 @@ if __name__ == '__main__':
         ds.close()
     
     # Write READMEs
-    create_main_readme(os.path.join(twx_cfg.path_final_output,'README.txt'),
+    create_main_readme(os.path.join(twx_cfg.path_final_output,'readme.txt'),
                        twx_cfg.interp_start_date.year,
                        twx_cfg.interp_end_date.year,
                        twx.__version__,
                        twx_cfg.twx_data_version)
     
-    create_stnobs_readme(os.path.join(twx_cfg.path_aux_stndata, 'README.txt'),
+    create_stnobs_readme(os.path.join(twx_cfg.path_aux_stndata, 'readme.txt'),
                          twx_cfg.interp_start_date.year,
                          twx_cfg.interp_end_date.year,
                          twx_cfg.fpath_stndata_nc_aux_tmin,
                          twx_cfg.fpath_stndata_nc_aux_tmax)
     
-    create_auxgrid_readme(os.path.join(twx_cfg.path_aux_grids, 'README.txt'),
+    create_auxgrid_readme(os.path.join(twx_cfg.path_aux_grids, 'readme.txt'),
                           fpaths_grids)
     
