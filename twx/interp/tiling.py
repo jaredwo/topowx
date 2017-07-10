@@ -670,8 +670,8 @@ class TileMosaic():
                                  "GHCN/USHCN Pairwise Homogenization "
                                  "Algorithm (http://www.ncdc.noaa.gov/oa/"
                                  "climate/research/ushcn/#phas).")
-            ds_mosaic.license = ('Creative Commons Attribution-NonCommercial-ShareAlike 4.0 '
-                                 'International License (http://creativecommons.org/licenses/by-nc-sa/4.0/)')
+            ds_mosaic.license = ('Creative Commons Attribution-ShareAlike 4.0 '
+                                 'International License (http://creativecommons.org/licenses/by-sa/4.0/)')
             ds_mosaic.Conventions = "CF-1.6"
             
             # Create dimensions
@@ -838,8 +838,8 @@ class TileMosaic():
                              "GHCN/USHCN Pairwise Homogenization "
                              "Algorithm (http://www.ncdc.noaa.gov/oa/"
                              "climate/research/ushcn/#phas).")
-        ds_mosaic.license = ('Creative Commons Attribution-NonCommercial-ShareAlike 4.0 '
-                             'International License (http://creativecommons.org/licenses/by-nc-sa/4.0/)')
+        ds_mosaic.license = ('Creative Commons Attribution-ShareAlike 4.0 '
+                             'International License (http://creativecommons.org/licenses/by-sa/4.0/)')
         ds_mosaic.Conventions = "CF-1.6"
         
         dim_lon = ds_mosaic.createDimension('lon', lon_mosaic.size)
@@ -1068,8 +1068,8 @@ def _create_ds_mthly(ds_dly, fpath_out_ds_mthly, yr, varname, ds_version_str):
                       "Algorithm (http://www.ncdc.noaa.gov/oa/"
                       "climate/research/ushcn/#phas).")
 
-    ds_out.license = ('Creative Commons Attribution-NonCommercial-ShareAlike 4.0 '
-                      'International License (http://creativecommons.org/licenses/by-nc-sa/4.0/)')    
+    ds_out.license = ('Creative Commons Attribution-ShareAlike 4.0 '
+                      'International License (http://creativecommons.org/licenses/by-sa/4.0/)')  
 
     ds_out.Conventions = "CF-1.6"
     
